@@ -1,0 +1,237 @@
+import { useLayoutEffect, useRef } from 'react'
+import type { Node, ReactFlowInstance } from '@xyflow/react'
+import type { NodeFrame, TaskRuntimeStatus, TerminalNodeData } from '../../../types'
+import { focusNodeInViewport } from '../helpers'
+
+export interface WorkspaceCanvasActionRefs {
+  clearNodeSelectionRef: React.MutableRefObject<() => void>
+  closeNodeRef: React.MutableRefObject<(nodeId: string) => Promise<void>>
+  resizeNodeRef: React.MutableRefObject<(nodeId: string, desiredFrame: NodeFrame) => void>
+  copyAgentLastMessageRef: React.MutableRefObject<(nodeId: string) => Promise<void>>
+  updateNoteTextRef: React.MutableRefObject<(nodeId: string, text: string) => void>
+  runTaskAgentRef: React.MutableRefObject<(nodeId: string) => Promise<void>>
+  resumeTaskAgentSessionRef: React.MutableRefObject<
+    (taskNodeId: string, recordId: string) => Promise<void>
+  >
+  removeTaskAgentSessionRecordRef: React.MutableRefObject<
+    (taskNodeId: string, recordId: string) => void
+  >
+  openTaskEditorRef: React.MutableRefObject<(nodeId: string) => void>
+  quickUpdateTaskTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
+  quickUpdateTaskRequirementRef: React.MutableRefObject<
+    (nodeId: string, requirement: string) => void
+  >
+  requestNodeDeleteRef: React.MutableRefObject<(nodeIds: string[]) => void>
+  updateTaskStatusRef: React.MutableRefObject<(nodeId: string, status: TaskRuntimeStatus) => void>
+  updateNodeScrollbackRef: React.MutableRefObject<(nodeId: string, scrollback: string) => void>
+  updateTerminalTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
+  renameTerminalTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalPersistenceModeRef: React.MutableRefObject<
+    (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => void
+  >
+  trackTerminalHostedAgentRef: React.MutableRefObject<(nodeId: string, command: string) => void>
+  setTerminalHostedAgentActiveStateRef: React.MutableRefObject<
+    (nodeId: string, active: boolean) => void
+  >
+  normalizeViewportForTerminalInteractionRef: React.MutableRefObject<(nodeId: string) => void>
+}
+
+export function useWorkspaceCanvasActionRefs(): WorkspaceCanvasActionRefs {
+  const clearNodeSelectionRef = useRef<() => void>(() => undefined)
+  const closeNodeRef = useRef<(nodeId: string) => Promise<void>>(
+    async (_nodeId: string) => undefined,
+  )
+  const resizeNodeRef = useRef<(nodeId: string, desiredFrame: NodeFrame) => void>(
+    (_nodeId: string, _desiredFrame: NodeFrame) => undefined,
+  )
+  const copyAgentLastMessageRef = useRef<(nodeId: string) => Promise<void>>(
+    async (_nodeId: string) => undefined,
+  )
+  const updateNoteTextRef = useRef<(nodeId: string, text: string) => void>(
+    (_nodeId: string, _text: string) => undefined,
+  )
+  const runTaskAgentRef = useRef<(nodeId: string) => Promise<void>>(
+    async (_nodeId: string) => undefined,
+  )
+  const resumeTaskAgentSessionRef = useRef<(taskNodeId: string, recordId: string) => Promise<void>>(
+    async (_taskNodeId: string, _recordId: string) => undefined,
+  )
+  const removeTaskAgentSessionRecordRef = useRef<(taskNodeId: string, recordId: string) => void>(
+    (_taskNodeId: string, _recordId: string) => undefined,
+  )
+  const openTaskEditorRef = useRef<(nodeId: string) => void>(() => undefined)
+  const quickUpdateTaskTitleRef = useRef<(nodeId: string, title: string) => void>(
+    (_nodeId: string, _title: string) => undefined,
+  )
+  const quickUpdateTaskRequirementRef = useRef<(nodeId: string, requirement: string) => void>(
+    (_nodeId: string, _requirement: string) => undefined,
+  )
+  const requestNodeDeleteRef = useRef<(nodeIds: string[]) => void>(() => undefined)
+  const updateTaskStatusRef = useRef<(nodeId: string, status: TaskRuntimeStatus) => void>(
+    (_nodeId: string, _status: TaskRuntimeStatus) => undefined,
+  )
+  const updateNodeScrollbackRef = useRef<(nodeId: string, scrollback: string) => void>(
+    (_nodeId: string, _scrollback: string) => undefined,
+  )
+  const updateTerminalTitleRef = useRef<(nodeId: string, title: string) => void>(
+    (_nodeId: string, _title: string) => undefined,
+  )
+  const renameTerminalTitleRef = useRef<(nodeId: string, title: string) => void>(
+    (_nodeId: string, _title: string) => undefined,
+  )
+  const setTerminalPersistenceModeRef = useRef<
+    (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => void
+  >((_nodeId: string, _persistenceMode: TerminalNodeData['persistenceMode']) => undefined)
+  const trackTerminalHostedAgentRef = useRef<(nodeId: string, command: string) => void>(
+    (_nodeId: string, _command: string) => undefined,
+  )
+  const setTerminalHostedAgentActiveStateRef = useRef<(nodeId: string, active: boolean) => void>(
+    (_nodeId: string, _active: boolean) => undefined,
+  )
+  const normalizeViewportForTerminalInteractionRef = useRef<(nodeId: string) => void>(
+    (_nodeId: string) => undefined,
+  )
+
+  return {
+    clearNodeSelectionRef,
+    closeNodeRef,
+    resizeNodeRef,
+    copyAgentLastMessageRef,
+    updateNoteTextRef,
+    runTaskAgentRef,
+    resumeTaskAgentSessionRef,
+    removeTaskAgentSessionRecordRef,
+    openTaskEditorRef,
+    quickUpdateTaskTitleRef,
+    quickUpdateTaskRequirementRef,
+    requestNodeDeleteRef,
+    updateTaskStatusRef,
+    updateNodeScrollbackRef,
+    updateTerminalTitleRef,
+    renameTerminalTitleRef,
+    setTerminalPersistenceModeRef,
+    trackTerminalHostedAgentRef,
+    setTerminalHostedAgentActiveStateRef,
+    normalizeViewportForTerminalInteractionRef,
+  }
+}
+
+interface SyncActionRefsParams {
+  actionRefs: WorkspaceCanvasActionRefs
+  clearNodeSelection: () => void
+  closeNode: (nodeId: string) => Promise<void>
+  resizeNode: (nodeId: string, desiredFrame: NodeFrame) => void
+  copyAgentLastMessage: (nodeId: string) => Promise<void>
+  updateNoteText: (nodeId: string, text: string) => void
+  updateNodeScrollback: (nodeId: string, scrollback: string) => void
+  updateTerminalTitle: (nodeId: string, title: string) => void
+  renameTerminalTitle: (nodeId: string, title: string) => void
+  setTerminalPersistenceMode: (
+    nodeId: string,
+    persistenceMode: TerminalNodeData['persistenceMode'],
+  ) => void
+  trackTerminalHostedAgent: (nodeId: string, command: string) => void
+  setTerminalHostedAgentActiveState: (nodeId: string, active: boolean) => void
+  focusNodeOnClick: boolean
+  focusNodeTargetZoom: number
+  nodesRef: React.MutableRefObject<Node<TerminalNodeData>[]>
+  reactFlow: ReactFlowInstance<Node<TerminalNodeData>>
+}
+
+export function useWorkspaceCanvasSyncActionRefs({
+  actionRefs,
+  clearNodeSelection,
+  closeNode,
+  resizeNode,
+  copyAgentLastMessage,
+  updateNoteText,
+  updateNodeScrollback,
+  updateTerminalTitle,
+  renameTerminalTitle,
+  setTerminalPersistenceMode,
+  trackTerminalHostedAgent,
+  setTerminalHostedAgentActiveState,
+  focusNodeOnClick,
+  focusNodeTargetZoom,
+  nodesRef,
+  reactFlow,
+}: SyncActionRefsParams): void {
+  useLayoutEffect(() => {
+    actionRefs.clearNodeSelectionRef.current = clearNodeSelection
+  }, [actionRefs.clearNodeSelectionRef, clearNodeSelection])
+
+  useLayoutEffect(() => {
+    actionRefs.closeNodeRef.current = closeNode
+  }, [actionRefs.closeNodeRef, closeNode])
+
+  useLayoutEffect(() => {
+    actionRefs.resizeNodeRef.current = resizeNode
+  }, [actionRefs.resizeNodeRef, resizeNode])
+
+  useLayoutEffect(() => {
+    actionRefs.copyAgentLastMessageRef.current = copyAgentLastMessage
+  }, [actionRefs.copyAgentLastMessageRef, copyAgentLastMessage])
+
+  useLayoutEffect(() => {
+    actionRefs.updateNoteTextRef.current = (nodeId, text) => {
+      updateNoteText(nodeId, text)
+    }
+  }, [actionRefs.updateNoteTextRef, updateNoteText])
+
+  useLayoutEffect(() => {
+    actionRefs.updateNodeScrollbackRef.current = (nodeId, scrollback) => {
+      updateNodeScrollback(nodeId, scrollback)
+    }
+  }, [actionRefs.updateNodeScrollbackRef, updateNodeScrollback])
+
+  useLayoutEffect(() => {
+    actionRefs.updateTerminalTitleRef.current = (nodeId, title) => {
+      updateTerminalTitle(nodeId, title)
+    }
+  }, [actionRefs.updateTerminalTitleRef, updateTerminalTitle])
+
+  useLayoutEffect(() => {
+    actionRefs.renameTerminalTitleRef.current = (nodeId, title) => {
+      renameTerminalTitle(nodeId, title)
+    }
+  }, [actionRefs.renameTerminalTitleRef, renameTerminalTitle])
+
+  useLayoutEffect(() => {
+    actionRefs.setTerminalPersistenceModeRef.current = (nodeId, persistenceMode) => {
+      setTerminalPersistenceMode(nodeId, persistenceMode)
+    }
+  }, [actionRefs.setTerminalPersistenceModeRef, setTerminalPersistenceMode])
+
+  useLayoutEffect(() => {
+    actionRefs.trackTerminalHostedAgentRef.current = (nodeId, command) => {
+      trackTerminalHostedAgent(nodeId, command)
+    }
+  }, [actionRefs.trackTerminalHostedAgentRef, trackTerminalHostedAgent])
+
+  useLayoutEffect(() => {
+    actionRefs.setTerminalHostedAgentActiveStateRef.current = (nodeId, active) => {
+      setTerminalHostedAgentActiveState(nodeId, active)
+    }
+  }, [actionRefs.setTerminalHostedAgentActiveStateRef, setTerminalHostedAgentActiveState])
+
+  useLayoutEffect(() => {
+    actionRefs.normalizeViewportForTerminalInteractionRef.current = (nodeId: string) => {
+      if (!focusNodeOnClick) {
+        return
+      }
+
+      const targetNode = nodesRef.current.find(node => node.id === nodeId)
+      if (!targetNode) {
+        return
+      }
+
+      focusNodeInViewport(reactFlow, targetNode, { duration: 120, zoom: focusNodeTargetZoom })
+    }
+  }, [
+    actionRefs.normalizeViewportForTerminalInteractionRef,
+    focusNodeOnClick,
+    focusNodeTargetZoom,
+    nodesRef,
+    reactFlow,
+  ])
+}

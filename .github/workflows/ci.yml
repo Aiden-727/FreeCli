@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Secret scan
+        run: pnpm secrets:scan
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm check
+
+      - name: Unit tests with coverage
+        run: pnpm test:coverage
+
+      - name: Build
+        run: pnpm build
+
+      - name: E2E tests
+        if: matrix.os == 'macos-latest'
+        env:
+          FREECLI_E2E_SKIP_BUILD: '1'
+          FREECLI_E2E_WINDOW_MODE: inactive
+        run: pnpm test:e2e
+
+      - name: E2E tests
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          FREECLI_E2E_SKIP_BUILD: '1'
+          FREECLI_E2E_WINDOW_MODE: inactive
+        run: xvfb-run -a pnpm test:e2e
+
+      - name: Upload coverage artifact
+        if: matrix.os == 'macos-latest' && always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7
+
+  platform-e2e-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Windows-specific E2E tests
+        env:
+          FREECLI_E2E_SKIP_BUILD: '1'
+          FREECLI_E2E_TEST_MATCH: '**/*.windows.spec.ts'
+          FREECLI_E2E_WINDOW_MODE: inactive
+        run: pnpm exec playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-windows-platform-e2e
+          path: test-results/
+          retention-days: 7

@@ -1,0 +1,329 @@
+import React from 'react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { WorkspaceSpaceRegionsOverlay } from '../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/view/WorkspaceSpaceRegionsOverlay'
+
+vi.mock('@xyflow/react', () => {
+  return {
+    ViewportPortal: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useReactFlow: () => ({
+      screenToFlowPosition: ({ x, y }: { x: number; y: number }) => ({ x, y }),
+      getZoom: () => 1,
+    }),
+    useStore: (selector: (state: unknown) => unknown) => selector({}),
+  }
+})
+
+describe('WorkspaceSpaceRegionsOverlay space actions', () => {
+  afterEach(() => {
+    delete (window as unknown as { freecliApi?: unknown }).freecliApi
+  })
+
+  it('opens the space action menu via the ... pill', () => {
+    const onOpenSpaceMenu = vi.fn()
+
+    render(
+      <WorkspaceSpaceRegionsOverlay
+        workspacePath="/tmp"
+        spaceVisuals={[
+          {
+            id: 'space-1',
+            name: 'Infra',
+            directoryPath: '/tmp',
+            rect: { x: 0, y: 0, width: 200, height: 160 },
+            hasExplicitRect: true,
+          },
+        ]}
+        selectedSpaceIds={[]}
+        spaceFramePreview={null}
+        handleSpaceDragHandlePointerDown={() => undefined}
+        editingSpaceId={null}
+        spaceRenameInputRef={{ current: null }}
+        spaceRenameDraft=""
+        setSpaceRenameDraft={() => undefined}
+        commitSpaceRename={() => undefined}
+        cancelSpaceRename={() => undefined}
+        startSpaceRename={() => undefined}
+        onOpenSpaceMenu={onOpenSpaceMenu}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('workspace-space-menu-space-1'))
+    expect(onOpenSpaceMenu).toHaveBeenCalledWith(
+      'space-1',
+      expect.objectContaining({
+        x: expect.any(Number),
+        y: expect.any(Number),
+      }),
+    )
+  })
+
+  it('shows only the branch badge when bound to a git worktree', async () => {
+    const listWorktrees = vi.fn(async () => {
+      return {
+        worktrees: [
+          {
+            path: '/tmp/repo/.freecli/worktrees/wt-infra',
+            head: '69a0358e3f7d88f1d8af8ff302d8b69bcd1b4d45',
+            branch: 'feat/infra-pill',
+          },
+        ],
+      }
+    })
+
+    Object.defineProperty(window, 'freecliApi', {
+      configurable: true,
+      writable: true,
+      value: {
+        worktree: {
+          listWorktrees,
+          renameBranch: vi.fn(async () => undefined),
+        },
+      },
+    })
+
+    render(
+      <WorkspaceSpaceRegionsOverlay
+        workspacePath="/tmp/repo"
+        spaceVisuals={[
+          {
+            id: 'space-1',
+            name: 'Infra',
+            directoryPath: '/tmp/repo/.freecli/worktrees/wt-infra',
+            rect: { x: 0, y: 0, width: 200, height: 160 },
+            hasExplicitRect: true,
+          },
+        ]}
+        selectedSpaceIds={[]}
+        spaceFramePreview={null}
+        handleSpaceDragHandlePointerDown={() => undefined}
+        editingSpaceId={null}
+        spaceRenameInputRef={{ current: null }}
+        spaceRenameDraft=""
+        setSpaceRenameDraft={() => undefined}
+        commitSpaceRename={() => undefined}
+        cancelSpaceRename={() => undefined}
+        startSpaceRename={() => undefined}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(listWorktrees).toHaveBeenCalledWith({ repoPath: '/tmp/repo' })
+    })
+
+    expect(screen.queryByTestId('workspace-space-label-space-1')).not.toBeInTheDocument()
+    expect(await screen.findByTestId('workspace-space-worktree-branch-space-1')).toHaveTextContent(
+      '分支',
+    )
+    expect(screen.getByTestId('workspace-space-worktree-branch-space-1')).toHaveTextContent(
+      'feat/infra-pill',
+    )
+  })
+
+  it('renames the bound branch after confirmation', async () => {
+    let branchName = 'feat/infra-pill'
+    const listWorktrees = vi.fn(async () => {
+      return {
+        worktrees: [
+          {
+            path: '/tmp/repo/.freecli/worktrees/wt-infra',
+            head: '69a0358e3f7d88f1d8af8ff302d8b69bcd1b4d45',
+            branch: branchName,
+          },
+        ],
+      }
+    })
+    const renameBranch = vi.fn(async ({ nextName }: { nextName: string }) => {
+      branchName = nextName
+    })
+
+    Object.defineProperty(window, 'freecliApi', {
+      configurable: true,
+      writable: true,
+      value: {
+        worktree: {
+          listWorktrees,
+          renameBranch,
+        },
+      },
+    })
+
+    render(
+      <WorkspaceSpaceRegionsOverlay
+        workspacePath="/tmp/repo"
+        spaceVisuals={[
+          {
+            id: 'space-1',
+            name: 'Infra',
+            directoryPath: '/tmp/repo/.freecli/worktrees/wt-infra',
+            rect: { x: 0, y: 0, width: 200, height: 160 },
+            hasExplicitRect: true,
+          },
+        ]}
+        selectedSpaceIds={[]}
+        spaceFramePreview={null}
+        handleSpaceDragHandlePointerDown={() => undefined}
+        editingSpaceId={null}
+        spaceRenameInputRef={{ current: null }}
+        spaceRenameDraft=""
+        setSpaceRenameDraft={() => undefined}
+        commitSpaceRename={() => undefined}
+        cancelSpaceRename={() => undefined}
+        startSpaceRename={() => undefined}
+      />,
+    )
+
+    fireEvent.click(await screen.findByTestId('workspace-space-worktree-branch-space-1'))
+    expect(await screen.findByTestId('workspace-space-branch-rename-dialog')).toBeVisible()
+
+    fireEvent.change(screen.getByTestId('workspace-space-branch-rename-input'), {
+      target: { value: 'feat/infra-next' },
+    })
+    fireEvent.click(screen.getByTestId('workspace-space-branch-rename-submit'))
+
+    await waitFor(() => {
+      expect(renameBranch).toHaveBeenCalledWith({
+        repoPath: '/tmp/repo',
+        worktreePath: '/tmp/repo/.freecli/worktrees/wt-infra',
+        currentName: 'feat/infra-pill',
+        nextName: 'feat/infra-next',
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-space-worktree-branch-space-1')).toHaveTextContent(
+        'feat/infra-next',
+      )
+    })
+  })
+
+  it('validates unsupported branch names before renaming', async () => {
+    const renameBranch = vi.fn(async () => undefined)
+
+    Object.defineProperty(window, 'freecliApi', {
+      configurable: true,
+      writable: true,
+      value: {
+        worktree: {
+          listWorktrees: vi.fn(async () => ({
+            worktrees: [
+              {
+                path: '/tmp/repo/.freecli/worktrees/wt-infra',
+                head: '69a0358e3f7d88f1d8af8ff302d8b69bcd1b4d45',
+                branch: 'feat/infra-pill',
+              },
+            ],
+          })),
+          renameBranch,
+        },
+      },
+    })
+
+    render(
+      <WorkspaceSpaceRegionsOverlay
+        workspacePath="/tmp/repo"
+        spaceVisuals={[
+          {
+            id: 'space-1',
+            name: 'Infra',
+            directoryPath: '/tmp/repo/.freecli/worktrees/wt-infra',
+            rect: { x: 0, y: 0, width: 200, height: 160 },
+            hasExplicitRect: true,
+          },
+        ]}
+        selectedSpaceIds={[]}
+        spaceFramePreview={null}
+        handleSpaceDragHandlePointerDown={() => undefined}
+        editingSpaceId={null}
+        spaceRenameInputRef={{ current: null }}
+        spaceRenameDraft=""
+        setSpaceRenameDraft={() => undefined}
+        commitSpaceRename={() => undefined}
+        cancelSpaceRename={() => undefined}
+        startSpaceRename={() => undefined}
+      />,
+    )
+
+    fireEvent.click(await screen.findByTestId('workspace-space-worktree-branch-space-1'))
+    fireEvent.change(screen.getByTestId('workspace-space-branch-rename-input'), {
+      target: { value: 'bad name' },
+    })
+    fireEvent.click(screen.getByTestId('workspace-space-branch-rename-submit'))
+
+    expect(await screen.findByText('分支名包含不支持的字符。')).toBeVisible()
+    expect(renameBranch).not.toHaveBeenCalled()
+  })
+
+  it('does not reselect the rename input while typing', async () => {
+    const selectSpy = vi
+      .spyOn(HTMLInputElement.prototype, 'select')
+      .mockImplementation(() => undefined)
+    const focusSpy = vi
+      .spyOn(HTMLInputElement.prototype, 'focus')
+      .mockImplementation(() => undefined)
+
+    try {
+      Object.defineProperty(window, 'freecliApi', {
+        configurable: true,
+        writable: true,
+        value: {
+          worktree: {
+            listWorktrees: vi.fn(async () => ({
+              worktrees: [
+                {
+                  path: '/tmp/repo/.freecli/worktrees/wt-infra',
+                  head: '69a0358e3f7d88f1d8af8ff302d8b69bcd1b4d45',
+                  branch: 'feat/infra-pill',
+                },
+              ],
+            })),
+            renameBranch: vi.fn(async () => undefined),
+          },
+        },
+      })
+
+      render(
+        <WorkspaceSpaceRegionsOverlay
+          workspacePath="/tmp/repo"
+          spaceVisuals={[
+            {
+              id: 'space-1',
+              name: 'Infra',
+              directoryPath: '/tmp/repo/.freecli/worktrees/wt-infra',
+              rect: { x: 0, y: 0, width: 200, height: 160 },
+              hasExplicitRect: true,
+            },
+          ]}
+          selectedSpaceIds={[]}
+          spaceFramePreview={null}
+          handleSpaceDragHandlePointerDown={() => undefined}
+          editingSpaceId={null}
+          spaceRenameInputRef={{ current: null }}
+          spaceRenameDraft=""
+          setSpaceRenameDraft={() => undefined}
+          commitSpaceRename={() => undefined}
+          cancelSpaceRename={() => undefined}
+          startSpaceRename={() => undefined}
+        />,
+      )
+
+      fireEvent.click(await screen.findByTestId('workspace-space-worktree-branch-space-1'))
+      expect(await screen.findByTestId('workspace-space-branch-rename-dialog')).toBeVisible()
+
+      await waitFor(() => {
+        expect(focusSpy).toHaveBeenCalledTimes(1)
+        expect(selectSpy).toHaveBeenCalledTimes(1)
+      })
+
+      const input = screen.getByTestId('workspace-space-branch-rename-input')
+      fireEvent.change(input, { target: { value: 'f' } })
+
+      await waitFor(() => {
+        expect(selectSpy).toHaveBeenCalledTimes(1)
+      })
+    } finally {
+      focusSpy.mockRestore()
+      selectSpy.mockRestore()
+    }
+  })
+})

@@ -1,0 +1,75 @@
+name: 🐛 Bug Report
+description: Create a report to help us improve OpenCove
+title: '[BUG] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! 
+        Please provide as much info as possible to help us reproduce the issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 📝 Summary
+      description: What is the bug? Please provide a clear and concise description.
+      placeholder: A brief summary of the issue...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 👣 Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Launch OpenCove
+        2. Go to '...'
+        3. Click on '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: ✅ Expected Behavior
+      description: What did you expect to happen?
+      placeholder: I expected the terminal to resize smoothly...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: ❌ Actual Behavior
+      description: What actually happened?
+      placeholder: The terminal window flickered and turned blank...
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: 💻 Platform
+      description: e.g. macOS 14.2 / Windows 11 / Ubuntu 22.04
+      placeholder: macOS 14.2 (Sonoma)
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: 📦 Versions
+      description: Your environment details
+      placeholder: Node.js v22.0.0, pnpm v9.0.0, OpenCove v0.1.0-alpha
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 📷 Logs / Screenshots
+      description: Please attach screenshots or paste relevant logs here.
+      placeholder: Drag and drop images here or paste logs...

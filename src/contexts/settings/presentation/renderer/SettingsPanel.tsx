@@ -1,0 +1,513 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@app/renderer/i18n'
+import { useTerminalProfiles } from '@app/renderer/shell/hooks/useTerminalProfiles'
+import { AI_NAMING_FEATURES } from '@shared/featureFlags/aiNaming'
+import {
+  AGENT_PROVIDERS,
+  type GraphicsMode,
+  resolveTaskTitleProvider,
+  type AgentProvider,
+  type AgentSettings,
+  type CanvasInputMode,
+  type FocusNodeTargetZoom,
+  type StandardWindowSizeBucket,
+  type TaskTitleProvider,
+  type UiLanguage,
+  type UiTheme,
+} from '@contexts/settings/domain/agentSettings'
+import type { AppUpdateState } from '@shared/contracts/dto'
+import { AgentSection } from './settingsPanel/AgentSection'
+import { CanvasSection } from './settingsPanel/CanvasSection'
+import { GeneralSection } from './settingsPanel/GeneralSection'
+import { IntegrationsSection } from './settingsPanel/IntegrationsSection'
+import { ModelOverrideSection } from './settingsPanel/ModelOverrideSection'
+import { NotificationsSection } from './settingsPanel/NotificationsSection'
+import { SettingsPanelNavButton } from './settingsPanel/SettingsPanelNavButton'
+import { ShortcutsSection } from './settingsPanel/ShortcutsSection'
+import { TaskConfigurationSection } from './settingsPanel/TaskConfigurationSection'
+import { WorkspaceSection } from './settingsPanel/WorkspaceSection'
+import type { WorkspaceState } from '@contexts/workspace/presentation/renderer/types'
+
+interface ProviderModelCatalogEntry {
+  models: string[]
+  source: string | null
+  fetchedAt: string | null
+  isLoading: boolean
+  error: string | null
+}
+
+interface SettingsPanelProps {
+  settings: AgentSettings
+  appliedGraphicsMode: GraphicsMode
+  updateState: AppUpdateState | null
+  isRestartingApp?: boolean
+  modelCatalogByProvider: Record<AgentProvider, ProviderModelCatalogEntry>
+  workspaces: WorkspaceState[]
+  onWorkspaceWorktreesRootChange: (workspaceId: string, worktreesRoot: string) => void
+  isFocusNodeTargetZoomPreviewing: boolean
+  onFocusNodeTargetZoomPreviewChange: (isPreviewing: boolean) => void
+  initialPageId?: SettingsPageId
+  onChange: (settings: AgentSettings) => void
+  onCheckForUpdates: () => void
+  onDownloadUpdate: () => void
+  onInstallUpdate: () => void
+  onRestartApp: () => void
+  onClose: () => void
+}
+
+type CorePageId =
+  | 'general'
+  | 'agent'
+  | 'notifications'
+  | 'canvas'
+  | 'shortcuts'
+  | 'task-configuration'
+  | 'integrations'
+type WorkspacePageId = `workspace:${string}`
+type SettingsPageId = CorePageId | WorkspacePageId
+
+function getWorkspacePageId(workspaceId: string): WorkspacePageId {
+  return `workspace:${workspaceId}`
+}
+
+function isWorkspacePageId(pageId: SettingsPageId): pageId is WorkspacePageId {
+  return pageId.startsWith('workspace:')
+}
+
+function createInitialInputState(): Record<AgentProvider, string> {
+  return AGENT_PROVIDERS.reduce<Record<AgentProvider, string>>(
+    (acc, provider) => {
+      acc[provider] = ''
+      return acc
+    },
+    {} as Record<AgentProvider, string>,
+  )
+}
+
+function getFolderName(path: string): string {
+  const parts = path.split(/[/]/).filter(Boolean)
+  return parts[parts.length - 1] || path
+}
+
+export function SettingsPanel({
+  settings,
+  appliedGraphicsMode,
+  updateState,
+  isRestartingApp = false,
+  modelCatalogByProvider,
+  workspaces,
+  onWorkspaceWorktreesRootChange,
+  isFocusNodeTargetZoomPreviewing,
+  onFocusNodeTargetZoomPreviewChange,
+  initialPageId = 'general',
+  onChange,
+  onCheckForUpdates,
+  onDownloadUpdate,
+  onInstallUpdate,
+  onRestartApp,
+  onClose,
+}: SettingsPanelProps): React.JSX.Element {
+  const { t } = useTranslation()
+  const { terminalProfiles, detectedDefaultTerminalProfileId } = useTerminalProfiles()
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const [addModelInputByProvider, setAddModelInputByProvider] = useState<
+    Record<AgentProvider, string>
+  >(() => createInitialInputState())
+  const [activePageId, setActivePageId] = useState<SettingsPageId>(initialPageId)
+  const [addTaskTagInput, setAddTaskTagInput] = useState('')
+
+  const updateDefaultProvider = (provider: AgentProvider): void =>
+    onChange({ ...settings, defaultProvider: provider })
+  const updateAgentProviderOrder = (providers: AgentProvider[]): void =>
+    onChange({ ...settings, agentProviderOrder: providers })
+  const updateLanguage = (language: UiLanguage): void => onChange({ ...settings, language })
+  const updateUiTheme = (uiTheme: UiTheme): void => onChange({ ...settings, uiTheme })
+  const updateGraphicsMode = (graphicsMode: GraphicsMode): void =>
+    onChange({ ...settings, graphicsMode })
+  const updateAgentFullAccess = (enabled: boolean): void =>
+    onChange({ ...settings, agentFullAccess: enabled })
+  const updateDefaultTerminalProfileId = (profileId: string | null): void =>
+    onChange({ ...settings, defaultTerminalProfileId: profileId })
+  const updateTaskTitleProvider = (provider: TaskTitleProvider): void =>
+    onChange({ ...settings, taskTitleProvider: provider })
+  const updateTaskTitleModel = (model: string): void =>
+    onChange({ ...settings, taskTitleModel: model })
+  const updateFocusNodeOnClick = (enabled: boolean): void =>
+    onChange({ ...settings, focusNodeOnClick: enabled })
+  const updateFocusNodeTargetZoom = (zoom: FocusNodeTargetZoom): void =>
+    onChange({ ...settings, focusNodeTargetZoom: zoom })
+  const updateStandbyBannerEnabled = (enabled: boolean): void =>
+    onChange({ ...settings, standbyBannerEnabled: enabled })
+  const updateStandbyBannerShowTask = (enabled: boolean): void =>
+    onChange({ ...settings, standbyBannerShowTask: enabled })
+  const updateStandbyBannerShowSpace = (enabled: boolean): void =>
+    onChange({ ...settings, standbyBannerShowSpace: enabled })
+  const updateStandbyBannerShowBranch = (enabled: boolean): void =>
+    onChange({ ...settings, standbyBannerShowBranch: enabled })
+  const updateStandbyBannerShowPullRequest = (enabled: boolean): void =>
+    onChange({ ...settings, standbyBannerShowPullRequest: enabled })
+  const updateCanvasInputMode = (mode: CanvasInputMode): void =>
+    onChange({ ...settings, canvasInputMode: mode })
+  const updateStandardWindowSizeBucket = (bucket: StandardWindowSizeBucket): void =>
+    onChange({ ...settings, standardWindowSizeBucket: bucket })
+  const updateTerminalFontSize = (fontSize: number): void =>
+    onChange({ ...settings, terminalFontSize: Math.round(fontSize) })
+  const updateUiFontSize = (fontSize: number): void =>
+    onChange({ ...settings, uiFontSize: fontSize })
+  const updateUpdatePolicy = (policy: AgentSettings['updatePolicy']): void => {
+    const normalized = settings.updateChannel === 'nightly' && policy === 'auto' ? 'prompt' : policy
+    onChange({ ...settings, updatePolicy: normalized })
+  }
+
+  const updateUpdateChannel = (channel: AgentSettings['updateChannel']): void => {
+    const normalizedPolicy =
+      channel === 'nightly' && settings.updatePolicy === 'auto' ? 'prompt' : settings.updatePolicy
+    onChange({ ...settings, updateChannel: channel, updatePolicy: normalizedPolicy })
+  }
+  const updateTaskTagOptions = (nextTags: string[]): void =>
+    onChange({ ...settings, taskTagOptions: nextTags })
+  const updateDisableAppShortcutsWhenTerminalFocused = (enabled: boolean): void =>
+    onChange({ ...settings, disableAppShortcutsWhenTerminalFocused: enabled })
+  const updateKeybindings = (keybindings: AgentSettings['keybindings']): void =>
+    onChange({ ...settings, keybindings })
+  const updateGitHubPullRequestsEnabled = (enabled: boolean): void =>
+    onChange({ ...settings, githubPullRequestsEnabled: enabled })
+
+  const removeTaskTagOption = (tag: string): void => {
+    const nextTags = settings.taskTagOptions.filter(option => option !== tag)
+    if (nextTags.length > 0) {
+      updateTaskTagOptions(nextTags)
+    }
+  }
+
+  const addTaskTagOption = (): void => {
+    const candidate = addTaskTagInput.trim()
+    if (candidate.length === 0) {
+      return
+    }
+
+    const nextTags = settings.taskTagOptions.includes(candidate)
+      ? settings.taskTagOptions
+      : [...settings.taskTagOptions, candidate]
+    updateTaskTagOptions(nextTags)
+    setAddTaskTagInput('')
+  }
+
+  const updateProviderCustomModelEnabled = (provider: AgentProvider, enabled: boolean): void => {
+    onChange({
+      ...settings,
+      customModelEnabledByProvider: {
+        ...settings.customModelEnabledByProvider,
+        [provider]: enabled,
+      },
+    })
+  }
+
+  const selectProviderModel = (provider: AgentProvider, model: string): void => {
+    onChange({
+      ...settings,
+      customModelEnabledByProvider: { ...settings.customModelEnabledByProvider, [provider]: true },
+      customModelByProvider: { ...settings.customModelByProvider, [provider]: model },
+    })
+  }
+
+  const removeCustomModelOption = (provider: AgentProvider, model: string): void => {
+    const currentOptions = settings.customModelOptionsByProvider[provider]
+    if (!currentOptions.includes(model)) {
+      return
+    }
+
+    const nextOptions = currentOptions.filter(option => option !== model)
+    onChange({
+      ...settings,
+      customModelByProvider: {
+        ...settings.customModelByProvider,
+        [provider]:
+          settings.customModelByProvider[provider] === model
+            ? ''
+            : settings.customModelByProvider[provider],
+      },
+      customModelOptionsByProvider: {
+        ...settings.customModelOptionsByProvider,
+        [provider]: nextOptions,
+      },
+    })
+  }
+
+  const updateAddModelInput = (provider: AgentProvider, value: string): void =>
+    setAddModelInputByProvider(prev => ({ ...prev, [provider]: value }))
+
+  const addCustomModelOption = (provider: AgentProvider): void => {
+    const candidate = addModelInputByProvider[provider].trim()
+    if (candidate.length === 0) {
+      return
+    }
+
+    const existingOptions = settings.customModelOptionsByProvider[provider]
+    const nextOptions = existingOptions.includes(candidate)
+      ? existingOptions
+      : [...existingOptions, candidate]
+    onChange({
+      ...settings,
+      customModelEnabledByProvider: { ...settings.customModelEnabledByProvider, [provider]: true },
+      customModelByProvider: { ...settings.customModelByProvider, [provider]: candidate },
+      customModelOptionsByProvider: {
+        ...settings.customModelOptionsByProvider,
+        [provider]: nextOptions,
+      },
+    })
+    setAddModelInputByProvider(prev => ({ ...prev, [provider]: '' }))
+  }
+
+  const effectiveTaskTitleProvider = useMemo(() => resolveTaskTitleProvider(settings), [settings])
+
+  const activeWorkspace = useMemo(() => {
+    if (!isWorkspacePageId(activePageId)) {
+      return null
+    }
+
+    const workspaceId = activePageId.slice('workspace:'.length)
+    return workspaces.find(workspace => workspace.id === workspaceId) ?? null
+  }, [activePageId, workspaces])
+
+  useEffect(() => {
+    if (isWorkspacePageId(activePageId) && !activeWorkspace) {
+      setActivePageId('general')
+    }
+  }, [activePageId, activeWorkspace])
+
+  useEffect(() => {
+    if (!contentRef.current) {
+      return
+    }
+
+    contentRef.current.scrollTop = 0
+  }, [activePageId])
+
+  useEffect(() => {
+    setActivePageId(initialPageId)
+  }, [initialPageId])
+
+  useEffect(() => {
+    if (activePageId !== 'general') {
+      onFocusNodeTargetZoomPreviewChange(false)
+    }
+  }, [activePageId, onFocusNodeTargetZoomPreviewChange])
+
+  return (
+    <div
+      className={`settings-backdrop${isFocusNodeTargetZoomPreviewing ? ' settings-backdrop--preview' : ''}`}
+      onClick={onClose}
+    >
+      <section
+        className={`settings-panel${isFocusNodeTargetZoomPreviewing ? ' settings-panel--preview' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        <aside
+          className="settings-panel__sidebar"
+          aria-label={t('settingsPanel.nav.sectionsLabel')}
+        >
+          <SettingsPanelNavButton
+            isActive={activePageId === 'general'}
+            label={t('settingsPanel.nav.general')}
+            testId="settings-section-nav-general"
+            onClick={() => setActivePageId('general')}
+          />
+          <SettingsPanelNavButton
+            isActive={activePageId === 'agent'}
+            label={t('settingsPanel.nav.agent')}
+            testId="settings-section-nav-agent"
+            onClick={() => setActivePageId('agent')}
+          />
+          <SettingsPanelNavButton
+            isActive={activePageId === 'notifications'}
+            label={t('settingsPanel.nav.notifications')}
+            testId="settings-section-nav-notifications"
+            onClick={() => setActivePageId('notifications')}
+          />
+          <SettingsPanelNavButton
+            isActive={activePageId === 'canvas'}
+            label={t('settingsPanel.nav.canvas')}
+            testId="settings-section-nav-canvas"
+            onClick={() => setActivePageId('canvas')}
+          />
+          <SettingsPanelNavButton
+            isActive={activePageId === 'shortcuts'}
+            label={t('settingsPanel.nav.shortcuts')}
+            testId="settings-section-nav-shortcuts"
+            onClick={() => setActivePageId('shortcuts')}
+          />
+          <SettingsPanelNavButton
+            isActive={activePageId === 'task-configuration'}
+            label={t('settingsPanel.nav.tasks')}
+            testId="settings-section-nav-task-configuration"
+            onClick={() => setActivePageId('task-configuration')}
+          />
+          <SettingsPanelNavButton
+            isActive={activePageId === 'integrations'}
+            label={t('settingsPanel.nav.integrations')}
+            testId="settings-section-nav-integrations"
+            onClick={() => setActivePageId('integrations')}
+          />
+
+          <div className="settings-panel__nav-group-label">{t('settingsPanel.nav.projects')}</div>
+          <div className="settings-panel__nav-group">
+            {workspaces.map(workspace => (
+              <SettingsPanelNavButton
+                key={workspace.id}
+                isActive={activePageId === getWorkspacePageId(workspace.id)}
+                label={
+                  workspace.name.trim().length > 0 ? workspace.name : getFolderName(workspace.path)
+                }
+                onClick={() => setActivePageId(getWorkspacePageId(workspace.id))}
+              />
+            ))}
+          </div>
+        </aside>
+
+        <div className="settings-panel__content-wrapper">
+          <div className="settings-panel__header">
+            <h2>{t('settingsPanel.title')}</h2>
+            <button type="button" className="settings-panel__close" onClick={onClose}>
+              ×
+            </button>
+          </div>
+          <div className="settings-panel__content" ref={contentRef}>
+            {activePageId === 'general' ? (
+              <GeneralSection
+                language={settings.language}
+                uiTheme={settings.uiTheme}
+                graphicsMode={settings.graphicsMode}
+                appliedGraphicsMode={appliedGraphicsMode}
+                uiFontSize={settings.uiFontSize}
+                terminalFontSize={settings.terminalFontSize}
+                focusNodeOnClick={settings.focusNodeOnClick}
+                focusNodeTargetZoom={settings.focusNodeTargetZoom}
+                updatePolicy={settings.updatePolicy}
+                updateChannel={settings.updateChannel}
+                updateState={updateState}
+                isRestartingApp={isRestartingApp}
+                onChangeLanguage={updateLanguage}
+                onChangeUiTheme={updateUiTheme}
+                onChangeGraphicsMode={updateGraphicsMode}
+                onChangeUiFontSize={updateUiFontSize}
+                onChangeTerminalFontSize={updateTerminalFontSize}
+                onChangeFocusNodeTargetZoom={updateFocusNodeTargetZoom}
+                onFocusNodeTargetZoomPreviewChange={onFocusNodeTargetZoomPreviewChange}
+                onChangeUpdatePolicy={updateUpdatePolicy}
+                onChangeUpdateChannel={updateUpdateChannel}
+                onCheckForUpdates={onCheckForUpdates}
+                onDownloadUpdate={onDownloadUpdate}
+                onInstallUpdate={onInstallUpdate}
+                onRestartApp={onRestartApp}
+              />
+            ) : null}
+
+            {activePageId === 'agent' ? (
+              <>
+                <AgentSection
+                  defaultProvider={settings.defaultProvider}
+                  agentProviderOrder={settings.agentProviderOrder}
+                  agentFullAccess={settings.agentFullAccess}
+                  onChangeDefaultProvider={updateDefaultProvider}
+                  onChangeAgentProviderOrder={updateAgentProviderOrder}
+                  onChangeAgentFullAccess={updateAgentFullAccess}
+                />
+                <ModelOverrideSection
+                  settings={settings}
+                  modelCatalogByProvider={modelCatalogByProvider}
+                  addModelInputByProvider={addModelInputByProvider}
+                  onToggleCustomModelEnabled={updateProviderCustomModelEnabled}
+                  onSelectProviderModel={selectProviderModel}
+                  onRemoveCustomModelOption={removeCustomModelOption}
+                  onChangeAddModelInput={updateAddModelInput}
+                  onAddCustomModelOption={addCustomModelOption}
+                />
+              </>
+            ) : null}
+
+            {activePageId === 'notifications' ? (
+              <NotificationsSection
+                standbyBannerEnabled={settings.standbyBannerEnabled}
+                standbyBannerShowTask={settings.standbyBannerShowTask}
+                standbyBannerShowSpace={settings.standbyBannerShowSpace}
+                standbyBannerShowBranch={settings.standbyBannerShowBranch}
+                standbyBannerShowPullRequest={settings.standbyBannerShowPullRequest}
+                githubPullRequestsEnabled={settings.githubPullRequestsEnabled}
+                onChangeStandbyBannerEnabled={updateStandbyBannerEnabled}
+                onChangeStandbyBannerShowTask={updateStandbyBannerShowTask}
+                onChangeStandbyBannerShowSpace={updateStandbyBannerShowSpace}
+                onChangeStandbyBannerShowBranch={updateStandbyBannerShowBranch}
+                onChangeStandbyBannerShowPullRequest={updateStandbyBannerShowPullRequest}
+              />
+            ) : null}
+
+            {activePageId === 'integrations' ? (
+              <IntegrationsSection
+                githubPullRequestsEnabled={settings.githubPullRequestsEnabled}
+                onChangeGitHubPullRequestsEnabled={updateGitHubPullRequestsEnabled}
+              />
+            ) : null}
+
+            {activePageId === 'canvas' ? (
+              <CanvasSection
+                canvasInputMode={settings.canvasInputMode}
+                standardWindowSizeBucket={settings.standardWindowSizeBucket}
+                focusNodeOnClick={settings.focusNodeOnClick}
+                defaultTerminalProfileId={settings.defaultTerminalProfileId}
+                terminalProfiles={terminalProfiles}
+                detectedDefaultTerminalProfileId={detectedDefaultTerminalProfileId}
+                onChangeCanvasInputMode={updateCanvasInputMode}
+                onChangeStandardWindowSizeBucket={updateStandardWindowSizeBucket}
+                onChangeDefaultTerminalProfileId={updateDefaultTerminalProfileId}
+                onChangeFocusNodeOnClick={updateFocusNodeOnClick}
+              />
+            ) : null}
+
+            {activePageId === 'shortcuts' ? (
+              <ShortcutsSection
+                disableAppShortcutsWhenTerminalFocused={
+                  settings.disableAppShortcutsWhenTerminalFocused
+                }
+                keybindings={settings.keybindings}
+                onChangeDisableAppShortcutsWhenTerminalFocused={
+                  updateDisableAppShortcutsWhenTerminalFocused
+                }
+                onChangeKeybindings={updateKeybindings}
+              />
+            ) : null}
+
+            {activePageId === 'task-configuration' ? (
+              <TaskConfigurationSection
+                showTaskTitleGeneration={AI_NAMING_FEATURES.taskTitleGeneration}
+                defaultProvider={settings.defaultProvider}
+                taskTitleProvider={settings.taskTitleProvider}
+                taskTitleModel={settings.taskTitleModel}
+                effectiveTaskTitleProvider={effectiveTaskTitleProvider}
+                tags={settings.taskTagOptions}
+                addTaskTagInput={addTaskTagInput}
+                onChangeTaskTitleProvider={updateTaskTitleProvider}
+                onChangeTaskTitleModel={updateTaskTitleModel}
+                onChangeAddTaskTagInput={setAddTaskTagInput}
+                onAddTag={addTaskTagOption}
+                onRemoveTag={removeTaskTagOption}
+              />
+            ) : null}
+
+            {isWorkspacePageId(activePageId) && activeWorkspace ? (
+              <WorkspaceSection
+                sectionId={`settings-section-workspace-${activeWorkspace.id}`}
+                workspaceName={activeWorkspace.name}
+                workspacePath={activeWorkspace.path}
+                worktreesRoot={activeWorkspace.worktreesRoot}
+                onChangeWorktreesRoot={root =>
+                  onWorkspaceWorktreesRootChange(activeWorkspace.id, root)
+                }
+              />
+            ) : null}
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}

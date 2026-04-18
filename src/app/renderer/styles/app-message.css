@@ -1,0 +1,58 @@
+.app-message {
+  --app-message-border: var(--cove-border);
+  --app-message-background: var(--cove-surface-strong);
+  --app-message-label: var(--cove-text-muted);
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--app-message-border);
+  border-radius: 12px;
+  background: var(--app-message-background);
+  color: var(--cove-text);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 14px 34px var(--cove-shadow-color-elevated);
+  pointer-events: none;
+}
+
+.app-message--info {
+  --app-message-border: rgba(94, 156, 255, 0.38);
+  --app-message-background:
+    radial-gradient(circle at top right, rgba(94, 156, 255, 0.12), transparent 45%),
+    var(--cove-surface-strong);
+  --app-message-label: rgba(94, 156, 255, 0.92);
+}
+
+.app-message--warning {
+  --app-message-border: rgba(255, 196, 107, 0.34);
+  --app-message-background:
+    radial-gradient(circle at top right, rgba(255, 196, 107, 0.16), transparent 50%),
+    var(--cove-surface-strong);
+  --app-message-label: rgba(255, 196, 107, 0.92);
+}
+
+.app-message--error {
+  --app-message-border: rgba(255, 125, 125, 0.36);
+  --app-message-background:
+    radial-gradient(circle at top right, rgba(255, 125, 125, 0.16), transparent 50%),
+    var(--cove-surface-strong);
+  --app-message-label: rgba(255, 125, 125, 0.92);
+}
+
+.app-message__label {
+  color: var(--app-message-label);
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-message__text {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  line-height: 1.4;
+}

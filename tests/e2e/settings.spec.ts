@@ -1,0 +1,351 @@
+import { expect, test } from '@playwright/test'
+import { launchApp, selectCoveOption } from './workspace-canvas.helpers'
+
+test.describe('Settings', () => {
+  test('persists agent provider and list-based custom model options', async ({
+    browserName,
+  }, testInfo) => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      void browserName
+      const resetResult = await window.evaluate(async () => {
+        return await window.freecliApi.persistence.writeWorkspaceStateRaw({
+          raw: JSON.stringify({
+            formatVersion: 1,
+            activeWorkspaceId: null,
+            workspaces: [],
+            settings: {
+              standardWindowSizeBucket: 'regular',
+            },
+          }),
+        })
+      })
+
+      if (!resetResult.ok) {
+        throw new Error(
+          `Failed to reset workspace state: ${resetResult.reason}: ${resetResult.error.code}${
+            resetResult.error.debugMessage ? `: ${resetResult.error.debugMessage}` : ''
+          }`,
+        )
+      }
+      await window.reload({ waitUntil: 'domcontentloaded' })
+
+      const settingsButton = window.locator('[data-testid="app-header-settings"]')
+      await expect(settingsButton).toBeVisible()
+      await settingsButton.click({ noWaitAfter: true })
+
+      const generalNav = window.locator('[data-testid="settings-section-nav-general"]')
+      const agentNav = window.locator('[data-testid="settings-section-nav-agent"]')
+      const canvasNav = window.locator('[data-testid="settings-section-nav-canvas"]')
+      const taskConfigurationNav = window.locator(
+        '[data-testid="settings-section-nav-task-configuration"]',
+      )
+      await expect(generalNav).toBeVisible()
+      await expect(agentNav).toBeVisible()
+      await expect(canvasNav).toBeVisible()
+      await expect(taskConfigurationNav).toBeVisible()
+
+      const languageSelect = window.locator('[data-testid="settings-language"]')
+      const languageTrigger = window.locator('[data-testid="settings-language-trigger"]')
+      await expect(languageTrigger).toBeVisible()
+      await expect(languageSelect).toHaveValue('zh-CN')
+      await expect(window.locator('.settings-panel__header h2')).toHaveText('设置')
+      await selectCoveOption(window, 'settings-language', 'zh-CN')
+      await expect(languageSelect).toHaveValue('zh-CN')
+      await expect(window.locator('.settings-panel__header h2')).toHaveText('设置')
+
+      const uiThemeSelect = window.locator('[data-testid="settings-ui-theme"]')
+      const uiThemeTrigger = window.locator('[data-testid="settings-ui-theme-trigger"]')
+      await expect(uiThemeTrigger).toBeVisible()
+      await expect(uiThemeSelect).toHaveValue('system')
+      await selectCoveOption(window, 'settings-ui-theme', 'light')
+      await expect(uiThemeSelect).toHaveValue('light')
+      await expect
+        .poll(() =>
+          window.evaluate(() => {
+            return document.documentElement.dataset.coveTheme ?? null
+          }),
+        )
+        .toBe('light')
+
+      const graphicsModeSelect = window.locator('[data-testid="settings-graphics-mode"]')
+      const graphicsModeTrigger = window.locator('[data-testid="settings-graphics-mode-trigger"]')
+      await expect(graphicsModeTrigger).toBeVisible()
+      await expect(graphicsModeSelect).toHaveValue('system-default')
+      await selectCoveOption(window, 'settings-graphics-mode', 'power-saving')
+      await expect(graphicsModeSelect).toHaveValue('power-saving')
+      await expect(window.locator('[data-testid="settings-graphics-restart-notice"]')).toBeVisible()
+
+      const uiFontSize = window.locator('[data-testid="settings-ui-font-size"]')
+      await expect(uiFontSize).toBeVisible()
+      await uiFontSize.fill('20')
+
+      const terminalFontSize = window.locator('[data-testid="settings-terminal-font-size"]')
+      await expect(terminalFontSize).toBeVisible()
+      await terminalFontSize.fill('15')
+
+      const focusTargetZoom = window.locator('[data-testid="settings-focus-node-target-zoom"]')
+      await expect(focusTargetZoom).toBeVisible()
+      const sliderBox = await focusTargetZoom.boundingBox()
+      if (!sliderBox) {
+        throw new Error('focus target zoom slider bounding box unavailable')
+      }
+
+      await window.mouse.move(
+        sliderBox.x + sliderBox.width * 0.6,
+        sliderBox.y + sliderBox.height / 2,
+      )
+      await window.mouse.down()
+      await expect(window.locator('.settings-backdrop')).toHaveClass(/settings-backdrop--preview/)
+      await expect(window.locator('.settings-panel')).toHaveClass(/settings-panel--preview/)
+      await expect(window.locator('.settings-panel__sidebar')).toBeHidden()
+      await expect(window.locator('.settings-panel__header')).toBeHidden()
+      await expect(
+        window.locator('.settings-panel__row--focus-target-zoom .settings-panel__row-label'),
+      ).toBeHidden()
+
+      await window.mouse.up()
+      await expect(window.locator('.settings-backdrop')).not.toHaveClass(
+        /settings-backdrop--preview/,
+      )
+      await expect(window.locator('.settings-panel')).not.toHaveClass(/settings-panel--preview/)
+      await expect(window.locator('.settings-panel__sidebar')).toBeVisible()
+      await expect(window.locator('.settings-panel__header')).toBeVisible()
+      await expect(
+        window.locator('.settings-panel__row--focus-target-zoom .settings-panel__row-label'),
+      ).toBeVisible()
+
+      await focusTargetZoom.evaluate((element, value) => {
+        const input = element as HTMLInputElement
+        const next = String(value)
+        const prototype = Object.getPrototypeOf(input)
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value')
+        const setter = descriptor?.set
+        if (setter) {
+          setter.call(input, next)
+        } else {
+          input.value = next
+        }
+
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }, 1.37)
+      await expect(focusTargetZoom).toHaveValue('1.37')
+
+      const updatePolicy = window.locator('[data-testid="settings-update-policy"]')
+      const updatePolicyTrigger = window.locator('[data-testid="settings-update-policy-trigger"]')
+      await expect(updatePolicyTrigger).toBeVisible()
+      await expect(updatePolicy).toHaveValue('prompt')
+      await selectCoveOption(window, 'settings-update-policy', 'auto')
+      await expect(updatePolicy).toHaveValue('auto')
+
+      const updateChannel = window.locator('[data-testid="settings-update-channel"]')
+      const updateChannelTrigger = window.locator('[data-testid="settings-update-channel-trigger"]')
+      await expect(updateChannelTrigger).toBeVisible()
+      await expect(updateChannel).toHaveValue('stable')
+      await selectCoveOption(window, 'settings-update-channel', 'nightly')
+      await expect(updateChannel).toHaveValue('nightly')
+      await expect(updatePolicy).toHaveValue('prompt')
+
+      await canvasNav.click()
+      const canvasInputMode = window.locator('[data-testid="settings-canvas-input-mode"]')
+      const canvasInputModeTrigger = window.locator(
+        '[data-testid="settings-canvas-input-mode-trigger"]',
+      )
+      await expect(canvasInputModeTrigger).toBeVisible()
+      await expect(canvasInputMode).toHaveValue('auto')
+      await selectCoveOption(window, 'settings-canvas-input-mode', 'trackpad')
+      await expect(canvasInputMode).toHaveValue('trackpad')
+
+      const standardWindowSize = window.locator('[data-testid="settings-standard-window-size"]')
+      const standardWindowSizeTrigger = window.locator(
+        '[data-testid="settings-standard-window-size-trigger"]',
+      )
+      await expect(standardWindowSizeTrigger).toBeVisible()
+      await expect(standardWindowSize).toHaveValue('regular')
+      await selectCoveOption(window, 'settings-standard-window-size', 'large')
+      await expect(standardWindowSize).toHaveValue('large')
+
+      const focusToggle = window.locator('[data-testid="settings-focus-node-on-click"]')
+      await expect(focusToggle).toBeVisible()
+      await focusToggle.uncheck()
+
+      await agentNav.click()
+      const defaultProvider = window.locator('[data-testid="settings-default-provider"]')
+      const defaultProviderTrigger = window.locator(
+        '[data-testid="settings-default-provider-trigger"]',
+      )
+      await expect(defaultProviderTrigger).toBeVisible()
+      await selectCoveOption(window, 'settings-default-provider', 'codex')
+      await expect(defaultProvider).toHaveValue('codex')
+
+      const customModelEnabled = window.locator(
+        '[data-testid="settings-custom-model-enabled-codex"]',
+      )
+      await customModelEnabled.check()
+
+      const addInput = window.locator('[data-testid="settings-custom-model-add-input-codex"]')
+      await addInput.fill('gpt-5.2-codex')
+
+      const addButton = window.locator('[data-testid="settings-custom-model-add-button-codex"]')
+      await addButton.click()
+
+      await expect(window.locator('[data-testid="settings-model-list-codex"]')).toContainText(
+        'gpt-5.2-codex',
+      )
+
+      const modelOverrideSection = window.locator('#settings-section-model-override')
+      await expect(modelOverrideSection).toBeVisible()
+      await modelOverrideSection.scrollIntoViewIfNeeded()
+
+      const providerTitle = modelOverrideSection
+        .locator('.settings-provider-card__title')
+        .filter({ hasText: 'Codex' })
+        .first()
+      await expect(providerTitle).toBeVisible()
+
+      const providerTitleColor = await providerTitle.evaluate(element => {
+        return window.getComputedStyle(element).color
+      })
+
+      const rgbMatch = providerTitleColor.match(
+        /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+)\s*)?\)/,
+      )
+      if (!rgbMatch) {
+        throw new Error(`Unable to parse provider title color: ${providerTitleColor}`)
+      }
+
+      const providerTitleRgb = {
+        r: Number.parseInt(rgbMatch[1], 10),
+        g: Number.parseInt(rgbMatch[2], 10),
+        b: Number.parseInt(rgbMatch[3], 10),
+      }
+
+      expect(providerTitleRgb.r).toBeLessThan(120)
+      expect(providerTitleRgb.g).toBeLessThan(120)
+      expect(providerTitleRgb.b).toBeLessThan(120)
+
+      const screenshotPath = testInfo.outputPath('settings-custom-model-light.png')
+      await window.screenshot({ path: screenshotPath })
+      await testInfo.attach('settings-custom-model-light', {
+        path: screenshotPath,
+        contentType: 'image/png',
+      })
+
+      await taskConfigurationNav.click()
+
+      const addTaskTagInput = window.locator('[data-testid="settings-task-tag-add-input"]')
+      await addTaskTagInput.fill('ops')
+      await window.locator('[data-testid="settings-task-tag-add-button"]').click()
+      await expect(window.locator('[data-testid="settings-task-tag-list"]')).toContainText('ops')
+
+      await window.locator('[data-testid="settings-task-tag-remove-feature"]').click()
+      await expect(window.locator('[data-testid="settings-task-tag-list"]')).not.toContainText(
+        'feature',
+      )
+
+      await expect(window.locator('#settings-section-task-title')).toHaveCount(0)
+
+      await window.locator('.settings-panel__close').click()
+      await expect(window.locator('.workspace-sidebar__agent-provider')).toHaveText('Codex')
+      await expect(window.locator('.workspace-sidebar__agent-model')).toHaveText('gpt-5.2-codex')
+
+      const readPersistedSettings = async () =>
+        await window.evaluate(async () => {
+          const raw = await window.freecliApi.persistence.readWorkspaceStateRaw()
+          if (!raw) {
+            return null
+          }
+
+          try {
+            const parsed = JSON.parse(raw) as {
+              settings?: {
+                language?: string
+                defaultProvider?: string
+                customModelEnabledByProvider?: {
+                  codex?: boolean
+                }
+                customModelByProvider?: {
+                  codex?: string
+                }
+                customModelOptionsByProvider?: {
+                  codex?: string[]
+                }
+                taskTagOptions?: string[]
+                focusNodeOnClick?: boolean
+                focusNodeTargetZoom?: number
+                graphicsMode?: string
+                canvasInputMode?: string
+                standardWindowSizeBucket?: string
+                uiTheme?: string
+                terminalFontSize?: number
+                uiFontSize?: number
+                updatePolicy?: string
+                updateChannel?: string
+              }
+            }
+            return parsed.settings ?? null
+          } catch {
+            return null
+          }
+        })
+
+      await expect.poll(readPersistedSettings).toEqual(
+        expect.objectContaining({
+          language: 'zh-CN',
+          defaultProvider: 'codex',
+          focusNodeOnClick: false,
+          focusNodeTargetZoom: 1.37,
+          graphicsMode: 'power-saving',
+          canvasInputMode: 'trackpad',
+          standardWindowSizeBucket: 'large',
+          uiTheme: 'light',
+          terminalFontSize: 15,
+          uiFontSize: 20,
+          updatePolicy: 'prompt',
+          updateChannel: 'nightly',
+        }),
+      )
+
+      await expect(window.locator('[data-testid="app-header-settings"]')).toHaveAttribute(
+        'aria-label',
+        '设置',
+      )
+      await window.reload({ waitUntil: 'domcontentloaded' })
+      await expect(window.locator('[data-testid="app-header-settings"]')).toHaveAttribute(
+        'aria-label',
+        '设置',
+      )
+      await expect(
+        window.evaluate(() => {
+          return document.documentElement.dataset.coveTheme
+        }),
+      ).resolves.toBe('light')
+      await expect(window.locator('.workspace-sidebar__agent-provider')).toHaveText('Codex')
+      await expect(window.locator('.workspace-sidebar__agent-model')).toHaveText('gpt-5.2-codex')
+
+      const persistedSettings = await readPersistedSettings()
+
+      expect(persistedSettings?.language).toBe('zh-CN')
+      expect(persistedSettings?.defaultProvider).toBe('codex')
+      expect(persistedSettings?.uiTheme).toBe('light')
+      expect(persistedSettings?.customModelEnabledByProvider?.codex).toBe(true)
+      expect(persistedSettings?.customModelByProvider?.codex).toBe('gpt-5.2-codex')
+      expect(persistedSettings?.customModelOptionsByProvider?.codex).toContain('gpt-5.2-codex')
+      expect(persistedSettings?.taskTagOptions).toContain('ops')
+      expect(persistedSettings?.taskTagOptions).not.toContain('feature')
+      expect(persistedSettings?.focusNodeOnClick).toBe(false)
+      expect(persistedSettings?.focusNodeTargetZoom).toBe(1.37)
+      expect(persistedSettings?.graphicsMode).toBe('power-saving')
+      expect(persistedSettings?.canvasInputMode).toBe('trackpad')
+      expect(persistedSettings?.standardWindowSizeBucket).toBe('large')
+      expect(persistedSettings?.terminalFontSize).toBe(15)
+      expect(persistedSettings?.uiFontSize).toBe(20)
+      expect(persistedSettings?.updatePolicy).toBe('prompt')
+      expect(persistedSettings?.updateChannel).toBe('nightly')
+    } finally {
+      await electronApp.close()
+    }
+  })
+})

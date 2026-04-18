@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">FreeCli Logo</title>
+  <desc id="desc">A rounded terminal window with a mint command prompt.</desc>
+  <defs>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#122342" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect x="96" y="128" width="832" height="768" rx="112" fill="#1B2D52" filter="url(#shadow)"/>
+  <rect x="160" y="192" width="704" height="640" rx="28" fill="#FFFFFF"/>
+
+  <path
+    d="M280 344 460 440 280 536V462L384 440 280 418Z"
+    fill="#20D8A4"
+  />
+  <rect x="496" y="412" width="156" height="52" rx="12" fill="#20D8A4"/>
+</svg>

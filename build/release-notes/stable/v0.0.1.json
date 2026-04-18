@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "version": "0.0.1",
+  "channel": "stable",
+  "publishedAt": "2026-04-04T00:00:00.000Z",
+  "provenance": "curated",
+  "defaultLocale": "en",
+  "compareUrl": "https://github.com/Aiden-727/freecli/releases/tag/v0.0.1",
+  "locales": {
+    "en": {
+      "summary": "FreeCli 0.0.1 establishes the initial branded release with updated app identity, refreshed logo assets, and a more practical Windows packaging flow.",
+      "items": [
+        {
+          "kind": "added",
+          "summary": "Introduced the FreeCli brand identity and refreshed application logo assets.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "Added platform packaging icons for Windows and macOS, including ico and icns outputs.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "Updated Windows installer behavior to allow choosing the installation directory.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "Resolved packaged Windows startup failure caused by a missing runtime dependency in the updater chain.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        }
+      ]
+    },
+    "zh-CN": {
+      "summary": "FreeCli 0.0.1 完成首个品牌化版本，统一应用身份、更新 Logo 资产，并补齐更适合本地使用的 Windows 打包流程。",
+      "items": [
+        {
+          "kind": "added",
+          "summary": "引入 FreeCli 品牌标识，并更新应用 Logo 相关资源。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "补齐 Windows 与 macOS 打包图标资产，包括 ico 与 icns 格式。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "调整 Windows 安装器行为，安装时支持手动选择安装目录。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "修复 Windows 安装包因更新链路缺少运行时依赖而导致的启动失败问题。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        }
+      ]
+    }
+  }
+}

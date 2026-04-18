@@ -1,0 +1,76 @@
+.note-node {
+  border-radius: 14px;
+  border: 1px solid var(--cove-node-border);
+  background: var(--cove-node-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px var(--cove-node-shadow-color);
+  position: relative;
+}
+
+.note-node__header {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  background: var(--cove-node-header-surface);
+  border-bottom: 1px solid var(--cove-node-header-border);
+  cursor: grab;
+}
+
+.note-node__header:active {
+  cursor: grabbing;
+}
+
+.note-node__title {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  color: var(--cove-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-node__close {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--cove-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.16s ease;
+  font-size: calc(18px * var(--cove-ui-font-scale));
+  line-height: 1;
+}
+
+.note-node__close:hover {
+  color: var(--cove-text);
+}
+
+.note-node__close:focus-visible {
+  outline: 2px solid rgba(153, 223, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.note-node__textarea {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 10px;
+  background: transparent;
+  color: var(--cove-text);
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.45;
+  font-family: inherit;
+}

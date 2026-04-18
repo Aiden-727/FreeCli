@@ -1,0 +1,131 @@
+# Dependencies
+node_modules
+.pnpm-store/
+package-lock.json
+
+# Build output
+out
+dist
+build-resources/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage
+
+# Electron-builder output
+release
+
+docs/design
+
+# ==========================================
+# Security: Sensitive files
+# ==========================================
+
+# Environment files
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*.local
+!.env.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.csr
+
+# Credentials and secrets
+credentials.json
+secrets.json
+*.secret
+*-secret.json
+*-secrets.json
+service-account*.json
+google-credentials.json
+*.envrc
+*.ovpn
+*.kdbx
+*.tfvars
+terraform.tfstate
+terraform.tfstate.*
+
+# API keys
+api-keys.json
+apikeys.json
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_dsa
+id_dsa.pub
+*.ppk
+
+# AWS
+.aws/
+aws-credentials
+aws-config
+
+# GCP
+.gcloud/
+gcp-credentials.json
+application_default_credentials.json
+
+# Azure
+.azure/
+azure-credentials.json
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Token files
+.tokens
+*.token
+token.json
+*.npmrc
+*.pnpmrc
+
+# Keychain/Keystore
+*.keystore
+*.jks
+
+# Test results
+test-results/
+playwright-report/
+artifacts/
+tmp/
+
+# Other
+.cove/
+.opencove
+.freecli/
+docs/Microsoft/
+Microsoft/

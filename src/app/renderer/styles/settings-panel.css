@@ -1,0 +1,452 @@
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--cove-backdrop);
+  backdrop-filter: blur(16px);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  transition:
+    background 180ms ease,
+    backdrop-filter 180ms ease;
+}
+
+.settings-panel {
+  width: min(980px, calc(100vw - 48px));
+  height: min(760px, calc(100vh - 48px));
+  background: var(--cove-settings-panel-background);
+  border: 1px solid var(--cove-border-subtle);
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  overflow: hidden;
+  box-shadow: 0 40px 100px var(--cove-shadow-color-panel);
+  transition:
+    background 180ms ease,
+    backdrop-filter 180ms ease,
+    opacity 180ms ease,
+    border-color 180ms ease;
+}
+
+/* --- Sidebar --- */
+.settings-panel__sidebar {
+  background: var(--cove-settings-sidebar-background);
+  border-right: 1px solid var(--cove-border-subtle);
+  padding: 28px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+  transition:
+    background 180ms ease,
+    backdrop-filter 180ms ease;
+}
+
+.settings-panel__nav-button {
+  all: unset;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.settings-panel__nav-button:hover {
+  color: var(--cove-text);
+  background: var(--cove-surface-hover);
+}
+
+.settings-panel__nav-button--active {
+  color: var(--cove-text);
+  background: rgba(94, 156, 255, 0.12);
+  font-weight: 500;
+}
+
+.settings-panel__nav-button--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: #5e9cff;
+  border-radius: 0 2px 2px 0;
+}
+
+.settings-panel__nav-group-label {
+  margin-top: 20px;
+  padding: 0 14px;
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  color: var(--cove-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-panel__nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* --- Content Layout --- */
+.settings-panel__content-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.settings-panel__header {
+  padding: 26px 32px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--cove-border-subtle);
+}
+
+.settings-panel__header h2 {
+  font-size: calc(16px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--cove-text);
+}
+
+.settings-panel__close {
+  all: unset;
+  color: var(--cove-text-faint);
+  cursor: pointer;
+  font-size: calc(20px * var(--cove-ui-font-scale));
+  transition: color 0.2s;
+}
+
+.settings-panel__close:hover {
+  color: var(--cove-text);
+}
+
+.settings-panel__content {
+  padding: 0 32px 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.settings-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px 0;
+  border-top: 1px solid var(--cove-border-subtle);
+}
+
+.settings-panel__content > .settings-panel__section:first-child {
+  border-top: none;
+}
+
+/* --- Typography --- */
+.settings-panel__section-title {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5e9cff;
+  margin: 0;
+}
+
+/* --- Setting Rows --- */
+.settings-panel__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.settings-panel__row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-panel__row-label strong {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  font-weight: 500;
+  color: var(--cove-text);
+}
+
+.settings-panel__row-label span {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+  line-height: 1.4;
+}
+
+/* --- Controls --- */
+.settings-panel__control {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: min(100%, 360px);
+}
+
+.settings-panel__control--stack {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-panel__range {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.settings-panel__range-value {
+  width: 62px;
+  text-align: right;
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+}
+
+.settings-panel__value {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+}
+
+.settings-panel__path-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(100%, 360px);
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--cove-border-subtle);
+  background: var(--cove-field);
+  color: var(--cove-text);
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-panel__subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.settings-panel__subsection-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-panel__subsection-header strong {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  font-weight: 500;
+  color: var(--cove-text);
+}
+
+.settings-panel__subsection-header span {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.4;
+  color: var(--cove-text-muted);
+}
+
+.settings-panel__input-row {
+  display: flex;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+
+.settings-panel__input-row input {
+  flex: 1;
+}
+
+/* --- Toggle Switch --- */
+.cove-toggle {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+}
+
+.cove-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cove-toggle__slider {
+  position: absolute;
+  inset: 0;
+  background-color: var(--cove-border);
+  transition: 0.2s;
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+.cove-toggle__slider:before {
+  position: absolute;
+  content: '';
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--cove-text-muted);
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.cove-toggle input:checked + .cove-toggle__slider {
+  background-color: #5e9cff;
+}
+
+.cove-toggle input:checked + .cove-toggle__slider:before {
+  transform: translateX(14px);
+  background-color: #fff;
+}
+
+/* --- Vertical Section Layout --- */
+.settings-panel__section--vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-panel__section--vertical .settings-panel__row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border-bottom: none;
+  padding: 0;
+}
+
+/* Override for toggle rows that should stay horizontal */
+.settings-panel__section--vertical .settings-panel__row--horizontal {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.settings-panel__section--vertical .settings-panel__row--horizontal .settings-panel__control {
+  justify-content: flex-end;
+  width: auto;
+}
+
+.settings-panel input[type='range'] {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: 28px;
+  --cove-range-track-bg: color-mix(in srgb, var(--cove-border) 70%, transparent);
+}
+
+.settings-panel input[type='range']:focus {
+  box-shadow: none;
+}
+
+.settings-panel input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cove-range-track-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cove-border-subtle) 60%, transparent);
+}
+
+.settings-panel__range--neutral-marker input[type='range']::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--cove-range-track-bg) 0%,
+    var(--cove-range-track-bg) calc(var(--settings-panel-range-neutral-ratio, 0.5) * 100%),
+    var(--cove-text-faint) calc(var(--settings-panel-range-neutral-ratio, 0.5) * 100%),
+    var(--cove-text-faint) calc(var(--settings-panel-range-neutral-ratio, 0.5) * 100% + 2px),
+    var(--cove-range-track-bg) calc(var(--settings-panel-range-neutral-ratio, 0.5) * 100% + 2px),
+    var(--cove-range-track-bg) 100%
+  );
+}
+
+.settings-panel input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cove-accent) 92%, #fff);
+  border: 1px solid color-mix(in srgb, var(--cove-accent) 60%, transparent);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.22),
+    0 0 0 2px color-mix(in srgb, var(--cove-surface) 75%, transparent);
+  margin-top: -6px;
+}
+
+.settings-panel input[type='range']:focus-visible {
+  outline: none;
+}
+
+.settings-panel input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.22),
+    0 0 0 3px color-mix(in srgb, var(--cove-accent) 35%, transparent);
+}
+
+.settings-panel input[type='range']:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-panel input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #5e9cff;
+}
+
+.settings-panel .cove-select,
+.settings-panel input:not([type='checkbox']) {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .settings-panel__row {
+    grid-template-columns: minmax(0, 220px) minmax(220px, 360px);
+    justify-content: space-between;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-panel {
+    width: min(100vw - 24px, 980px);
+    height: min(100vh - 24px, 760px);
+    grid-template-columns: 1fr;
+  }
+
+  .settings-panel__sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--cove-border-subtle);
+    padding: 20px 12px 14px;
+    overflow-x: auto;
+  }
+
+  .settings-panel__nav-group-label {
+    margin-top: 12px;
+  }
+
+  .settings-panel__content {
+    padding: 0 20px 24px;
+  }
+
+  .settings-panel__header {
+    padding: 20px 20px 16px;
+  }
+
+  .settings-panel__control,
+  .settings-panel__path-chip,
+  .settings-panel__input-row {
+    width: 100%;
+    max-width: none;
+  }
+}

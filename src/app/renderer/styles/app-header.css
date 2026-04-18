@@ -1,0 +1,570 @@
+.app-header {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--cove-border-subtle);
+  background: transparent;
+  backdrop-filter: blur(20px) saturate(130%);
+  height: var(--cove-app-header-height);
+  -webkit-app-region: drag;
+}
+
+.app-header--mac {
+  padding-left: calc(10px + 72px);
+}
+
+.app-header--windows {
+  /* env(titlebar-area-width) = 可用标题栏宽度（全宽 - 控制按钮宽度）
+   * 控制按钮宽度 = 100vw - env(titlebar-area-width)，标准 Windows 约 138px */
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - 138px)) + 10px);
+}
+
+.app-header__section {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.app-header__section--left {
+  min-width: 0;
+}
+
+.app-header__section--right {
+  margin-left: auto;
+}
+
+.app-header__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.app-header__center > * {
+  pointer-events: auto;
+}
+
+.app-header__command-center {
+  max-width: min(520px, 100%);
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--cove-border-subtle);
+  border-radius: 999px;
+  background: var(--cove-field);
+  color: var(--cove-text-muted);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.app-header__command-center:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--cove-border);
+  color: var(--cove-text);
+}
+
+.app-header__command-center--open,
+.app-header__command-center:active {
+  background: rgba(94, 156, 255, 0.1);
+  border-color: rgba(94, 156, 255, 0.35);
+  transform: translateY(1px);
+}
+
+.app-header__command-center:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.app-header__command-center-icon {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.app-header__brand-mark {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 2px 6px rgba(27, 45, 82, 0.18));
+}
+
+.app-header__command-center-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  letter-spacing: 0.15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  text-align: left;
+}
+
+.app-header__command-center-keycap {
+  flex: 0 0 auto;
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  padding: 2px 6px;
+  border-radius: 7px;
+  border: 1px solid var(--cove-border-subtle);
+  background: var(--cove-surface-hover);
+  color: var(--cove-text-faint);
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header__command-center-chevron {
+  flex: 0 0 auto;
+  opacity: 0.65;
+  transition: transform 0.15s ease;
+}
+
+.app-header__command-center--open .app-header__command-center-chevron {
+  transform: rotate(180deg);
+}
+
+.app-header__icon-button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--cove-text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  appearance: none;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.app-header__icon-button--active {
+  background: rgba(94, 156, 255, 0.12);
+  color: var(--cove-text);
+}
+
+.app-header__update-button {
+  min-width: 0;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(94, 156, 255, 0.28);
+  background: rgba(94, 156, 255, 0.14);
+  color: var(--cove-text);
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.app-header__update-button:hover {
+  background: rgba(94, 156, 255, 0.2);
+  border-color: rgba(94, 156, 255, 0.42);
+}
+
+.app-header__update-button:active {
+  transform: translateY(1px);
+}
+
+.app-header__update-button:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.app-header__update-button--disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.app-header__update-button span {
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-header__system-monitor-button {
+  min-width: 0;
+  max-width: min(420px, 34vw);
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--cove-text);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.app-header__system-monitor-button:hover {
+  color: color-mix(in srgb, var(--cove-text) 82%, var(--cove-accent) 18%);
+}
+
+.app-header__system-monitor-button:active {
+  transform: translateY(1px);
+}
+
+.app-header__system-monitor-button:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.app-header__system-monitor-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-header__system-monitor-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.app-header__system-monitor-item--speed {
+  gap: 5px;
+}
+
+.app-header__system-monitor-item--percent {
+  gap: 4px;
+}
+
+.app-header__system-monitor-item--speed .app-header__system-monitor-label {
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  transform: translateY(0.5px);
+}
+
+.app-header__system-monitor-item--speed .app-header__system-monitor-label svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+
+.app-header__system-monitor-item--speed .app-header__system-monitor-value {
+  width: 7.5ch;
+}
+
+.app-header__system-monitor-item--percent .app-header__system-monitor-label {
+  width: 2.8em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-header__system-monitor-item--percent .app-header__system-monitor-value {
+  width: 4ch;
+}
+
+.app-header__system-monitor-item + .app-header__system-monitor-item {
+  position: relative;
+  padding-left: 8px;
+}
+
+.app-header__system-monitor-item + .app-header__system-monitor-item::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  font-size: calc(10px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  line-height: 1;
+  color: color-mix(in srgb, var(--cove-text-muted) 78%, var(--cove-text) 22%);
+  transform: translateY(-56%);
+}
+
+.app-header__system-monitor-label {
+  flex: 0 0 auto;
+  font-size: calc(10px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--cove-text-muted) 70%, var(--cove-text) 30%);
+}
+
+.app-header__system-monitor-value {
+  min-width: 0;
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--cove-text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+.app-header__update-icon--spinning {
+  animation: app-header-update-spin 1.2s linear infinite;
+}
+
+.app-header__quota-button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--cove-text);
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.app-header__quota-button:hover {
+  background: color-mix(in srgb, var(--cove-surface-hover) 72%, transparent);
+}
+
+.app-header__quota-button:active {
+  transform: translateY(1px);
+}
+
+.app-header__quota-button:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.app-header__oss-sync-button {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--cove-text-muted);
+  appearance: none;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.app-header__oss-sync-button:hover {
+  background: var(--cove-surface-hover);
+}
+
+.app-header__oss-sync-button:active {
+  transform: translateY(1px);
+}
+
+.app-header__oss-sync-button:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.app-header__oss-sync-button--success {
+  color: color-mix(in srgb, var(--cove-text) 82%, var(--cove-accent) 18%);
+}
+
+.app-header__oss-sync-button--error {
+  color: color-mix(in srgb, var(--cove-text) 76%, #f87171 24%);
+}
+
+.app-header__oss-sync-button--syncing {
+  color: color-mix(in srgb, var(--cove-text) 72%, #60a5fa 28%);
+}
+
+.app-header__oss-sync-button:hover.app-header__oss-sync-button--success {
+  color: color-mix(in srgb, var(--cove-text) 68%, var(--cove-accent) 32%);
+}
+
+.app-header__oss-sync-button:hover.app-header__oss-sync-button--error {
+  color: color-mix(in srgb, var(--cove-text) 64%, #f87171 36%);
+}
+
+.app-header__oss-sync-button:hover.app-header__oss-sync-button--syncing {
+  color: color-mix(in srgb, var(--cove-text) 58%, #60a5fa 42%);
+}
+
+.app-header__oss-sync-cloud {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.app-header__oss-sync-badge {
+  position: absolute;
+  inset: auto -1px 1px auto;
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  color: var(--cove-surface);
+  pointer-events: none;
+}
+
+.app-header__oss-sync-badge svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+  overflow: visible;
+}
+
+.app-header__oss-sync-badge--success {
+  color: #16a34a;
+}
+
+.app-header__oss-sync-badge--error {
+  color: #dc2626;
+}
+
+.app-header__oss-sync-badge--syncing {
+  color: #2563eb;
+  animation: app-header-oss-sync-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes app-header-oss-sync-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.88);
+    opacity: 0.82;
+  }
+}
+
+.app-header__quota-ring {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-header__quota-ring svg {
+  width: 32px;
+  height: 32px;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.app-header__quota-ring-track,
+.app-header__quota-ring-fill {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.app-header__quota-ring-track {
+  display: none;
+}
+
+.app-header__quota-ring-fill {
+  transition: stroke-dashoffset 0.18s ease;
+}
+
+.app-header__quota-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(8.5px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--cove-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header__icon-button:hover {
+  background: var(--cove-surface-hover);
+  color: var(--cove-text);
+}
+
+.app-header__icon-button:active {
+  background: var(--cove-field);
+  transform: translateY(1px);
+}
+
+.app-header__icon-button:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1120px) {
+  .app-header__system-monitor-button {
+    max-width: min(320px, 28vw);
+  }
+
+  .app-header__system-monitor-strip {
+    gap: 8px;
+  }
+
+  .app-header__system-monitor-item:nth-child(n + 4) {
+    display: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .app-header__system-monitor-button {
+    max-width: min(220px, 22vw);
+  }
+
+  .app-header__system-monitor-item:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+@keyframes app-header-update-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

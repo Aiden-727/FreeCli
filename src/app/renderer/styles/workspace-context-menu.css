@@ -1,0 +1,37 @@
+.workspace-context-menu__chevron {
+  margin-left: auto;
+}
+
+.workspace-context-menu__mark {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cove-text-muted);
+  opacity: 0.75;
+}
+
+.workspace-context-menu__section-title {
+  padding: 6px 10px 2px;
+  font-size: calc(10px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-context-menu--submenu {
+  z-index: 11;
+  min-width: 240px;
+  overflow: auto;
+}
+
+.workspace-project-context-menu {
+  z-index: 12;
+  min-width: 188px;
+}
+
+.workspace-project-context-menu--submenu {
+  z-index: 13;
+}
