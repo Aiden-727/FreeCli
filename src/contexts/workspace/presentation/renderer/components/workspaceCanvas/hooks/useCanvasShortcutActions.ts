@@ -44,6 +44,7 @@ export function useWorkspaceCanvasShortcutActions({
     | 'disableAppShortcutsWhenTerminalFocused'
     | 'keybindings'
     | 'standardWindowSizeBucket'
+    | 'terminalCredentials'
   >
   workspacePath: string
   canvasRef: React.RefObject<HTMLDivElement | null>
@@ -114,6 +115,7 @@ export function useWorkspaceCanvasShortcutActions({
     await createTerminalNodeAtFlowPosition({
       anchor,
       defaultTerminalProfileId: agentSettings.defaultTerminalProfileId,
+      terminalCredentials: agentSettings.terminalCredentials,
       standardWindowSizeBucket: agentSettings.standardWindowSizeBucket,
       workspacePath,
       spacesRef,
@@ -125,6 +127,7 @@ export function useWorkspaceCanvasShortcutActions({
   }, [
     agentSettings.defaultTerminalProfileId,
     agentSettings.standardWindowSizeBucket,
+    agentSettings.terminalCredentials,
     cancelSpaceRename,
     canvasRef,
     createNodeForSession,

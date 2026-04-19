@@ -48,7 +48,7 @@ FreeCli 把“工作空间本身”做成了界面：
 
 预编译安装包发布在 [GitHub Releases](https://github.com/Aiden-727/FreeCli/releases)。
 
-当前版本仍处于早期阶段，公开产物可能包含 prerelease 或 nightly 版本。
+当前版本仍处于早期阶段，公开产物可能包含稳定版或测试版。
 
 ### macOS 说明
 
@@ -86,8 +86,9 @@ pnpm build:linux
 
 ## 发布规则
 
-- Stable 版本使用 `v0.0.1` 这种 tag
-- Nightly 版本使用 `v0.0.2-nightly.20260418.1` 这种 tag
+- 稳定版使用 `v0.0.1` 这种 tag
+- 测试版使用 `v0.0.2-nightly.20260418.1` 这种 tag
+- 测试版内部继续沿用 `nightly` tag 后缀与更新元数据，以兼容现有发布链路
 - 推送 `v*` tag 后会自动触发 GitHub Release 工作流
 
 ## 技术栈

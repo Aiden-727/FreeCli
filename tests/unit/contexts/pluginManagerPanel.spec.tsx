@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   GitWorklogStateDto,
@@ -123,6 +123,8 @@ function installGitWorklogApiMock(overrides: Partial<GitWorklogStateDto> = {}) {
       dailyPoints: [],
     },
     repos: [],
+    autoCandidates: [],
+    availableWorkspaces: [],
     lastError: null,
     ...overrides,
   }
@@ -142,6 +144,10 @@ function installGitWorklogApiMock(overrides: Partial<GitWorklogStateDto> = {}) {
         gitWorklog: {
           getState: vi.fn().mockResolvedValue(state),
           refresh: vi.fn().mockResolvedValue(state),
+          resolveRepository: vi.fn().mockImplementation(async ({ path }: { path: string }) => ({
+            path,
+            label: path.split(/[\\/]/).filter(Boolean).at(-1) ?? path,
+          })),
           onState: vi.fn().mockImplementation(() => () => undefined),
         },
       },
@@ -619,8 +625,27 @@ describe('PluginManagerPanel', () => {
     expect(ossApi.restore).not.toHaveBeenCalled()
   })
 
-  it('resets imported workspace state from the git worklog settings page', async () => {
-    installGitWorklogApiMock()
+  it('confirms auto-discovered candidates into managed repositories', async () => {
+    installGitWorklogApiMock({
+      autoCandidates: [
+        {
+          id: 'auto_workspace_root_apps__admin',
+          label: 'admin',
+          path: 'D:\\Project\\Drone\\apps\\admin',
+          parentWorkspaceId: 'workspace_drone',
+          parentWorkspaceName: 'Drone',
+          parentWorkspacePath: 'D:\\Project\\Drone',
+          detectedAt: '2026-04-12T09:30:00.000Z',
+        },
+      ],
+      availableWorkspaces: [
+        {
+          id: 'workspace_drone',
+          name: 'Drone',
+          path: 'D:\\Project\\Drone',
+        },
+      ],
+    })
     const onChange = vi.fn()
 
     render(
@@ -631,10 +656,6 @@ describe('PluginManagerPanel', () => {
           plugins: {
             ...DEFAULT_AGENT_SETTINGS.plugins,
             enabledIds: ['git-worklog'],
-            gitWorklog: {
-              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
-              autoImportedWorkspacePaths: ['D:\\Project\\Drone'],
-            },
           },
         }}
         onChange={onChange}
@@ -645,25 +666,46 @@ describe('PluginManagerPanel', () => {
     fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
     expect(await screen.findByTestId('git-worklog-open-config-dialog')).toBeVisible()
     fireEvent.click(screen.getByTestId('git-worklog-open-config-dialog'))
-    expect(await screen.findByTestId('git-worklog-imported-workspaces')).toBeVisible()
+    expect(await screen.findByTestId('git-worklog-auto-candidates')).toBeVisible()
 
-    fireEvent.click(screen.getByTestId('git-worklog-reset-imported-workspace-d:/project/drone'))
+    fireEvent.click(screen.getByTestId('git-worklog-confirm-auto-candidate-auto_workspace_root_apps__admin'))
 
-    expect(onChange).toHaveBeenCalledWith({
-      ...DEFAULT_AGENT_SETTINGS,
-      plugins: {
-        ...DEFAULT_AGENT_SETTINGS.plugins,
-        enabledIds: ['git-worklog'],
-        gitWorklog: {
-          ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
-          autoImportedWorkspacePaths: [],
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith({
+        ...DEFAULT_AGENT_SETTINGS,
+        plugins: {
+          ...DEFAULT_AGENT_SETTINGS.plugins,
+          enabledIds: ['git-worklog'],
+          gitWorklog: {
+            ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+            repositoryOrder: ['repo_1', 'repo_2'],
+            workspaceOrder: [],
+            repositories: [
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog.repositories,
+              {
+                id: 'repo_2',
+                label: 'admin',
+                path: 'D:\\Project\\Drone\\apps\\admin',
+                enabled: true,
+                origin: 'manual',
+                assignedWorkspaceId: 'workspace_drone',
+              },
+            ],
+          },
         },
-      },
+      })
     })
   })
 
   it('opens repository manager dialog from overview card and edits the repository', async () => {
     installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_a',
+          name: 'Drone',
+          path: 'D:\\Project\\Drone',
+        },
+      ],
       repos: [
         {
           repoId: 'repo_1',
@@ -737,20 +779,26 @@ describe('PluginManagerPanel', () => {
           plugins: {
             ...DEFAULT_AGENT_SETTINGS.plugins,
             enabledIds: ['git-worklog'],
-            gitWorklog: {
-              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
-              repositories: [
-                {
-                  id: 'repo_1',
+          gitWorklog: {
+            ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+            repositoryOrder: ['repo_1', 'repo_2'],
+            workspaceOrder: [],
+            repositories: [
+              {
+                id: 'repo_1',
                   label: 'Drone API',
                   path: 'D:\\Project\\Drone\\api',
                   enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
                 },
                 {
                   id: 'repo_2',
                   label: 'Drone Admin',
                   path: 'D:\\Project\\Drone\\admin',
                   enabled: false,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
                 },
               ],
             },
@@ -779,18 +827,59 @@ describe('PluginManagerPanel', () => {
         enabledIds: ['git-worklog'],
         gitWorklog: {
           ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+          repositoryOrder: ['repo_1', 'repo_2'],
+          workspaceOrder: [],
           repositories: [
             {
               id: 'repo_1',
               label: 'Drone API',
               path: 'D:\\Project\\Drone\\api',
               enabled: true,
+              origin: 'manual',
+              assignedWorkspaceId: null,
             },
             {
               id: 'repo_2',
               label: 'Drone Console',
               path: 'D:\\Project\\Drone\\admin',
               enabled: false,
+              origin: 'manual',
+              assignedWorkspaceId: null,
+            },
+          ],
+        },
+      },
+    })
+
+    fireEvent.change(screen.getByTestId('git-worklog-repository-workspace-repo_2'), {
+      target: { value: 'workspace_a' },
+    })
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...DEFAULT_AGENT_SETTINGS,
+      plugins: {
+        ...DEFAULT_AGENT_SETTINGS.plugins,
+        enabledIds: ['git-worklog'],
+        gitWorklog: {
+          ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+          repositoryOrder: ['repo_1', 'repo_2'],
+          workspaceOrder: [],
+          repositories: [
+            {
+              id: 'repo_1',
+              label: 'Drone API',
+              path: 'D:\\Project\\Drone\\api',
+              enabled: true,
+              origin: 'manual',
+              assignedWorkspaceId: null,
+            },
+            {
+              id: 'repo_2',
+              label: 'Drone Admin',
+              path: 'D:\\Project\\Drone\\admin',
+              enabled: false,
+              origin: 'manual',
+              assignedWorkspaceId: 'workspace_a',
             },
           ],
         },

@@ -242,10 +242,10 @@ function collectNightlyItems(previousTag, currentTag) {
 
 function buildNightlySummary(itemCount) {
   if (itemCount === 0) {
-    return 'Nightly preview build with the latest FreeCli changes.'
+    return 'Beta preview build with the latest FreeCli changes.'
   }
 
-  return `Nightly preview build covering ${itemCount} recent user-facing changes.`
+  return `Beta preview build covering ${itemCount} recent user-facing changes.`
 }
 
 async function loadStableManifest(version) {

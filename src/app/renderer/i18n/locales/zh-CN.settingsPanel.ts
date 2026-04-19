@@ -60,7 +60,7 @@ export const zhCNSettingsPanel = {
       },
       channel: {
         stable: '稳定版',
-        nightly: '夜间版',
+        nightly: '测试版',
       },
       status: {
         disabled: '已关闭更新检查。',
@@ -85,6 +85,26 @@ export const zhCNSettingsPanel = {
     moveDown: '下移',
     fullAccessLabel: '完全访问模式',
     fullAccessHelp: '为 Agent 关闭沙箱和人工审批。',
+    terminalCredentials: {
+      title: '终端凭据',
+      summaryTitle: 'Codex / Claude 终端凭据',
+      summaryHelp:
+        '这里配置终端里真正使用的 API Key 和 Base URL。终端节点只保存 profile 引用，不会在节点状态里复制明文。',
+      providerTitle: '{{provider}} Profiles',
+      providerHelp:
+        '新建或恢复该提供方对应的终端时，会按选中的 profile 注入环境变量。运行中的 shell 不会被伪装成已热切换。',
+      defaultProfileLabel: '默认 Profile',
+      defaultProfileHelp: '未显式选择时，该提供方终端会优先使用这里配置的默认 profile。',
+      useFirstEnabled: '使用首个启用的 Profile',
+      unnamedProfile: '未命名 Profile',
+      profileTitle: 'Profile {{index}}',
+      profileHelp: '关闭的 profile 会保留配置，但不会自动参与终端启动注入。',
+      profileLabel: '名称',
+      apiKeyLabel: 'API Key',
+      baseUrlLabel: 'Base URL',
+      removeProfile: '删除',
+      addProfile: '新增 {{provider}} Profile',
+    },
   },
   notifications: {
     title: '通知',

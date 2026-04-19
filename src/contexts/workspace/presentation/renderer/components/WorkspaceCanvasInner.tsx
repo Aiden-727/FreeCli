@@ -1,9 +1,16 @@
 import React from 'react'
 import { useReactFlow, type Edge, type Node } from '@xyflow/react'
+import { hydrateRuntimeNode } from '@app/renderer/shell/hooks/useHydrateAppState'
+import { useTranslation } from '@app/renderer/i18n'
+import { resolveTerminalCredentialProfileById } from '@contexts/settings/domain/terminalCredentials'
+import { invalidateCachedTerminalScreenState } from './terminalNode/screenStateCache'
 import type { TerminalNodeData } from '../types'
 import * as workspaceCanvasHooks from './workspaceCanvas/hooks'
 import { WorkspaceCanvasView } from './workspaceCanvas/WorkspaceCanvasView'
-import type { WorkspaceCanvasProps } from './workspaceCanvas/types'
+import type {
+  TerminalCredentialRestartDialogState,
+  WorkspaceCanvasProps,
+} from './workspaceCanvas/types'
 export function WorkspaceCanvasInner({
   workspaceId,
   onShowMessage,
@@ -28,7 +35,11 @@ export function WorkspaceCanvasInner({
   focusNodeId,
   focusSequence,
 }: WorkspaceCanvasProps): React.JSX.Element {
+  const { t } = useTranslation()
   const reactFlow = useReactFlow<Node<TerminalNodeData>, Edge>()
+  const [terminalCredentialRestartDialog, setTerminalCredentialRestartDialog] =
+    React.useState<TerminalCredentialRestartDialogState | null>(null)
+  const [isTerminalCredentialRestarting, setIsTerminalCredentialRestarting] = React.useState(false)
   const {
     nodeDragPointerAnchorRef,
     nodeSpaceFramePreview,
@@ -279,6 +290,7 @@ export function WorkspaceCanvasInner({
     contextMenu: canvasState.contextMenu,
     workspacePath,
     defaultTerminalProfileId: agentSettings.defaultTerminalProfileId,
+    terminalCredentials: agentSettings.terminalCredentials,
     spacesRef: canvasState.spacesRef,
     onSpacesChange,
     nodesRef: nodeStore.nodesRef,
@@ -329,6 +341,53 @@ export function WorkspaceCanvasInner({
     onSpacesChange,
     standardWindowSizeBucket: agentSettings.standardWindowSizeBucket,
   })
+
+  const resolveCredentialProfileLabel = React.useCallback(
+    (profileId: string | null | undefined): string => {
+      const profile = resolveTerminalCredentialProfileById(
+        agentSettings.terminalCredentials,
+        profileId,
+      )
+      return profile?.label ?? t('terminalNodeHeader.noCredentialProfile')
+    },
+    [agentSettings.terminalCredentials, t],
+  )
+
+  const handleTerminalCredentialProfileChange = React.useCallback(
+    (nodeId: string, nextCredentialProfileId: string | null) => {
+      const targetNode = nodeStore.nodesRef.current.find(node => node.id === nodeId)
+      if (!targetNode || targetNode.data.kind !== 'terminal') {
+        return
+      }
+
+      nodeStore.setTerminalCredentialProfile(nodeId, nextCredentialProfileId)
+
+      const isRunning = targetNode.data.sessionId.trim().length > 0
+      const hasChanged =
+        (targetNode.data.activeCredentialProfileId ?? null) !== (nextCredentialProfileId ?? null)
+
+      if (!isRunning || !hasChanged) {
+        setTerminalCredentialRestartDialog(null)
+        return
+      }
+
+      const hostedAgent = targetNode.data.hostedAgent
+      const willResumeConversation =
+        hostedAgent?.provider === 'codex' &&
+        typeof hostedAgent.resumeSessionId === 'string' &&
+        hostedAgent.resumeSessionId.trim().length > 0
+
+      setTerminalCredentialRestartDialog({
+        nodeId,
+        title: targetNode.data.title,
+        currentProfileLabel: resolveCredentialProfileLabel(targetNode.data.activeCredentialProfileId),
+        nextProfileLabel: resolveCredentialProfileLabel(nextCredentialProfileId),
+        willResumeConversation,
+      })
+    },
+    [nodeStore, resolveCredentialProfileLabel],
+  )
+
   workspaceCanvasHooks.useWorkspaceCanvasRuntimeBindings({
     setNodes: nodeStore.setNodes,
     onRequestPersistFlush,
@@ -340,6 +399,8 @@ export function WorkspaceCanvasInner({
     updateNodeScrollback: nodeStore.updateNodeScrollback,
     updateTerminalTitle: nodeStore.updateTerminalTitle,
     renameTerminalTitle: nodeStore.renameTerminalTitle,
+    setTerminalCredentialProfile: handleTerminalCredentialProfileChange,
+    setTerminalActiveCredentialProfile: nodeStore.setTerminalActiveCredentialProfile,
     setTerminalPersistenceMode: nodeStore.setTerminalPersistenceMode,
     trackTerminalHostedAgent: nodeStore.trackTerminalHostedAgent,
     setTerminalHostedAgentActiveState: nodeStore.setTerminalHostedAgentActiveState,
@@ -349,6 +410,72 @@ export function WorkspaceCanvasInner({
     reactFlow,
     onShowMessage,
   })
+
+  const dismissTerminalCredentialRestartDialog = React.useCallback(() => {
+    if (!isTerminalCredentialRestarting) {
+      setTerminalCredentialRestartDialog(null)
+    }
+  }, [isTerminalCredentialRestarting])
+
+  const confirmTerminalCredentialRestart = React.useCallback(async () => {
+    if (!terminalCredentialRestartDialog || isTerminalCredentialRestarting) {
+      return
+    }
+
+    const targetNode = nodeStore.nodesRef.current.find(
+      node => node.id === terminalCredentialRestartDialog.nodeId,
+    )
+    if (!targetNode || targetNode.data.kind !== 'terminal') {
+      setTerminalCredentialRestartDialog(null)
+      return
+    }
+
+    setIsTerminalCredentialRestarting(true)
+    try {
+      const currentSessionId = targetNode.data.sessionId.trim()
+      if (currentSessionId.length > 0) {
+        invalidateCachedTerminalScreenState(targetNode.id, currentSessionId)
+        await window.freecliApi.pty.kill({ sessionId: currentSessionId })
+      }
+
+      const hydratedNode = await hydrateRuntimeNode({
+        node: targetNode,
+        workspacePath,
+        agentSettings,
+      })
+
+      nodeStore.upsertNode(hydratedNode)
+      nodeStore.setTerminalActiveCredentialProfile(
+        targetNode.id,
+        hydratedNode.data.activeCredentialProfileId ?? hydratedNode.data.credentialProfileId ?? null,
+      )
+
+      if (hydratedNode.data.lastError) {
+        onShowMessage?.(hydratedNode.data.lastError, 'warning')
+      } else {
+        onShowMessage?.(t('terminalNodeHeader.restartSuccess'), 'info')
+      }
+    } catch (error) {
+      onShowMessage?.(
+        t('terminalNodeHeader.restartFailed', {
+          message: error instanceof Error ? error.message : t('common.unknownError'),
+        }),
+        'error',
+      )
+    } finally {
+      setIsTerminalCredentialRestarting(false)
+      setTerminalCredentialRestartDialog(null)
+    }
+  }, [
+    agentSettings,
+    isTerminalCredentialRestarting,
+    nodeStore,
+    onShowMessage,
+    terminalCredentialRestartDialog,
+    t,
+    workspacePath,
+  ])
+
   const applyChanges = workspaceCanvasHooks.useWorkspaceCanvasApplyNodeChanges({
     nodesRef: nodeStore.nodesRef,
     onNodesChange,
@@ -372,6 +499,8 @@ export function WorkspaceCanvasInner({
     taskTitleModelLabel,
     handleViewportMoveEnd,
     minimapNodeColor,
+    minimapNodeStrokeColor,
+    minimapNodeClassName,
     taskAgentEdges,
     spaceUi,
   } = workspaceCanvasHooks.useWorkspaceCanvasViewModel({
@@ -439,8 +568,11 @@ export function WorkspaceCanvasInner({
       selectedNodeCount={canvasState.selectedNodeIds.length}
       isMinimapVisible={canvasState.isMinimapVisible}
       minimapNodeColor={minimapNodeColor}
+      minimapNodeStrokeColor={minimapNodeStrokeColor}
+      minimapNodeClassName={minimapNodeClassName}
       setIsMinimapVisible={canvasState.setIsMinimapVisible}
       onMinimapVisibilityChange={onMinimapVisibilityChange}
+      focusNodeTargetZoom={agentSettings.focusNodeTargetZoom}
       spaces={spaces}
       activateSpace={activateSpace}
       activateAllSpaces={activateAllSpaces}
@@ -480,6 +612,10 @@ export function WorkspaceCanvasInner({
       nodeDeleteConfirmation={nodeDeleteConfirmation}
       setNodeDeleteConfirmation={setNodeDeleteConfirmation}
       confirmNodeDelete={confirmNodeDelete}
+      terminalCredentialRestartDialog={terminalCredentialRestartDialog}
+      dismissTerminalCredentialRestartDialog={dismissTerminalCredentialRestartDialog}
+      confirmTerminalCredentialRestart={confirmTerminalCredentialRestart}
+      isTerminalCredentialRestarting={isTerminalCredentialRestarting}
       spaceWorktreeMismatchDropWarning={spaceWorktreeMismatchDropWarning}
       cancelSpaceWorktreeMismatchDropWarning={cancelSpaceWorktreeMismatchDropWarning}
       continueSpaceWorktreeMismatchDropWarning={continueSpaceWorktreeMismatchDropWarning}

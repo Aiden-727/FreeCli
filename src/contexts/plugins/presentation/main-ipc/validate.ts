@@ -16,6 +16,7 @@ import type {
   NotifyOssBackupPersistedSettingsInput,
   OssBackupSettingsDto,
   QuotaMonitorSettingsDto,
+  ResolveGitWorklogRepositoryInput,
   SystemMonitorSettingsDto,
 } from '@shared/contracts/dto'
 
@@ -42,6 +43,9 @@ export interface NormalizedSyncGitWorklogSettingsPayload {
 export interface NormalizedSyncGitWorklogWorkspacesPayload {
   workspaces: GitWorklogWorkspaceDto[]
 }
+
+export interface NormalizedResolveGitWorklogRepositoryPayload
+  extends ResolveGitWorklogRepositoryInput {}
 
 export interface NormalizedSyncOssBackupSettingsPayload {
   settings: OssBackupSettingsDto
@@ -137,6 +141,26 @@ export function normalizeSyncGitWorklogWorkspacesPayload(
   return {
     workspaces: normalizeGitWorklogWorkspaces(record.workspaces),
   }
+}
+
+export function normalizeResolveGitWorklogRepositoryPayload(
+  payload: unknown,
+): NormalizedResolveGitWorklogRepositoryPayload {
+  if (!payload || typeof payload !== 'object') {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'Invalid payload for plugins:git-worklog:resolve-repository',
+    })
+  }
+
+  const record = payload as Record<string, unknown>
+  const path = typeof record.path === 'string' ? record.path.trim() : ''
+  if (path.length === 0) {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'Invalid path for plugins:git-worklog:resolve-repository',
+    })
+  }
+
+  return { path }
 }
 
 export function normalizeSyncOssBackupSettingsPayload(

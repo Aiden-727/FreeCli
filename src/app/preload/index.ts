@@ -27,6 +27,8 @@ import type {
   ReadAgentLastMessageResult,
   ResolveAgentResumeSessionInput,
   ResolveAgentResumeSessionResult,
+  ResolveGitWorklogRepositoryInput,
+  ResolveGitWorklogRepositoryResult,
   ResolveGitHubPullRequestsInput,
   ResolveGitHubPullRequestsResult,
   InputStatsStateDto,
@@ -261,6 +263,10 @@ const freecliApi = {
         invokeIpc(IPC_CHANNELS.pluginsGitWorklogSyncWorkspaces, payload),
       getState: (): Promise<GitWorklogStateDto> =>
         invokeIpc(IPC_CHANNELS.pluginsGitWorklogGetState),
+      resolveRepository: (
+        payload: ResolveGitWorklogRepositoryInput,
+      ): Promise<ResolveGitWorklogRepositoryResult> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogResolveRepository, payload),
       refresh: (): Promise<GitWorklogStateDto> => invokeIpc(IPC_CHANNELS.pluginsGitWorklogRefresh),
       onState: (listener: (state: GitWorklogStateDto) => void): UnsubscribeFn => {
         const handler = (_event: Electron.IpcRendererEvent, payload: GitWorklogStateDto) => {

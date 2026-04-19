@@ -32,6 +32,7 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
                 kind: 'terminal',
                 profileId: 'powershell',
                 runtimeKind: 'windows',
+                credentialProfileId: 'codex-default',
                 status: 'running',
                 startedAt: '2026-03-31T10:00:00.000Z',
                 endedAt: null,
@@ -59,6 +60,22 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
         ],
         settings: {
           defaultTerminalProfileId: 'powershell',
+          terminalCredentials: {
+            profiles: [
+              {
+                id: 'codex-default',
+                label: 'Codex Main',
+                provider: 'codex',
+                apiKey: 'sk-test-codex',
+                baseUrl: 'https://api.openai.example',
+                enabled: true,
+              },
+            ],
+            defaultProfileIdByProvider: {
+              codex: 'codex-default',
+              'claude-code': null,
+            },
+          },
         },
       }),
     )
@@ -100,6 +117,7 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
       const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
 
       const { isHydrated } = useHydrateAppState({
+        agentSettings: _agentSettings,
         workspaces,
         activeWorkspaceId,
         setAgentSettings,
@@ -115,6 +133,9 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
           <div data-testid="hydrated">{String(isHydrated)}</div>
           <div data-testid="terminal-session-id">{terminalNode?.data.sessionId ?? 'none'}</div>
           <div data-testid="terminal-status">{terminalNode?.data.status ?? 'none'}</div>
+          <div data-testid="terminal-active-credential-profile-id">
+            {terminalNode?.data.activeCredentialProfileId ?? 'none'}
+          </div>
           <div data-testid="hosted-resume-session-id">
             {terminalNode?.data.hostedAgent?.resumeSessionId ?? 'none'}
           </div>
@@ -139,6 +160,11 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
     expect(spawn).toHaveBeenCalledWith({
       cwd: '/tmp/workspace-1',
       profileId: 'powershell',
+      credential: {
+        provider: 'codex',
+        apiKey: 'sk-test-codex',
+        baseUrl: 'https://api.openai.example',
+      },
       cols: 80,
       rows: 24,
     })
@@ -157,6 +183,9 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
     expect(launch).not.toHaveBeenCalled()
     expect(screen.getByTestId('terminal-session-id')).toHaveTextContent('terminal-session-1')
     expect(screen.getByTestId('terminal-status')).toHaveTextContent('restoring')
+    expect(screen.getByTestId('terminal-active-credential-profile-id')).toHaveTextContent(
+      'codex-default',
+    )
     expect(screen.getByTestId('hosted-resume-session-id')).toHaveTextContent(
       'resolved-codex-session',
     )

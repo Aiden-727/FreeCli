@@ -8,7 +8,7 @@
   "compareUrl": "https://github.com/Aiden-727/freecli/releases/tag/v0.2.0",
   "locales": {
     "en": {
-      "summary": "This build includes the new update sheet, better nightly messaging, and clearer settings interactions.",
+      "summary": "This build includes the new update sheet, better beta messaging, and clearer settings interactions.",
       "items": [
         {
           "kind": "added",
@@ -20,7 +20,7 @@
       ]
     },
     "zh-CN": {
-      "summary": "这个版本包含新的更新内容弹窗、更稳定的 nightly 提示，以及更清晰的设置交互。",
+      "summary": "这个版本包含新的更新内容弹窗、更稳定的测试版提示，以及更清晰的设置交互。",
       "items": [
         {
           "kind": "added",
@@ -31,7 +31,7 @@
         },
         {
           "kind": "fixed",
-          "summary": "修复 nightly 更新检测在离线时的错误提示。",
+          "summary": "修复测试版更新检测在离线时的错误提示。",
           "url": "https://github.com/Aiden-727/freecli/pull/51",
           "prNumber": 51,
           "sha": "cafebabe"

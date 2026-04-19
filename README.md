@@ -46,7 +46,7 @@ FreeCli is a good fit if you want to:
 
 Prebuilt binaries are published on the [GitHub Releases](https://github.com/Aiden-727/FreeCli/releases) page.
 
-Current builds are still early-stage and may include prerelease or nightly artifacts.
+Current builds are still early-stage and may include stable or beta artifacts.
 
 ### macOS Note
 
@@ -85,7 +85,8 @@ Detailed packaging notes are in [docs/RELEASING.md](./docs/RELEASING.md).
 ## Release Model
 
 - Stable releases use tags like `v0.0.1`
-- Nightly releases use tags like `v0.0.2-nightly.20260418.1`
+- Beta releases use tags like `v0.0.2-nightly.20260418.1`
+- The beta channel keeps the existing `nightly` tag suffix and update metadata for compatibility
 - Pushing a `v*` tag triggers the GitHub Release workflow
 
 ## Tech Stack

@@ -16,6 +16,11 @@ type PtyWriteQueue = {
   flush: () => void
 }
 
+type PtyWriteQueueState = {
+  pendingCount: number
+  isWriting: boolean
+}
+
 type PlatformInfo = {
   platform?: string
   userAgent?: string
@@ -218,7 +223,12 @@ export function handleTerminalCustomKeyEvent({
   return false
 }
 
-export function createPtyWriteQueue(write: (payload: PtyWritePayload) => Promise<void>): {
+export function createPtyWriteQueue(
+  write: (payload: PtyWritePayload) => Promise<void>,
+  options?: {
+    onStateChange?: (state: PtyWriteQueueState) => void
+  },
+): {
   enqueue: (data: string, encoding?: PtyWriteEncoding) => void
   flush: () => void
   dispose: () => void
@@ -226,6 +236,12 @@ export function createPtyWriteQueue(write: (payload: PtyWritePayload) => Promise
   let isDisposed = false
   const pendingWrites: PtyWritePayload[] = []
   let pendingWrite: Promise<void> | null = null
+  const emitStateChange = () => {
+    options?.onStateChange?.({
+      pendingCount: pendingWrites.length,
+      isWriting: pendingWrite !== null,
+    })
+  }
 
   const takeNextPayload = (): PtyWritePayload | null => {
     const firstPayload = pendingWrites.shift()
@@ -251,6 +267,7 @@ export function createPtyWriteQueue(write: (payload: PtyWritePayload) => Promise
 
     const nextPayload = takeNextPayload()
     if (!nextPayload) {
+      emitStateChange()
       return
     }
 
@@ -258,8 +275,10 @@ export function createPtyWriteQueue(write: (payload: PtyWritePayload) => Promise
       .catch(() => undefined)
       .finally(() => {
         pendingWrite = null
+        emitStateChange()
         flush()
       })
+    emitStateChange()
   }
 
   return {
@@ -269,12 +288,14 @@ export function createPtyWriteQueue(write: (payload: PtyWritePayload) => Promise
       }
 
       pendingWrites.push({ data, encoding })
+      emitStateChange()
     },
     flush,
     dispose: () => {
       isDisposed = true
       pendingWrites.length = 0
       pendingWrite = null
+      emitStateChange()
     },
   }
 }

@@ -2,6 +2,7 @@ import { useMemo, type MutableRefObject, type ReactElement } from 'react'
 import { useStore, type Node } from '@xyflow/react'
 import { translate } from '@app/renderer/i18n'
 import { buildHostedTerminalDisplayModelLabel } from '@contexts/terminal/domain/hostedAgent'
+import type { AgentSettings } from '@contexts/settings/domain/agentSettings'
 import { NoteNode } from '../NoteNode'
 import { TaskNode } from '../TaskNode'
 import { TerminalNode } from '../TerminalNode'
@@ -18,6 +19,9 @@ import type {
   UpdateNodeScrollback,
   UpdateTaskStatus,
 } from './types'
+import {
+  resolveCredentialProviderLabel,
+} from '../terminalNode/credentials'
 
 function useNodePosition(nodeId: string): { x: number; y: number } {
   return useStore(storeState => {
@@ -94,9 +98,11 @@ function TerminalNodeType({
   normalizeViewportForTerminalInteractionRef,
   updateTerminalTitleRef,
   renameTerminalTitleRef,
+  setTerminalCredentialProfileRef,
   setTerminalPersistenceModeRef,
   trackTerminalHostedAgentRef,
   setTerminalHostedAgentActiveStateRef,
+  agentSettings,
   onShowMessage,
 }: {
   data: TerminalNodeData
@@ -112,11 +118,15 @@ function TerminalNodeType({
   normalizeViewportForTerminalInteractionRef: MutableRefObject<(nodeId: string) => void>
   updateTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
   renameTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalCredentialProfileRef: MutableRefObject<
+    (nodeId: string, credentialProfileId: string | null) => void
+  >
   setTerminalPersistenceModeRef: MutableRefObject<
     (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => void
   >
   trackTerminalHostedAgentRef: MutableRefObject<(nodeId: string, command: string) => void>
   setTerminalHostedAgentActiveStateRef: MutableRefObject<(nodeId: string, active: boolean) => void>
+  agentSettings: AgentSettings
   onShowMessage?: ShowWorkspaceCanvasMessage
 }): ReactElement {
   const scrollback = useScrollbackStore(state => state.scrollbackByNodeId[id] ?? null)
@@ -128,6 +138,21 @@ function TerminalNodeType({
   const modelLabel = resolveTerminalModelLabel(data)
   const shouldCopyLastMessage =
     (data.kind === 'agent' && Boolean(data.agent)) || isHostedAgentTerminal
+  const allowedCredentialProvider =
+    data.kind === 'terminal' ? (data.hostedAgent?.provider ?? 'codex') : null
+  const terminalCredentialProfiles = agentSettings.terminalCredentials.profiles
+    .filter(profile => profile.enabled)
+    .filter(profile =>
+      allowedCredentialProvider ? profile.provider === allowedCredentialProvider : true,
+    )
+    .map(profile => ({
+      id: profile.id,
+      label:
+        allowedCredentialProvider !== null
+          ? profile.label
+          : `${resolveCredentialProviderLabel(profile.provider)} · ${profile.label}`,
+      provider: profile.provider,
+    }))
 
   return (
     <TerminalNode
@@ -143,6 +168,10 @@ function TerminalNodeType({
       }
       profileId={data.profileId}
       runtimeKind={data.runtimeKind}
+      credentialProfileId={data.credentialProfileId ?? null}
+      activeCredentialProfileId={data.activeCredentialProfileId ?? null}
+      terminalCredentialProfiles={terminalCredentialProfiles}
+      activeCredentialProvider={allowedCredentialProvider}
       isSelected={selected === true}
       isDragging={dragging === true}
       status={data.status}
@@ -209,6 +238,13 @@ function TerminalNodeType({
         data.kind === 'terminal'
           ? nextMode => {
               setTerminalPersistenceModeRef.current(id, nextMode)
+            }
+          : undefined
+      }
+      onCredentialProfileChange={
+        data.kind === 'terminal'
+          ? nextCredentialProfileId => {
+              setTerminalCredentialProfileRef.current(id, nextCredentialProfileId)
             }
           : undefined
       }
@@ -305,6 +341,7 @@ interface WorkspaceCanvasNodeTypesParams {
   spacesRef: MutableRefObject<WorkspaceSpaceState[]>
   workspacePath: string
   terminalFontSize: number
+  agentSettings: AgentSettings
   selectNode: (nodeId: string, options?: { toggle?: boolean }) => void
   clearNodeSelectionRef: MutableRefObject<() => void>
   closeNodeRef: MutableRefObject<(nodeId: string) => Promise<void>>
@@ -325,6 +362,9 @@ interface WorkspaceCanvasNodeTypesParams {
   updateTaskStatusRef: MutableRefObject<UpdateTaskStatus>
   updateTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
   renameTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalCredentialProfileRef: MutableRefObject<
+    (nodeId: string, credentialProfileId: string | null) => void
+  >
   setTerminalPersistenceModeRef: MutableRefObject<
     (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => void
   >
@@ -337,6 +377,7 @@ export function useWorkspaceCanvasNodeTypes({
   spacesRef,
   workspacePath,
   terminalFontSize,
+  agentSettings,
   selectNode,
   clearNodeSelectionRef,
   closeNodeRef,
@@ -355,6 +396,7 @@ export function useWorkspaceCanvasNodeTypes({
   updateTaskStatusRef,
   updateTerminalTitleRef,
   renameTerminalTitleRef,
+  setTerminalCredentialProfileRef,
   setTerminalPersistenceModeRef,
   trackTerminalHostedAgentRef,
   setTerminalHostedAgentActiveStateRef,
@@ -518,9 +560,11 @@ export function useWorkspaceCanvasNodeTypes({
             normalizeViewportForTerminalInteractionRef={normalizeViewportForTerminalInteractionRef}
             updateTerminalTitleRef={updateTerminalTitleRef}
             renameTerminalTitleRef={renameTerminalTitleRef}
+            setTerminalCredentialProfileRef={setTerminalCredentialProfileRef}
             setTerminalPersistenceModeRef={setTerminalPersistenceModeRef}
             trackTerminalHostedAgentRef={trackTerminalHostedAgentRef}
             setTerminalHostedAgentActiveStateRef={setTerminalHostedAgentActiveStateRef}
+            agentSettings={agentSettings}
             onShowMessage={onShowMessage}
           />
         )
@@ -550,6 +594,7 @@ export function useWorkspaceCanvasNodeTypes({
     spacesRef,
     workspacePath,
     terminalFontSize,
+    agentSettings,
     updateNoteTextRef,
     openTaskEditorRef,
     quickUpdateTaskRequirementRef,
@@ -564,6 +609,7 @@ export function useWorkspaceCanvasNodeTypes({
     updateTaskStatusRef,
     updateTerminalTitleRef,
     renameTerminalTitleRef,
+    setTerminalCredentialProfileRef,
     setTerminalPersistenceModeRef,
     trackTerminalHostedAgentRef,
     setTerminalHostedAgentActiveStateRef,

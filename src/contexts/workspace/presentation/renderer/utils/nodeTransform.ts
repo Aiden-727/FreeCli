@@ -60,6 +60,8 @@ export function toRuntimeNodes(workspace: PersistedWorkspaceState): Node<Termina
       data: {
         sessionId: '',
         profileId: node.profileId,
+        credentialProfileId: node.credentialProfileId ?? null,
+        activeCredentialProfileId: node.activeCredentialProfileId ?? null,
         runtimeKind: node.runtimeKind,
         labelColorOverride: node.labelColorOverride ?? null,
         title: node.title,

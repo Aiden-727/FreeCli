@@ -25,6 +25,7 @@ import { NotificationsSection } from './settingsPanel/NotificationsSection'
 import { SettingsPanelNavButton } from './settingsPanel/SettingsPanelNavButton'
 import { ShortcutsSection } from './settingsPanel/ShortcutsSection'
 import { TaskConfigurationSection } from './settingsPanel/TaskConfigurationSection'
+import { TerminalCredentialsSection } from './settingsPanel/TerminalCredentialsSection'
 import { WorkspaceSection } from './settingsPanel/WorkspaceSection'
 import type { WorkspaceState } from '@contexts/workspace/presentation/renderer/types'
 
@@ -172,6 +173,8 @@ export function SettingsPanel({
     onChange({ ...settings, keybindings })
   const updateGitHubPullRequestsEnabled = (enabled: boolean): void =>
     onChange({ ...settings, githubPullRequestsEnabled: enabled })
+  const updateTerminalCredentials = (terminalCredentials: AgentSettings['terminalCredentials']): void =>
+    onChange({ ...settings, terminalCredentials })
 
   const removeTaskTagOption = (tag: string): void => {
     const nextTags = settings.taskTagOptions.filter(option => option !== tag)
@@ -422,6 +425,10 @@ export function SettingsPanel({
                   onRemoveCustomModelOption={removeCustomModelOption}
                   onChangeAddModelInput={updateAddModelInput}
                   onAddCustomModelOption={addCustomModelOption}
+                />
+                <TerminalCredentialsSection
+                  settings={settings.terminalCredentials}
+                  onChange={updateTerminalCredentials}
                 />
               </>
             ) : null}

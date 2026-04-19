@@ -56,6 +56,7 @@ export function useWorkspaceCanvasNodeCreation({
     async ({
       sessionId,
       profileId,
+      credentialProfileId,
       runtimeKind,
       title,
       anchor,
@@ -108,6 +109,8 @@ export function useWorkspaceCanvasNodeCreation({
         data: {
           sessionId,
           profileId: profileId ?? null,
+          credentialProfileId: credentialProfileId ?? null,
+          activeCredentialProfileId: credentialProfileId ?? null,
           runtimeKind,
           title,
           titlePinnedByUser: false,

@@ -378,6 +378,23 @@ export class TerminalProfileResolver {
 
   public async resolveTerminalSpawn(input: SpawnTerminalInput): Promise<ResolvedTerminalSpawn> {
     const env = { ...this.deps.env() }
+    if (input.credential) {
+      if (input.credential.provider === 'codex') {
+        if (typeof input.credential.apiKey === 'string' && input.credential.apiKey.length > 0) {
+          env.OPENAI_API_KEY = input.credential.apiKey
+        }
+        if (typeof input.credential.baseUrl === 'string' && input.credential.baseUrl.length > 0) {
+          env.OPENAI_BASE_URL = input.credential.baseUrl
+        }
+      } else if (input.credential.provider === 'claude-code') {
+        if (typeof input.credential.apiKey === 'string' && input.credential.apiKey.length > 0) {
+          env.ANTHROPIC_API_KEY = input.credential.apiKey
+        }
+        if (typeof input.credential.baseUrl === 'string' && input.credential.baseUrl.length > 0) {
+          env.ANTHROPIC_BASE_URL = input.credential.baseUrl
+        }
+      }
+    }
 
     if (this.deps.platform !== 'win32') {
       const shell = input.shell ?? resolvePosixShell(this.deps.env().SHELL)

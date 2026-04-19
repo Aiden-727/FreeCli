@@ -51,4 +51,40 @@ describe('normalizeAgentSettings', () => {
       normalizeAgentSettings({ standardWindowSizeBucket: 'invalid' }).standardWindowSizeBucket,
     ).toBe(DEFAULT_AGENT_SETTINGS.standardWindowSizeBucket)
   })
+
+  it('normalizes terminal credential settings and drops invalid defaults', () => {
+    const settings = normalizeAgentSettings({
+      terminalCredentials: {
+        profiles: [
+          {
+            id: 'codex-default',
+            label: '',
+            provider: 'codex',
+            apiKey: 'sk-codex',
+            baseUrl: 'https://api.openai.example',
+            enabled: true,
+          },
+        ],
+        defaultProfileIdByProvider: {
+          codex: 'codex-default',
+          'claude-code': 'missing',
+        },
+      },
+    })
+
+    expect(settings.terminalCredentials.profiles).toEqual([
+      {
+        id: 'codex-default',
+        label: 'codex-default',
+        provider: 'codex',
+        apiKey: 'sk-codex',
+        baseUrl: 'https://api.openai.example',
+        enabled: true,
+      },
+    ])
+    expect(settings.terminalCredentials.defaultProfileIdByProvider).toEqual({
+      codex: 'codex-default',
+      'claude-code': null,
+    })
+  })
 })

@@ -30,6 +30,11 @@ import {
   DEFAULT_OSS_BACKUP_SETTINGS,
   normalizeOssBackupSettings,
 } from '@contexts/plugins/domain/ossBackupSettings'
+import {
+  EMPTY_TERMINAL_CREDENTIAL_DEFAULTS,
+  normalizeTerminalCredentialsSettings,
+  type TerminalCredentialsSettings,
+} from './terminalCredentials'
 import type { KeybindingOverrides } from './keybindings'
 import { normalizeKeybindingOverrides } from './keybindings'
 import {
@@ -167,6 +172,7 @@ export interface AgentSettings {
   terminalFontSize: number
   uiFontSize: number
   githubPullRequestsEnabled: boolean
+  terminalCredentials: TerminalCredentialsSettings
   plugins: PluginSettings
   updatePolicy: AppUpdatePolicy
   updateChannel: AppUpdateChannel
@@ -222,6 +228,7 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   terminalFontSize: 13,
   uiFontSize: 18,
   githubPullRequestsEnabled: true,
+  terminalCredentials: EMPTY_TERMINAL_CREDENTIAL_DEFAULTS,
   plugins: {
     enabledIds: getDefaultEnabledPluginIds(),
     inputStats: DEFAULT_INPUT_STATS_SETTINGS,
@@ -500,6 +507,7 @@ export function normalizeAgentSettings(value: unknown): AgentSettings {
   const githubPullRequestsEnabled =
     normalizeBoolean(value.githubPullRequestsEnabled) ??
     DEFAULT_AGENT_SETTINGS.githubPullRequestsEnabled
+  const terminalCredentials = normalizeTerminalCredentialsSettings(value.terminalCredentials)
   const pluginSource = isRecord(value.plugins) ? value.plugins : {}
   const plugins: PluginSettings = {
     enabledIds: normalizeBuiltinPluginIds(
@@ -563,6 +571,7 @@ export function normalizeAgentSettings(value: unknown): AgentSettings {
     terminalFontSize,
     uiFontSize,
     githubPullRequestsEnabled,
+    terminalCredentials,
     plugins,
     updatePolicy,
     updateChannel,

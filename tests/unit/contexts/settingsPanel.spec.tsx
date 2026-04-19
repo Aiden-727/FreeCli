@@ -1,4 +1,5 @@
 import React from 'react'
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -185,6 +186,74 @@ describe('SettingsPanel', () => {
     })
   })
 
+  it('adds and edits terminal credential profiles from agent settings', () => {
+    const onChange = vi.fn()
+    vi.spyOn(terminalProfilesHook, 'useTerminalProfiles').mockReturnValue({
+      terminalProfiles: [],
+      detectedDefaultTerminalProfileId: null,
+      refreshTerminalProfiles: async () => undefined,
+    })
+
+    function Harness() {
+      const [settings, setSettings] = useState(DEFAULT_AGENT_SETTINGS)
+
+      return (
+        <SettingsPanel
+          settings={settings}
+          appliedGraphicsMode={settings.graphicsMode}
+          updateState={createUpdateState()}
+          modelCatalogByProvider={createModelCatalog()}
+          workspaces={[]}
+          onWorkspaceWorktreesRootChange={() => undefined}
+          isFocusNodeTargetZoomPreviewing={false}
+          onFocusNodeTargetZoomPreviewChange={() => undefined}
+          onChange={next => {
+            onChange(next)
+            setSettings(next)
+          }}
+          onCheckForUpdates={() => undefined}
+          onDownloadUpdate={() => undefined}
+          onInstallUpdate={() => undefined}
+          onRestartApp={() => undefined}
+          onClose={() => undefined}
+        />
+      )
+    }
+
+    render(<Harness />)
+
+    fireEvent.click(screen.getByTestId('settings-section-nav-agent'))
+    fireEvent.click(screen.getByTestId('settings-terminal-credentials-add-codex'))
+
+    const addedSettings = onChange.mock.calls.at(-1)?.[0]
+    expect(addedSettings.terminalCredentials.profiles).toHaveLength(1)
+
+    const addedProfile = addedSettings.terminalCredentials.profiles[0]
+
+    fireEvent.change(screen.getByTestId(`settings-terminal-credentials-label-${addedProfile.id}`), {
+      target: { value: 'Main Codex' },
+    })
+    expect(onChange.mock.calls.at(-1)?.[0].terminalCredentials.profiles[0].label).toBe('Main Codex')
+
+    fireEvent.change(
+      screen.getByTestId(`settings-terminal-credentials-api-key-${addedProfile.id}`),
+      {
+        target: { value: 'sk-codex' },
+      },
+    )
+    expect(onChange.mock.calls.at(-1)?.[0].terminalCredentials.profiles[0].apiKey).toBe('sk-codex')
+
+    fireEvent.change(
+      screen.getByTestId(`settings-terminal-credentials-base-url-${addedProfile.id}`),
+      {
+        target: { value: 'https://api.openai.example' },
+      },
+    )
+    expect(onChange.mock.calls.at(-1)?.[0].terminalCredentials.profiles[0].baseUrl).toBe(
+      'https://api.openai.example',
+    )
+  })
+
   it('updates release channel settings and exposes update actions', () => {
     const onChange = vi.fn()
     const onCheckForUpdates = vi.fn()
@@ -226,7 +295,7 @@ describe('SettingsPanel', () => {
     })
 
     fireEvent.click(screen.getByTestId('settings-update-channel-trigger'))
-    fireEvent.click(screen.getByRole('option', { name: '夜间版' }))
+    fireEvent.click(screen.getByRole('option', { name: '测试版' }))
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_AGENT_SETTINGS,
       updateChannel: 'nightly',

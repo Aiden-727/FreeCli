@@ -5,6 +5,7 @@ import { SpaceWorktreeMismatchDropWarningWindow } from '../windows/SpaceWorktree
 import { SpaceWorktreeWindow } from '../windows/SpaceWorktreeWindow'
 import { TaskCreatorWindow } from '../windows/TaskCreatorWindow'
 import { TaskEditorWindow } from '../windows/TaskEditorWindow'
+import { TerminalCredentialRestartWindow } from '../windows/TerminalCredentialRestartWindow'
 
 export function WorkspaceCanvasWindows({
   taskCreator,
@@ -23,6 +24,10 @@ export function WorkspaceCanvasWindows({
   nodeDeleteConfirmation,
   setNodeDeleteConfirmation,
   confirmNodeDelete,
+  terminalCredentialRestartDialog,
+  dismissTerminalCredentialRestartDialog,
+  confirmTerminalCredentialRestart,
+  isTerminalCredentialRestarting,
   spaceWorktreeMismatchDropWarning,
   cancelSpaceWorktreeMismatchDropWarning,
   continueSpaceWorktreeMismatchDropWarning,
@@ -56,6 +61,10 @@ export function WorkspaceCanvasWindows({
   | 'nodeDeleteConfirmation'
   | 'setNodeDeleteConfirmation'
   | 'confirmNodeDelete'
+  | 'terminalCredentialRestartDialog'
+  | 'dismissTerminalCredentialRestartDialog'
+  | 'confirmTerminalCredentialRestart'
+  | 'isTerminalCredentialRestarting'
   | 'spaceWorktreeMismatchDropWarning'
   | 'cancelSpaceWorktreeMismatchDropWarning'
   | 'continueSpaceWorktreeMismatchDropWarning'
@@ -100,6 +109,13 @@ export function WorkspaceCanvasWindows({
         nodeDeleteConfirmation={nodeDeleteConfirmation}
         setNodeDeleteConfirmation={setNodeDeleteConfirmation}
         confirmNodeDelete={confirmNodeDelete}
+      />
+
+      <TerminalCredentialRestartWindow
+        dialog={terminalCredentialRestartDialog}
+        isRestarting={isTerminalCredentialRestarting}
+        onCancel={dismissTerminalCredentialRestartDialog}
+        onConfirm={confirmTerminalCredentialRestart}
       />
 
       <SpaceWorktreeMismatchDropWarningWindow

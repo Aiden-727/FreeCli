@@ -37,14 +37,25 @@ export function usePersistedAppState({
   const { t } = useTranslation()
   const persistNotice = useAppStore(state => state.persistNotice)
   const setPersistNotice = useAppStore(state => state.setPersistNotice)
-  const persistFlushRequestedRef = useRef(false)
+  const isHydratedRef = useRef(isHydrated)
+  const producePersistedStateRef = useRef(producePersistedState)
   const lastAutoPersistInputsRef = useRef<{
     activeWorkspaceId: string | null
     agentSettings: AgentSettings
   } | null>(null)
 
   const requestPersistFlush = useCallback(() => {
-    persistFlushRequestedRef.current = true
+    if (!isHydratedRef.current) {
+      return
+    }
+
+    // Explicit durable changes should enqueue a write immediately so that a near-immediate
+    // window close still has a pending producer available for beforeunload flushing.
+    schedulePersistedStateWrite(producePersistedStateRef.current, {
+      onResult: (result, state) => {
+        handlePersistWriteResultRef.current(result, state)
+      },
+    })
   }, [])
 
   const handlePersistWriteResult = useCallback(
@@ -89,6 +100,20 @@ export function usePersistedAppState({
     [onPersistResult, setPersistNotice, t],
   )
 
+  const handlePersistWriteResultRef = useRef(handlePersistWriteResult)
+
+  useEffect(() => {
+    isHydratedRef.current = isHydrated
+  }, [isHydrated])
+
+  useEffect(() => {
+    producePersistedStateRef.current = producePersistedState
+  }, [producePersistedState])
+
+  useEffect(() => {
+    handlePersistWriteResultRef.current = handlePersistWriteResult
+  }, [handlePersistWriteResult])
+
   useEffect(() => {
     if (window.freecliApi?.meta?.isTest) {
       return
@@ -117,9 +142,7 @@ export function usePersistedAppState({
       previousAutoPersistInputs === null ||
       previousAutoPersistInputs.activeWorkspaceId !== activeWorkspaceId ||
       previousAutoPersistInputs.agentSettings !== agentSettings
-    const shouldFlushRequested = persistFlushRequestedRef.current
-
-    if (!shouldAutoPersist && !shouldFlushRequested) {
+    if (!shouldAutoPersist) {
       return
     }
 
@@ -129,11 +152,6 @@ export function usePersistedAppState({
     }
 
     schedulePersistedStateWrite(producePersistedState, { onResult: handlePersistWriteResult })
-
-    if (shouldFlushRequested) {
-      persistFlushRequestedRef.current = false
-      flushScheduledPersistedStateWrite()
-    }
   }, [
     activeWorkspaceId,
     agentSettings,

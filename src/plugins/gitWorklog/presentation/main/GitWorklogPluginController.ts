@@ -2,6 +2,7 @@ import { BrowserWindow } from 'electron'
 import { basename, relative, resolve, sep } from 'node:path'
 import { promises as fs } from 'node:fs'
 import type {
+  GitWorklogAutoCandidateDto,
   GitWorklogDailyPointDto,
   GitWorklogErrorDto,
   GitWorklogOverviewDto,
@@ -28,6 +29,7 @@ import type {
 } from '../../../../contexts/plugins/application/MainPluginRuntimeHost'
 import type { ApprovedWorkspaceStore } from '../../../../contexts/workspace/infrastructure/approval/ApprovedWorkspaceStore'
 import { GitWorklogScanner } from './GitWorklogScanner'
+import { createAppError } from '../../../../shared/errors/appError'
 
 const CONFIG_REFRESH_DEBOUNCE_MS = 400
 const BACKGROUND_REFRESH_RETRY_MS = 5_000
@@ -72,12 +74,6 @@ function normalizePathForComparison(pathValue: string): string {
 function createIgnoredAutoRepositoryPathSet(settings: GitWorklogSettingsDto): Set<string> {
   return new Set(
     settings.ignoredAutoRepositoryPaths.map(pathValue => normalizePathForComparison(pathValue)),
-  )
-}
-
-function createImportedWorkspacePathSet(settings: GitWorklogSettingsDto): Set<string> {
-  return new Set(
-    settings.autoImportedWorkspacePaths.map(pathValue => normalizePathForComparison(pathValue)),
   )
 }
 
@@ -177,6 +173,8 @@ function createDefaultState(
     successfulRepoCount: 0,
     overview: createEmptyOverview(),
     repos: [],
+    autoCandidates: [],
+    availableWorkspaces: [],
     lastError: null,
   }
 }
@@ -338,6 +336,8 @@ export class GitWorklogPluginController {
       configuredRepoCount: repositories.length,
       activeRepoCount: repositories.length,
       repos,
+      autoCandidates: this.state.autoCandidates ?? [],
+      availableWorkspaces: this.workspaces,
       lastError: null,
       overview: buildOverview(repos),
     })
@@ -365,9 +365,15 @@ export class GitWorklogPluginController {
     if (this.isEnabled) {
       this.applyState({
         ...this.state,
+        availableWorkspaces: this.workspaces,
         lastError: null,
       })
       this.scheduleConfigRefresh()
+    } else {
+      this.applyState({
+        ...this.state,
+        availableWorkspaces: this.workspaces,
+      })
     }
 
     return this.state
@@ -375,6 +381,20 @@ export class GitWorklogPluginController {
 
   public getState(): GitWorklogStateDto {
     return this.state
+  }
+
+  public async resolveRepository(pathValue: string): Promise<{ path: string; label: string }> {
+    const resolved = await this.scanner.resolveRepositoryRoot(pathValue)
+    if (!resolved.ok) {
+      throw createAppError('common.invalid_input', {
+        debugMessage: resolved.error.detail ?? resolved.error.message,
+      })
+    }
+
+    return {
+      path: resolved.path,
+      label: resolved.label,
+    }
   }
 
   public async refreshNow(): Promise<GitWorklogStateDto> {
@@ -406,6 +426,8 @@ export class GitWorklogPluginController {
         successfulRepoCount: 0,
         lastError: null,
         overview: buildOverview([]),
+        autoCandidates: await this.resolveAutoCandidates([]),
+        availableWorkspaces: this.workspaces,
       })
       this.restartRefreshTimer()
       return this.state
@@ -551,6 +573,8 @@ export class GitWorklogPluginController {
       successfulRepoCount: healthyRepos.length,
       overview: buildOverview(repos),
       repos,
+      autoCandidates: await this.resolveAutoCandidates(configuredRepos),
+      availableWorkspaces: this.workspaces,
       lastError: failedRepos[0]?.error ?? null,
     }
 
@@ -652,38 +676,15 @@ export class GitWorklogPluginController {
   }
 
   private async resolveEffectiveRepositories(): Promise<ResolvedGitWorklogRepository[]> {
-    const manualRepositories = this.resolveManualRepositories()
-    const ignoredAutoRepositoryPaths = createIgnoredAutoRepositoryPathSet(this.settings)
-    const importedWorkspacePaths = createImportedWorkspacePathSet(this.settings)
-    const discoveredRepositories = this.settings.autoDiscoverEnabled
-      ? (await this.discoverWorkspaceRepositories(importedWorkspacePaths)).filter(
-          repository =>
-            !ignoredAutoRepositoryPaths.has(normalizePathForComparison(repository.path)),
-        )
-      : []
-
-    const dedupedRepositories = new Map<string, ResolvedGitWorklogRepository>()
-    for (const repository of manualRepositories) {
-      dedupedRepositories.set(normalizePathForComparison(repository.path), repository)
-    }
-
-    for (const repository of discoveredRepositories) {
-      const key = normalizePathForComparison(repository.path)
-      if (!dedupedRepositories.has(key)) {
-        dedupedRepositories.set(key, repository)
-      }
-    }
-
-    return [...dedupedRepositories.values()].sort((left, right) =>
+    return this.resolveManualRepositories().sort((left, right) =>
       left.label.localeCompare(right.label),
     )
   }
 
-  private async discoverWorkspaceRepositories(
-    importedWorkspacePaths: Set<string>,
-  ): Promise<ResolvedGitWorklogRepository[]> {
+  private async discoverWorkspaceRepositories(): Promise<ResolvedGitWorklogRepository[]> {
     const results: ResolvedGitWorklogRepository[] = []
     const visitedDirectories = new Set<string>()
+    const discoveredRepositoryPaths = new Set<string>()
     const maxDepth = Number.isFinite(this.settings.autoDiscoverDepth)
       ? Math.max(1, Math.min(GIT_WORKLOG_MAX_AUTO_DISCOVER_DEPTH, this.settings.autoDiscoverDepth))
       : GIT_WORKLOG_DEFAULT_AUTO_DISCOVER_DEPTH
@@ -691,10 +692,6 @@ export class GitWorklogPluginController {
     for (const workspace of this.workspaces) {
       const rootPath = workspace.path.trim()
       if (rootPath.length === 0) {
-        continue
-      }
-
-      if (importedWorkspacePaths.has(normalizePathForComparison(rootPath))) {
         continue
       }
 
@@ -711,18 +708,22 @@ export class GitWorklogPluginController {
         }
 
         visitedDirectories.add(normalizedCurrentPath)
-        const isGitRepository = await this.isGitRepositoryRoot(current.path)
-        if (isGitRepository) {
-          results.push({
-            id: toAutoRepositoryId(workspace.id, current.path, rootPath),
-            label: current.depth === 0 ? workspace.name : basename(current.path),
-            path: current.path,
-            enabled: true,
-            origin: 'auto',
-            parentWorkspaceId: workspace.id,
-            parentWorkspaceName: workspace.name,
-            parentWorkspacePath: workspace.path,
-          })
+        const resolvedRepository = await this.scanner.resolveRepositoryRoot(current.path)
+        if (resolvedRepository.ok) {
+          const normalizedRepositoryPath = normalizePathForComparison(resolvedRepository.path)
+          if (!discoveredRepositoryPaths.has(normalizedRepositoryPath)) {
+            discoveredRepositoryPaths.add(normalizedRepositoryPath)
+            results.push({
+              id: toAutoRepositoryId(workspace.id, resolvedRepository.path, rootPath),
+              label: current.depth === 0 ? workspace.name : basename(resolvedRepository.path),
+              path: resolvedRepository.path,
+              enabled: true,
+              origin: 'auto',
+              parentWorkspaceId: workspace.id,
+              parentWorkspaceName: workspace.name,
+              parentWorkspacePath: workspace.path,
+            })
+          }
         }
 
         if (current.depth >= maxDepth) {
@@ -742,14 +743,37 @@ export class GitWorklogPluginController {
     return results
   }
 
-  private async isGitRepositoryRoot(candidatePath: string): Promise<boolean> {
-    const gitPath = resolve(candidatePath, '.git')
-    try {
-      const stat = await fs.stat(gitPath)
-      return stat.isDirectory() || stat.isFile()
-    } catch {
-      return false
+  private async resolveAutoCandidates(
+    configuredRepositories: ResolvedGitWorklogRepository[],
+  ): Promise<GitWorklogAutoCandidateDto[]> {
+    if (!this.settings.autoDiscoverEnabled) {
+      return []
     }
+
+    const configuredRepositoryPaths = new Set(
+      configuredRepositories.map(repository => normalizePathForComparison(repository.path)),
+    )
+    const ignoredAutoRepositoryPaths = createIgnoredAutoRepositoryPathSet(this.settings)
+    const discoveredRepositories = await this.discoverWorkspaceRepositories()
+
+    return discoveredRepositories
+      .filter(repository => {
+        const normalizedPath = normalizePathForComparison(repository.path)
+        return (
+          !configuredRepositoryPaths.has(normalizedPath) &&
+          !ignoredAutoRepositoryPaths.has(normalizedPath)
+        )
+      })
+      .map(repository => ({
+        id: repository.id,
+        label: repository.label,
+        path: repository.path,
+        parentWorkspaceId: repository.parentWorkspaceId,
+        parentWorkspaceName: repository.parentWorkspaceName,
+        parentWorkspacePath: repository.parentWorkspacePath,
+        detectedAt: this.state.lastUpdatedAt,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label))
   }
 
   private async readCandidateSubDirectories(parentPath: string): Promise<string[]> {

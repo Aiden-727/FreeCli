@@ -77,15 +77,32 @@ function createRepoState(overrides: Partial<GitWorklogRepoStateDto> = {}): GitWo
   }
 }
 
+function createScannerMock(
+  overrides: Partial<{
+    scan: GitWorklogScanner['scan']
+    resolveRepositoryRoot: GitWorklogScanner['resolveRepositoryRoot']
+  }> = {},
+) {
+  return {
+    scan: vi.fn().mockResolvedValue([createRepoState()]),
+    resolveRepositoryRoot: vi.fn().mockImplementation(async (candidatePath: string) => ({
+      ok: true as const,
+      path: candidatePath,
+      label: candidatePath.split(/[\\/]/).filter(Boolean).at(-1) ?? candidatePath,
+    })),
+    ...overrides,
+  }
+}
+
 describe('GitWorklogPluginController', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
 
   it('aggregates ready state when all repositories scan successfully', async () => {
-    const scanner = {
+    const scanner = createScannerMock({
       scan: vi.fn().mockResolvedValue([createRepoState()]),
-    }
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValue(true),
@@ -114,7 +131,7 @@ describe('GitWorklogPluginController', () => {
   })
 
   it('marks unapproved repositories as errors while keeping approved results', async () => {
-    const scanner = {
+    const scanner = createScannerMock({
       scan: vi.fn().mockResolvedValue([
         createRepoState(),
         createRepoState({
@@ -127,7 +144,7 @@ describe('GitWorklogPluginController', () => {
           totalCodeLines: 90,
         }),
       ]),
-    }
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockImplementation(async (path: string) => !path.includes('blocked')),
@@ -171,8 +188,8 @@ describe('GitWorklogPluginController', () => {
     await controller.dispose()
   })
 
-  it('auto-discovers repositories from synced workspaces when manual list is empty', async () => {
-    const scanner = {
+  it('collects auto-discovered repositories as candidates when manual list is empty', async () => {
+    const scanner = createScannerMock({
       scan: vi
         .fn()
         .mockImplementation(
@@ -186,7 +203,7 @@ describe('GitWorklogPluginController', () => {
             )
           },
         ),
-    }
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValue(true),
@@ -223,16 +240,15 @@ describe('GitWorklogPluginController', () => {
     await runtime.activate()
 
     const state = controller.getState()
-    expect(scanner.scan).toHaveBeenCalledTimes(1)
-    expect(state.configuredRepoCount).toBeGreaterThan(0)
-    expect(state.repos.some(repo => repo.origin === 'auto')).toBe(true)
-    expect(state.status === 'ready' || state.status === 'partial_error').toBe(true)
+    expect(scanner.scan).not.toHaveBeenCalled()
+    expect((state.autoCandidates ?? []).length).toBeGreaterThan(0)
+    expect(state.status).toBe('needs_config')
 
     await controller.dispose()
   })
 
   it('skips ignored auto-discovered repositories', async () => {
-    const scanner = {
+    const scanner = createScannerMock({
       scan: vi
         .fn()
         .mockImplementation(
@@ -246,7 +262,7 @@ describe('GitWorklogPluginController', () => {
               }),
             ),
         ),
-    }
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValue(true),
@@ -291,9 +307,9 @@ describe('GitWorklogPluginController', () => {
   })
 
   it('does not auto-discover workspaces that were already imported once', async () => {
-    const scanner = {
+    const scanner = createScannerMock({
       scan: vi.fn(),
-    }
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValue(true),
@@ -336,10 +352,88 @@ describe('GitWorklogPluginController', () => {
     await controller.dispose()
   })
 
-  it('clears stale lastError after settings are changed', async () => {
+  it('exposes auto-discovered repositories as confirmation candidates', async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), 'git-worklog-candidates-'))
+    const workspaceRoot = join(tempRoot, 'workspace-root')
+    const nestedRepository = join(workspaceRoot, 'apps', 'admin')
+    await mkdir(join(nestedRepository, '.git'), { recursive: true })
+
     const scanner = {
-      scan: vi.fn().mockResolvedValue([createRepoState()]),
+      scan: vi.fn().mockResolvedValue([]),
+      resolveRepositoryRoot: vi.fn().mockImplementation(async (candidatePath: string) => {
+        if (candidatePath === nestedRepository) {
+          return {
+            ok: true as const,
+            path: nestedRepository,
+            label: 'admin',
+          }
+        }
+
+        return {
+          ok: false as const,
+          error: {
+            type: 'not_git_repo' as const,
+            message: '不是有效的 Git 仓库',
+            detail: null,
+          },
+        }
+      }),
     }
+    const approvedWorkspaces: ApprovedWorkspaceStore = {
+      registerRoot: vi.fn(),
+      isPathApproved: vi.fn().mockResolvedValue(true),
+    }
+    const controller = new GitWorklogPluginController({
+      approvedWorkspaces,
+      scanner: scanner as unknown as GitWorklogScanner,
+      emitState: () => undefined,
+    })
+
+    controller.syncWorkspaces([
+      {
+        id: 'workspace_root',
+        name: 'Workspace Root',
+        path: workspaceRoot,
+      },
+    ])
+    controller.syncSettings(
+      createSettings({
+        repositories: [
+          {
+            ...createDefaultGitWorklogRepository(0),
+            id: 'repo_empty',
+            label: 'Empty Repo',
+            path: '',
+          },
+        ],
+        autoDiscoverEnabled: true,
+        autoDiscoverDepth: 3,
+      }),
+    )
+
+    const runtime = controller.createRuntimeFactory()()
+    await runtime.activate()
+
+    expect(controller.getState().autoCandidates).toEqual([
+      {
+        id: 'auto_workspace_root_apps__admin',
+        label: 'admin',
+        path: nestedRepository,
+        parentWorkspaceId: 'workspace_root',
+        parentWorkspaceName: 'Workspace Root',
+        parentWorkspacePath: workspaceRoot,
+        detectedAt: null,
+      },
+    ])
+
+    await controller.dispose()
+    await rm(tempRoot, { recursive: true, force: true })
+  })
+
+  it('clears stale lastError after settings are changed', async () => {
+    const scanner = createScannerMock({
+      scan: vi.fn().mockResolvedValue([createRepoState()]),
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true),
@@ -394,7 +488,7 @@ describe('GitWorklogPluginController', () => {
     await mkdir(join(workspaceTwo, '.git'), { recursive: true })
 
     let resolveFirstScan: ((value: GitWorklogRepoStateDto[]) => void) | null = null
-    const scanner = {
+    const scanner = createScannerMock({
       scan: vi
         .fn()
         .mockImplementationOnce(
@@ -424,7 +518,12 @@ describe('GitWorklogPluginController', () => {
               }),
             ),
         ),
-    }
+      resolveRepositoryRoot: vi.fn().mockImplementation(async (candidatePath: string) => ({
+        ok: true as const,
+        path: candidatePath,
+        label: candidatePath.split(/[\\/]/).filter(Boolean).at(-1) ?? candidatePath,
+      })),
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValue(true),
@@ -475,19 +574,18 @@ describe('GitWorklogPluginController', () => {
 
     await vi.advanceTimersByTimeAsync(450)
     await vi.waitFor(() => {
-      expect(scanner.scan).toHaveBeenCalledTimes(1)
+      expect(scanner.resolveRepositoryRoot).toHaveBeenCalled()
     })
 
     resolveFirstScan?.([])
     await activatePromise
     await vi.runAllTicks()
     await vi.waitFor(() => {
-      expect(scanner.scan).toHaveBeenCalledTimes(2)
+      expect(controller.getState().autoCandidates).toHaveLength(2)
     })
-
-    const latestScanRepositories = scanner.scan.mock.calls.at(-1)?.[1] ?? []
-    expect(latestScanRepositories).toHaveLength(2)
-    expect(latestScanRepositories.some(repo => repo.path === workspaceTwo)).toBe(true)
+    expect(controller.getState().autoCandidates?.some(repo => repo.path === workspaceTwo)).toBe(
+      true,
+    )
 
     await controller.dispose()
     await rm(tempRoot, { recursive: true, force: true })
@@ -498,9 +596,9 @@ describe('GitWorklogPluginController', () => {
     vi.useFakeTimers()
 
     const focusState = { current: false }
-    const scanner = {
+    const scanner = createScannerMock({
       scan: vi.fn().mockResolvedValue([createRepoState()]),
-    }
+    })
     const approvedWorkspaces: ApprovedWorkspaceStore = {
       registerRoot: vi.fn(),
       isPathApproved: vi.fn().mockResolvedValue(true),

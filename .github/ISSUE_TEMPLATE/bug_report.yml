@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Create a report to help us improve OpenCove
+description: Create a report to help us improve FreeCli
 title: '[BUG] '
 labels: ['bug']
 body:
@@ -24,7 +24,7 @@ body:
       label: 👣 Steps to Reproduce
       description: How can we reproduce this issue?
       placeholder: |
-        1. Launch OpenCove
+        1. Launch FreeCli
         2. Go to '...'
         3. Click on '....'
         4. See error
@@ -63,7 +63,7 @@ body:
     attributes:
       label: 📦 Versions
       description: Your environment details
-      placeholder: Node.js v22.0.0, pnpm v9.0.0, OpenCove v0.1.0-alpha
+      placeholder: Node.js v22.0.0, pnpm v9.0.0, FreeCli v0.1.0-alpha
     validations:
       required: true
 

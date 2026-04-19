@@ -315,6 +315,8 @@ function ensurePersistedNode(node: unknown): PersistedTerminalNode | null {
     height,
     kind,
     profileId: normalizeOptionalString(record.profileId),
+    credentialProfileId: normalizeOptionalString(record.credentialProfileId),
+    activeCredentialProfileId: normalizeOptionalString(record.activeCredentialProfileId),
     runtimeKind,
     labelColorOverride: normalizeNodeLabelColorOverride(record.labelColorOverride),
     status: normalizeAgentRuntimeStatus(record.status),

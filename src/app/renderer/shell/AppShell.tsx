@@ -45,8 +45,6 @@ import {
   buildPluginHostSyncTasks,
   resolvePersistedPluginChangeIds,
 } from '@contexts/plugins/presentation/renderer/pluginHostSyncRegistry'
-import { useGitWorklogState } from '../../../plugins/gitWorklog/presentation/renderer/useGitWorklogState'
-import { resolveGitWorklogAutoImport } from '../../../plugins/gitWorklog/presentation/renderer/gitWorklogAutoImport'
 import type { ProjectContextMenuState } from './types'
 import { useAppStore } from './store/useAppStore'
 import { reorderWorkspaces } from './utils/reorderWorkspaces'
@@ -75,6 +73,7 @@ export default function App(): React.JSX.Element {
   } = useAppStore()
 
   const { isPersistReady } = useHydrateAppState({
+    agentSettings,
     workspaces,
     activeWorkspaceId,
     setAgentSettings,
@@ -139,7 +138,6 @@ export default function App(): React.JSX.Element {
   const { floatingMessage, showMessage: handleShowMessage } = useFloatingMessage()
   const { notifications: agentNotifications, dismiss: handleDismissAgentNotification } =
     useAgentStandbyNotifications()
-  const { state: gitWorklogState } = useGitWorklogState()
   const [pluginHostDiagnostics, setPluginHostDiagnostics] = useState<PluginHostDiagnosticItem[]>([])
   const pluginHostDiagnosticToastRef = React.useRef(new Map<PluginHostDiagnosticCode, string>())
 
@@ -523,75 +521,6 @@ export default function App(): React.JSX.Element {
         })
     }
   }, [clearPluginHostDiagnostic, isPersistReady, pluginHostSyncTasks, reportPluginHostDiagnostic])
-
-  const gitWorklogImportBaselineRef = React.useRef<{
-    signature: string
-    lastUpdatedAt: string | null
-  } | null>(null)
-
-  useEffect(() => {
-    if (!isPersistReady) {
-      gitWorklogImportBaselineRef.current = null
-      return
-    }
-
-    if (!agentSettings.plugins.enabledIds.includes('git-worklog')) {
-      gitWorklogImportBaselineRef.current = null
-      return
-    }
-
-    if (!agentSettings.plugins.gitWorklog.autoDiscoverEnabled) {
-      gitWorklogImportBaselineRef.current = null
-      return
-    }
-
-    const resolution = resolveGitWorklogAutoImport({
-      settings: agentSettings.plugins.gitWorklog,
-      workspaces: workspacePluginSyncItems,
-      state: gitWorklogState,
-      scanBaselineLastUpdatedAt: gitWorklogImportBaselineRef.current?.lastUpdatedAt ?? null,
-    })
-
-    if (resolution.pendingWorkspacePaths.length === 0) {
-      gitWorklogImportBaselineRef.current = null
-      return
-    }
-
-    const signature = resolution.pendingWorkspacePaths
-      .map(pathValue =>
-        pathValue.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/').toLowerCase(),
-      )
-      .sort()
-      .join('|')
-
-    const baselineChanged = gitWorklogImportBaselineRef.current?.signature !== signature
-    if (baselineChanged) {
-      gitWorklogImportBaselineRef.current = {
-        signature,
-        lastUpdatedAt: gitWorklogState.lastUpdatedAt,
-      }
-    }
-
-    if (!resolution.nextSettings) {
-      return
-    }
-
-    gitWorklogImportBaselineRef.current = null
-    setAgentSettings(prev => ({
-      ...prev,
-      plugins: {
-        ...prev.plugins,
-        gitWorklog: resolution.nextSettings ?? prev.plugins.gitWorklog,
-      },
-    }))
-  }, [
-    agentSettings.plugins.enabledIds,
-    agentSettings.plugins.gitWorklog,
-    gitWorklogState,
-    isPersistReady,
-    setAgentSettings,
-    workspacePluginSyncItems,
-  ])
 
   const handleSelectWorkspace = useCallback((workspaceId: string): void => {
     const store = useAppStore.getState()

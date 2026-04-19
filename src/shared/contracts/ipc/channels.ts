@@ -53,6 +53,7 @@ export const IPC_CHANNELS = {
   pluginsGitWorklogSyncSettings: 'plugins:git-worklog:sync-settings',
   pluginsGitWorklogSyncWorkspaces: 'plugins:git-worklog:sync-workspaces',
   pluginsGitWorklogGetState: 'plugins:git-worklog:get-state',
+  pluginsGitWorklogResolveRepository: 'plugins:git-worklog:resolve-repository',
   pluginsGitWorklogRefresh: 'plugins:git-worklog:refresh',
   pluginsGitWorklogState: 'plugins:git-worklog:state',
   pluginsOssBackupSyncSettings: 'plugins:oss-backup:sync-settings',

@@ -974,6 +974,7 @@ export const en = {
   terminalNode: {
     resizeWidth: 'Resize terminal width',
     resizeHeight: 'Resize terminal height',
+    pasting: 'Pasting…',
   },
   terminalFind: {
     placeholder: 'Find…',
@@ -985,6 +986,13 @@ export const en = {
     directoryMismatch: 'DIR MISMATCH',
     directoryMismatchTitle:
       'Bound directory: {{executionDirectory}}\nCurrent directory: {{expectedDirectory}}',
+    providerCodex: 'Codex',
+    providerClaudeCode: 'Claude Code',
+    noCredentialProfile: 'No credential',
+    credentialMenuTitle: 'Codex Key',
+    credentialActiveTitle: 'Current session is using: {{activeProfile}}',
+    credentialPendingTitle: 'Current session is still using: {{activeProfile}}\nAfter restart: {{nextProfile}}',
+    credentialPending: 'Pending restart',
     copyLastMessage: 'Copy last agent message',
     copyingLastMessage: 'Copying last agent message',
     persistenceModeLabel: 'Persistence',
@@ -994,6 +1002,20 @@ export const en = {
       'Restore this terminal and its session binding after reopening the app.',
     persistenceModeEphemeralHint:
       'Do not restore this terminal after reopening the app, and do not auto-resume Codex/Claude hosted inside it.',
+    restartDialogTitle: 'Restart terminal to apply key?',
+    restartDialogSummary:
+      'Terminal "{{title}}" has a new target key. The current session will not be hot-swapped.',
+    restartDialogCurrentProfile: 'Current session is using: {{profile}}',
+    restartDialogNextProfile: 'After restart it will use: {{profile}}',
+    restartDialogResumeHint:
+      'FreeCli will restart this terminal and use Codex resume to restore the previous conversation.',
+    restartDialogManualHint:
+      'FreeCli will restart this terminal. No Codex resumeSessionId is available, so you may need to re-enter the conversation manually.',
+    restartDialogKeepRunning: 'Not now',
+    restartDialogRestartNow: 'Restart terminal',
+    restartDialogRestarting: 'Restarting...',
+    restartSuccess: 'Terminal restarted. New credentials are active.',
+    restartFailed: 'Terminal restart failed: {{message}}',
   },
   nodeDeleteDialog: {
     deleteNodes_one: 'Delete {{count}} node?',
@@ -1041,6 +1063,7 @@ export const en = {
     selectionHint_other: 'Selected {{count}} windows.',
     showMinimap: 'Show minimap',
     hideMinimap: 'Hide minimap',
+    minimapAriaLabel: 'Workspace minimap',
     labelColorFilterAll: 'Show all',
     clearLabelColorFilter: 'Clear label filter',
   },

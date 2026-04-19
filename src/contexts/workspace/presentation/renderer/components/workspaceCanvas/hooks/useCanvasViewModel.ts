@@ -11,7 +11,11 @@ import type { TerminalNodeData, WorkspaceSpaceState } from '../../../types'
 import { useWorkspaceCanvasTaskAgentEdges } from './useTaskAgentEdges'
 import { useWorkspaceCanvasViewportMoveEnd } from './useViewportMoveEnd'
 import { useWorkspaceCanvasSpaceUi } from './useSpaceUi'
-import { resolveWorkspaceMinimapNodeColor } from '../minimap'
+import {
+  resolveWorkspaceMinimapNodeClassName,
+  resolveWorkspaceMinimapNodeColor,
+  resolveWorkspaceMinimapNodeStrokeColor,
+} from '../minimap'
 import type { ContextMenuState, EmptySelectionPromptState } from '../types'
 
 export function useWorkspaceCanvasViewModel({
@@ -52,6 +56,8 @@ export function useWorkspaceCanvasViewModel({
   taskTitleModelLabel: string
   handleViewportMoveEnd: (_event: MouseEvent | TouchEvent | null, nextViewport: Viewport) => void
   minimapNodeColor: typeof resolveWorkspaceMinimapNodeColor
+  minimapNodeStrokeColor: typeof resolveWorkspaceMinimapNodeStrokeColor
+  minimapNodeClassName: typeof resolveWorkspaceMinimapNodeClassName
   taskAgentEdges: ReturnType<typeof useWorkspaceCanvasTaskAgentEdges>
   spaceUi: ReturnType<typeof useWorkspaceCanvasSpaceUi>
 } {
@@ -60,6 +66,8 @@ export function useWorkspaceCanvasViewModel({
   const taskTitleModelLabel = resolveTaskTitleModel(agentSettings) ?? t('common.defaultModel')
   const handleViewportMoveEnd = useWorkspaceCanvasViewportMoveEnd({ viewportRef, onViewportChange })
   const minimapNodeColor = resolveWorkspaceMinimapNodeColor
+  const minimapNodeStrokeColor = resolveWorkspaceMinimapNodeStrokeColor
+  const minimapNodeClassName = resolveWorkspaceMinimapNodeClassName
 
   const taskAgentEdges = useWorkspaceCanvasTaskAgentEdges(flowNodes)
 
@@ -82,12 +90,16 @@ export function useWorkspaceCanvasViewModel({
       taskTitleModelLabel,
       handleViewportMoveEnd,
       minimapNodeColor,
+      minimapNodeStrokeColor,
+      minimapNodeClassName,
       taskAgentEdges,
       spaceUi,
     }),
     [
       handleViewportMoveEnd,
+      minimapNodeClassName,
       minimapNodeColor,
+      minimapNodeStrokeColor,
       spaceUi,
       taskAgentEdges,
       taskTitleModelLabel,

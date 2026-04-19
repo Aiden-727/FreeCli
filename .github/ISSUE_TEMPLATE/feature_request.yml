@@ -1,12 +1,12 @@
 name: ✨ Feature Request
-description: Suggest an idea or new capability for OpenCove
+description: Suggest an idea or new capability for FreeCli
 title: '[FEAT] '
 labels: ['enhancement']
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for your interest in improving OpenCove!
+        Thanks for your interest in improving FreeCli!
         Please describe your idea in detail so we can understand the use case.
 
   - type: textarea

@@ -284,6 +284,8 @@ export interface GitWorklogRepositoryDto {
   label: string
   path: string
   enabled: boolean
+  origin?: 'manual' | 'auto'
+  assignedWorkspaceId?: string | null
 }
 
 export interface GitWorklogWorkspaceDto {
@@ -292,10 +294,22 @@ export interface GitWorklogWorkspaceDto {
   path: string
 }
 
+export interface GitWorklogAutoCandidateDto {
+  id: string
+  label: string
+  path: string
+  parentWorkspaceId: string | null
+  parentWorkspaceName: string | null
+  parentWorkspacePath: string | null
+  detectedAt: string | null
+}
+
 export type GitWorklogRangeMode = 'recent_days' | 'date_range'
 
 export interface GitWorklogSettingsDto {
   repositories: GitWorklogRepositoryDto[]
+  repositoryOrder: string[]
+  workspaceOrder: string[]
   ignoredAutoRepositoryPaths: string[]
   autoImportedWorkspacePaths: string[]
   authorFilter: string
@@ -543,6 +557,8 @@ export interface GitWorklogStateDto {
   successfulRepoCount: number
   overview: GitWorklogOverviewDto
   repos: GitWorklogRepoStateDto[]
+  autoCandidates?: GitWorklogAutoCandidateDto[]
+  availableWorkspaces?: GitWorklogWorkspaceDto[]
   lastError: GitWorklogErrorDto | null
 }
 
@@ -552,4 +568,13 @@ export interface SyncGitWorklogSettingsInput {
 
 export interface SyncGitWorklogWorkspacesInput {
   workspaces: GitWorklogWorkspaceDto[]
+}
+
+export interface ResolveGitWorklogRepositoryInput {
+  path: string
+}
+
+export interface ResolveGitWorklogRepositoryResult {
+  path: string
+  label: string
 }

@@ -173,9 +173,18 @@ export interface SpaceWorktreeMismatchDropWarningState {
   terminalCount: number
 }
 
+export interface TerminalCredentialRestartDialogState {
+  nodeId: string
+  title: string
+  currentProfileLabel: string
+  nextProfileLabel: string
+  willResumeConversation: boolean
+}
+
 export interface CreateNodeInput {
   sessionId: string
   profileId?: string | null
+  credentialProfileId?: string | null
   runtimeKind?: TerminalRuntimeKind
   title: string
   anchor: Point

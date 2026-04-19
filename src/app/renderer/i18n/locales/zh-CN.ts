@@ -933,6 +933,7 @@ export const zhCN = {
   terminalNode: {
     resizeWidth: '调整终端宽度',
     resizeHeight: '调整终端高度',
+    pasting: '正在粘贴中',
   },
   terminalFind: {
     placeholder: '查找…',
@@ -943,6 +944,13 @@ export const zhCN = {
   terminalNodeHeader: {
     directoryMismatch: '目录不匹配',
     directoryMismatchTitle: '绑定目录：{{executionDirectory}}\n原目录：{{expectedDirectory}}',
+    providerCodex: 'Codex',
+    providerClaudeCode: 'Claude Code',
+    noCredentialProfile: '不注入凭据',
+    credentialMenuTitle: 'Codex Key',
+    credentialActiveTitle: '当前会话正在使用：{{activeProfile}}',
+    credentialPendingTitle: '当前会话仍在使用：{{activeProfile}}\n重启后使用：{{nextProfile}}',
+    credentialPending: '待重启',
     copyLastMessage: '复制上一条 Agent 消息',
     copyingLastMessage: '正在复制上一条 Agent 消息',
     persistenceModeLabel: '持久化',
@@ -951,6 +959,18 @@ export const zhCN = {
     persistenceModePersistentHint: '关闭程序后恢复这个终端与其会话绑定。',
     persistenceModeEphemeralHint:
       '关闭程序后不恢复这个终端，也不会自动继续其中的 Codex/Claude 会话。',
+    restartDialogTitle: '重启终端以应用 Key？',
+    restartDialogSummary: '终端“{{title}}”已切换目标 Key。当前会话不会被热切换。',
+    restartDialogCurrentProfile: '当前会话正在使用：{{profile}}',
+    restartDialogNextProfile: '重启后将使用：{{profile}}',
+    restartDialogResumeHint: 'FreeCli 会重启该终端，并使用 Codex resume 恢复到之前的对话。',
+    restartDialogManualHint:
+      'FreeCli 会重启该终端；由于当前没有可用的 Codex resumeSessionId，可能需要你手动重新进入会话。',
+    restartDialogKeepRunning: '暂不重启',
+    restartDialogRestartNow: '重启终端',
+    restartDialogRestarting: '重启中...',
+    restartSuccess: '终端已重启，新凭据已生效。',
+    restartFailed: '终端重启失败：{{message}}',
   },
   nodeDeleteDialog: {
     deleteNodes_one: '删除 {{count}} 个节点？',
@@ -996,6 +1016,7 @@ export const zhCN = {
     selectionHint_other: '已选中 {{count}} 个窗口。',
     showMinimap: '显示缩略图',
     hideMinimap: '隐藏缩略图',
+    minimapAriaLabel: '工作区缩略图',
     labelColorFilterAll: '显示全部',
     clearLabelColorFilter: '清除颜色过滤',
   },

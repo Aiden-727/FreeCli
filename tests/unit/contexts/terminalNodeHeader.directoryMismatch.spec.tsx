@@ -57,7 +57,8 @@ describe('TerminalNodeHeader directory mismatch badge', () => {
     expect(switchButton).toHaveTextContent('持久化')
     expect(closeButton).not.toBeNull()
     expect(
-      switchButton.compareDocumentPosition(closeButton as Element) & Node.DOCUMENT_POSITION_FOLLOWING,
+      switchButton.compareDocumentPosition(closeButton as Element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0)
 
     fireEvent.click(switchButton)
@@ -117,5 +118,97 @@ describe('TerminalNodeHeader directory mismatch badge', () => {
     )
 
     expect(screen.getByTestId('terminal-node-model-badge')).toHaveTextContent('gpt-5.4')
+  })
+
+  it('renders a Codex credential capsule and opens profile choices', () => {
+    const onCredentialProfileChange = vi.fn()
+
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        credentialProfileId="cred-codex"
+        activeCredentialProfileId="cred-codex"
+        terminalCredentialProfiles={[
+          { id: 'cred-codex', label: 'Codex Main', provider: 'codex' },
+          { id: 'cred-claude', label: 'Claude Main', provider: 'claude-code' },
+        ]}
+        activeCredentialProvider="codex"
+        onCredentialProfileChange={onCredentialProfileChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    expect(screen.getByTestId('terminal-node-credential-capsule')).toHaveTextContent('Codex Main')
+    fireEvent.click(screen.getByTestId('terminal-node-credential-capsule'))
+    expect(screen.getByTestId('terminal-node-credential-menu')).toBeVisible()
+    expect(screen.queryByText('Claude Main')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('terminal-node-credential-option-none'))
+    expect(onCredentialProfileChange).toHaveBeenCalledWith(null)
+  })
+
+  it('renders the Codex credential capsule for plain terminal sessions', () => {
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        credentialProfileId="cred-codex"
+        activeCredentialProfileId="cred-codex"
+        terminalCredentialProfiles={[{ id: 'cred-codex', label: 'Codex Main', provider: 'codex' }]}
+        activeCredentialProvider="codex"
+        onCredentialProfileChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    const capsule = screen.getByTestId('terminal-node-credential-capsule')
+    expect(capsule).toHaveTextContent('Codex')
+    expect(capsule).toHaveTextContent('Codex Main')
+  })
+
+  it('renders a no-credential Codex capsule when no profiles are configured', () => {
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        credentialProfileId={null}
+        activeCredentialProfileId={null}
+        terminalCredentialProfiles={[]}
+        activeCredentialProvider="codex"
+        onCredentialProfileChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    const capsule = screen.getByTestId('terminal-node-credential-capsule')
+    expect(capsule).toHaveTextContent('Codex')
+    expect(capsule).toHaveTextContent('不注入凭据')
+  })
+
+  it('shows pending restart when selected Codex profile differs from the active session profile', () => {
+    render(
+      <TerminalNodeHeader
+        title="codex"
+        kind="terminal"
+        status={null}
+        credentialProfileId="cred-next"
+        activeCredentialProfileId="cred-active"
+        terminalCredentialProfiles={[
+          { id: 'cred-active', label: 'Active Key', provider: 'codex' },
+          { id: 'cred-next', label: 'Next Key', provider: 'codex' },
+        ]}
+        activeCredentialProvider="codex"
+        onCredentialProfileChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    const capsule = screen.getByTestId('terminal-node-credential-capsule')
+    expect(capsule).toHaveTextContent('Active Key')
+    expect(capsule).toHaveTextContent('待重启')
   })
 })

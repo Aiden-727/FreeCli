@@ -21,6 +21,11 @@ export interface SpawnTerminalInput {
   cwd: string
   profileId?: string
   shell?: string
+  credential?: {
+    provider: 'codex' | 'claude-code'
+    apiKey?: string
+    baseUrl?: string
+  }
   cols: number
   rows: number
 }

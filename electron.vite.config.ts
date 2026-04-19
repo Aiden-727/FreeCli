@@ -61,6 +61,14 @@ const OSS_BUNDLED_DEPENDENCIES = [
   'is-plain-object',
   'assign-symbols',
   'isobject',
+  'proxy-agent',
+  'agent-base',
+  'http-proxy-agent',
+  'https-proxy-agent',
+  'pac-proxy-agent',
+  'socks-proxy-agent',
+  'proxy-from-env',
+  'lru-cache',
 ] as const
 
 export default defineConfig({
@@ -68,7 +76,8 @@ export default defineConfig({
     // Keep the legacy ali-oss dependency chain inside the main bundle.
     // Relying on packaged node_modules for these old CommonJS packages is
     // brittle under pnpm + electron-builder and has already caused runtime
-    // "Cannot find module 'is-plain-object'" failures in installed builds.
+    // "Cannot find module 'is-plain-object'" and "Cannot find module
+    // 'lru-cache'" failures in installed builds.
     plugins: [externalizeDepsPlugin({ exclude: [...OSS_BUNDLED_DEPENDENCIES] })],
     resolve: {
       alias: {

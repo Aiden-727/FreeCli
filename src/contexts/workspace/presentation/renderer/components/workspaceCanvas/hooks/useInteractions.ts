@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { useStoreApi, type Edge, type Node, type ReactFlowInstance } from '@xyflow/react'
 import type { StandardWindowSizeBucket } from '@contexts/settings/domain/agentSettings'
+import type { TerminalCredentialsSettings } from '@contexts/settings/domain/terminalCredentials'
 import type { ImageNodeData, Point, TerminalNodeData, WorkspaceSpaceState } from '../../../types'
 import type {
   ContextMenuState,
@@ -55,6 +56,7 @@ interface UseWorkspaceCanvasInteractionsParams {
   contextMenu: ContextMenuState | null
   workspacePath: string
   defaultTerminalProfileId: string | null
+  terminalCredentials: TerminalCredentialsSettings
   spacesRef: React.MutableRefObject<WorkspaceSpaceState[]>
   onSpacesChange: (spaces: WorkspaceSpaceState[]) => void
   nodesRef: React.MutableRefObject<Node<TerminalNodeData>[]>
@@ -97,6 +99,7 @@ export function useWorkspaceCanvasInteractions({
   contextMenu,
   workspacePath,
   defaultTerminalProfileId,
+  terminalCredentials,
   spacesRef,
   onSpacesChange,
   nodesRef,
@@ -449,6 +452,7 @@ export function useWorkspaceCanvasInteractions({
     workspacePath,
     nodesRef,
     defaultTerminalProfileId,
+    terminalCredentials,
     standardWindowSizeBucket,
     createNodeForSession,
     setNodes,

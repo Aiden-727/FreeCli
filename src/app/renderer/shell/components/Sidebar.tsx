@@ -228,7 +228,6 @@ function WorkspaceSidebarItem({
             y: event.clientY,
           })
         }}
-        title={workspace.path}
       >
         <span className="workspace-item__name">{workspace.name}</span>
         <span className="workspace-item__path">{workspace.path}</span>

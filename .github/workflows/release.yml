@@ -24,7 +24,7 @@ on:
         type: boolean
         default: false
       tag_name:
-        description: Tag to release (e.g. v0.2.0 or v0.2.0-nightly.20260321.1)
+        description: Tag to release (e.g. v0.2.0 or beta tag v0.2.0-nightly.20260321.1)
         required: true
         type: string
       target_commitish:
@@ -131,7 +131,7 @@ jobs:
         run: |
           if [[ "${FREECLI_RELEASE_TAG}" == *"-nightly."* ]]; then
             echo "is_nightly=true" >> "$GITHUB_OUTPUT"
-            echo "release_name=Nightly ${FREECLI_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+            echo "release_name=Beta ${FREECLI_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           else
             echo "is_nightly=false" >> "$GITHUB_OUTPUT"
             echo "release_name=${FREECLI_RELEASE_TAG}" >> "$GITHUB_OUTPUT"
@@ -164,7 +164,7 @@ jobs:
       - name: Generate checksums
         run: node scripts/generate-checksums.mjs release-assets
 
-      - name: Publish nightly prerelease
+      - name: Publish beta prerelease
         if: steps.channel.outputs.is_nightly == 'true'
         uses: softprops/action-gh-release@v2
         with:

@@ -13,6 +13,8 @@ export function useWorkspaceCanvasRuntimeBindings({
   updateNodeScrollback,
   updateTerminalTitle,
   renameTerminalTitle,
+  setTerminalCredentialProfile,
+  setTerminalActiveCredentialProfile,
   setTerminalPersistenceMode,
   trackTerminalHostedAgent,
   setTerminalHostedAgentActiveState,
@@ -36,6 +38,12 @@ export function useWorkspaceCanvasRuntimeBindings({
   >[0]['updateNodeScrollback']
   updateTerminalTitle: Parameters<typeof useWorkspaceCanvasSyncActionRefs>[0]['updateTerminalTitle']
   renameTerminalTitle: Parameters<typeof useWorkspaceCanvasSyncActionRefs>[0]['renameTerminalTitle']
+  setTerminalCredentialProfile: Parameters<
+    typeof useWorkspaceCanvasSyncActionRefs
+  >[0]['setTerminalCredentialProfile']
+  setTerminalActiveCredentialProfile: Parameters<
+    typeof useWorkspaceCanvasSyncActionRefs
+  >[0]['setTerminalActiveCredentialProfile']
   setTerminalPersistenceMode: Parameters<
     typeof useWorkspaceCanvasSyncActionRefs
   >[0]['setTerminalPersistenceMode']
@@ -68,6 +76,8 @@ export function useWorkspaceCanvasRuntimeBindings({
     updateNodeScrollback,
     updateTerminalTitle,
     renameTerminalTitle,
+    setTerminalCredentialProfile,
+    setTerminalActiveCredentialProfile,
     setTerminalPersistenceMode,
     trackTerminalHostedAgent,
     setTerminalHostedAgentActiveState,

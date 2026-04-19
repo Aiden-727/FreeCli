@@ -17,7 +17,8 @@ export function normalizeUpdatePolicyForChannel(
   policy: AppUpdatePolicy,
   channel: AppUpdateChannel,
 ): AppUpdatePolicy {
-  // Nightly builds are intentionally more volatile: don't auto-install them.
+  // The user-facing Beta channel maps to the internal nightly release stream.
+  // It stays prompt-only because prerelease builds are intentionally more volatile.
   if (channel === 'nightly' && policy === 'auto') {
     return 'prompt'
   }

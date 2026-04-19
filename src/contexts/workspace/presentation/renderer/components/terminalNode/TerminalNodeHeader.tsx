@@ -1,11 +1,7 @@
 import React, { useCallback, useEffect, useState, type JSX } from 'react'
 import { useTranslation } from '@app/renderer/i18n'
-import { Copy, LoaderCircle } from 'lucide-react'
-import type {
-  AgentRuntimeStatus,
-  TerminalPersistenceMode,
-  WorkspaceNodeKind,
-} from '../../types'
+import { Check, ChevronDown, Copy, KeyRound, LoaderCircle } from 'lucide-react'
+import type { AgentRuntimeStatus, TerminalPersistenceMode, WorkspaceNodeKind } from '../../types'
 import type { LabelColor } from '@shared/types/labelColor'
 import { getStatusClassName } from './status'
 
@@ -17,8 +13,17 @@ interface TerminalNodeHeaderProps {
   status: AgentRuntimeStatus | null
   labelColor?: LabelColor | null
   directoryMismatch?: { executionDirectory: string; expectedDirectory: string } | null
+  credentialProfileId?: string | null
+  activeCredentialProfileId?: string | null
+  terminalCredentialProfiles?: Array<{
+    id: string
+    label: string
+    provider: 'codex' | 'claude-code'
+  }>
+  activeCredentialProvider?: 'codex' | 'claude-code' | null
   persistenceMode?: TerminalPersistenceMode
   onTitleCommit?: (title: string) => void
+  onCredentialProfileChange?: (credentialProfileId: string | null) => void
   onPersistenceModeChange?: (mode: TerminalPersistenceMode) => void
   onClose: () => void
   onCopyLastMessage?: () => Promise<void>
@@ -32,8 +37,13 @@ export function TerminalNodeHeader({
   status,
   labelColor,
   directoryMismatch,
+  credentialProfileId,
+  activeCredentialProfileId,
+  terminalCredentialProfiles,
+  activeCredentialProvider,
   persistenceMode,
   onTitleCommit,
+  onCredentialProfileChange,
   onPersistenceModeChange,
   onClose,
   onCopyLastMessage,
@@ -42,6 +52,7 @@ export function TerminalNodeHeader({
   const [isTitleEditing, setIsTitleEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(title)
   const [isCopyingLastMessage, setIsCopyingLastMessage] = useState(false)
+  const [isCredentialMenuOpen, setIsCredentialMenuOpen] = useState(false)
 
   const isTitleEditable = typeof onTitleCommit === 'function'
   const isAgentNode = kind === 'agent'
@@ -55,6 +66,23 @@ export function TerminalNodeHeader({
     typeof onCopyLastMessage === 'function'
   const isCopyLastMessageDisabled = isCopyingLastMessage || status !== 'standby'
   const isTerminalNode = kind === 'terminal'
+  const codexCredentialProfiles = (terminalCredentialProfiles ?? []).filter(
+    profile => profile.provider === 'codex',
+  )
+  const shouldRenderCredentialCapsule =
+    isTerminalNode &&
+    activeCredentialProvider === 'codex' &&
+    typeof onCredentialProfileChange === 'function'
+  const activeCredentialProfile =
+    codexCredentialProfiles.find(profile => profile.id === activeCredentialProfileId) ?? null
+  const selectedCredentialProfile =
+    codexCredentialProfiles.find(profile => profile.id === credentialProfileId) ?? null
+  const hasPendingCredentialChange =
+    (credentialProfileId ?? null) !== (activeCredentialProfileId ?? null)
+  const activeCredentialLabel =
+    activeCredentialProfile?.label ?? t('terminalNodeHeader.noCredentialProfile')
+  const selectedCredentialLabel =
+    selectedCredentialProfile?.label ?? t('terminalNodeHeader.noCredentialProfile')
   const shouldRenderPersistenceToggle =
     isTerminalNode && persistenceMode && typeof onPersistenceModeChange === 'function'
 
@@ -65,6 +93,36 @@ export function TerminalNodeHeader({
 
     setTitleDraft(title)
   }, [isTitleEditing, title])
+
+  useEffect(() => {
+    if (!isCredentialMenuOpen) {
+      return
+    }
+
+    const closeMenu = (event: MouseEvent): void => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('.terminal-node__credential-picker')
+      ) {
+        return
+      }
+
+      setIsCredentialMenuOpen(false)
+    }
+
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setIsCredentialMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('mousedown', closeMenu)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('mousedown', closeMenu)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isCredentialMenuOpen])
 
   const commitTitleEdit = useCallback(() => {
     if (!isTitleEditable) {
@@ -210,6 +268,108 @@ export function TerminalNodeHeader({
         </div>
       ) : null}
 
+      {shouldRenderCredentialCapsule ? (
+        <div className="terminal-node__credential-picker nodrag">
+          <button
+            type="button"
+            className={`terminal-node__credential-capsule ${
+              hasPendingCredentialChange ? 'terminal-node__credential-capsule--pending' : ''
+            }`.trim()}
+            data-testid="terminal-node-credential-capsule"
+            aria-haspopup="menu"
+            aria-expanded={isCredentialMenuOpen}
+            title={
+              hasPendingCredentialChange
+                ? t('terminalNodeHeader.credentialPendingTitle', {
+                    activeProfile: activeCredentialLabel,
+                    nextProfile: selectedCredentialLabel,
+                  })
+                : t('terminalNodeHeader.credentialActiveTitle', {
+                    activeProfile: activeCredentialLabel,
+                  })
+            }
+            onClick={event => {
+              event.stopPropagation()
+              setIsCredentialMenuOpen(open => !open)
+            }}
+          >
+            <KeyRound className="terminal-node__credential-icon" aria-hidden="true" />
+            <span className="terminal-node__credential-provider">
+              {t('terminalNodeHeader.providerCodex')}
+            </span>
+            <span className="terminal-node__credential-name">{activeCredentialLabel}</span>
+            {hasPendingCredentialChange ? (
+              <span className="terminal-node__credential-pending">
+                {t('terminalNodeHeader.credentialPending')}
+              </span>
+            ) : null}
+            <ChevronDown
+              className={`terminal-node__credential-chevron ${
+                isCredentialMenuOpen ? 'terminal-node__credential-chevron--open' : ''
+              }`.trim()}
+              aria-hidden="true"
+            />
+          </button>
+
+          {isCredentialMenuOpen ? (
+            <div
+              className="workspace-context-menu terminal-node__credential-menu"
+              data-testid="terminal-node-credential-menu"
+              role="menu"
+              onMouseDown={event => {
+                event.stopPropagation()
+              }}
+              onClick={event => {
+                event.stopPropagation()
+              }}
+            >
+              <div className="workspace-context-menu__section-title">
+                {t('terminalNodeHeader.credentialMenuTitle')}
+              </div>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={(credentialProfileId ?? null) === null}
+                data-testid="terminal-node-credential-option-none"
+                onClick={() => {
+                  onCredentialProfileChange?.(null)
+                  setIsCredentialMenuOpen(false)
+                }}
+              >
+                {(credentialProfileId ?? null) === null ? (
+                  <Check className="workspace-context-menu__mark" aria-hidden="true" />
+                ) : (
+                  <span className="workspace-context-menu__mark" aria-hidden="true" />
+                )}
+                <span className="workspace-context-menu__label">
+                  {t('terminalNodeHeader.noCredentialProfile')}
+                </span>
+              </button>
+              {codexCredentialProfiles.map(profile => (
+                <button
+                  key={profile.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={credentialProfileId === profile.id}
+                  data-testid={`terminal-node-credential-option-${profile.id}`}
+                  onClick={() => {
+                    onCredentialProfileChange?.(profile.id)
+                    setIsCredentialMenuOpen(false)
+                  }}
+                >
+                  {credentialProfileId === profile.id ? (
+                    <Check className="workspace-context-menu__mark" aria-hidden="true" />
+                  ) : (
+                    <span className="workspace-context-menu__mark" aria-hidden="true" />
+                  )}
+                  <span className="workspace-context-menu__label">{profile.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {shouldRenderPersistenceToggle ? (
         <button
           type="button"
@@ -231,9 +391,7 @@ export function TerminalNodeHeader({
           }
           onClick={event => {
             event.stopPropagation()
-            onPersistenceModeChange(
-              persistenceMode === 'persistent' ? 'ephemeral' : 'persistent',
-            )
+            onPersistenceModeChange(persistenceMode === 'persistent' ? 'ephemeral' : 'persistent')
           }}
         >
           <span className="terminal-node__switch-track" aria-hidden="true">

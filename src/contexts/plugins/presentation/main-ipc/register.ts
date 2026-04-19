@@ -10,6 +10,7 @@ import type {
   OssBackupStateDto,
   RestorePluginBackupResultDto,
   QuotaMonitorStateDto,
+  ResolveGitWorklogRepositoryResult,
   SystemMonitorStateDto,
   SyncInputStatsSettingsInput,
   SyncSystemMonitorSettingsInput,
@@ -29,11 +30,13 @@ import { GitWorklogScanner } from '../../../../plugins/gitWorklog/presentation/m
 import { GitWorklogHistoryStore } from '../../../../plugins/gitWorklog/infrastructure/main/GitWorklogHistoryStore'
 import { OssBackupPluginController } from '../../../../plugins/ossBackup/presentation/main/OssBackupPluginController'
 import { SystemMonitorPluginController } from '../../../../plugins/systemMonitor/presentation/main/SystemMonitorPluginController'
+import { createAppError } from '../../../../shared/errors/appError'
 import {
   normalizeNotifyOssBackupPersistedSettingsPayload,
   normalizeSyncInputStatsSettingsPayload,
   normalizeSyncGitWorklogSettingsPayload,
   normalizeSyncGitWorklogWorkspacesPayload,
+  normalizeResolveGitWorklogRepositoryPayload,
   normalizeSyncOssBackupSettingsPayload,
   normalizeSyncPluginRuntimeStatePayload,
   normalizeSyncQuotaMonitorSettingsPayload,
@@ -183,6 +186,22 @@ export function registerPluginIpcHandlers(
     { defaultErrorCode: 'common.unexpected' },
   )
 
+  registerHandledIpc<ResolveGitWorklogRepositoryResult>(
+    IPC_CHANNELS.pluginsGitWorklogResolveRepository,
+    async (_event, payload): Promise<ResolveGitWorklogRepositoryResult> => {
+      const normalized = normalizeResolveGitWorklogRepositoryPayload(payload)
+      const isApproved = await approvedWorkspaces.isPathApproved(normalized.path)
+      if (!isApproved) {
+        throw createAppError('common.approved_path_required', {
+          debugMessage: 'plugins:git-worklog:resolve-repository path is outside approved workspaces',
+        })
+      }
+
+      return await gitWorklogController.resolveRepository(normalized.path)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
   registerHandledIpc<GitWorklogStateDto>(
     IPC_CHANNELS.pluginsGitWorklogRefresh,
     async (): Promise<GitWorklogStateDto> => await gitWorklogController.refreshNow(),
@@ -252,6 +271,7 @@ export function registerPluginIpcHandlers(
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogSyncSettings)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogSyncWorkspaces)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogGetState)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogResolveRepository)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogRefresh)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupSyncSettings)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupGetState)

@@ -25,6 +25,8 @@ import type {
   ReadAgentLastMessageResult,
   ResolveAgentResumeSessionInput,
   ResolveAgentResumeSessionResult,
+  ResolveGitWorklogRepositoryInput,
+  ResolveGitWorklogRepositoryResult,
   ResolveGitHubPullRequestsInput,
   ResolveGitHubPullRequestsResult,
   InputStatsStateDto,
@@ -180,6 +182,9 @@ export interface FreeCliApi {
       syncSettings: (payload: SyncGitWorklogSettingsInput) => Promise<GitWorklogStateDto>
       syncWorkspaces: (payload: SyncGitWorklogWorkspacesInput) => Promise<GitWorklogStateDto>
       getState: () => Promise<GitWorklogStateDto>
+      resolveRepository: (
+        payload: ResolveGitWorklogRepositoryInput,
+      ) => Promise<ResolveGitWorklogRepositoryResult>
       refresh: () => Promise<GitWorklogStateDto>
       onState: (listener: (state: GitWorklogStateDto) => void) => UnsubscribeFn
     }

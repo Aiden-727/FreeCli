@@ -6,6 +6,7 @@ import {
   type StandardWindowSizeBucket,
 } from '@contexts/settings/domain/agentSettings'
 import { buildHostedTerminalAgentResumeCommand } from '@contexts/terminal/domain/hostedAgent'
+import { resolveTerminalCredentialSpawnInput } from '@contexts/workspace/presentation/renderer/components/terminalNode/credentials'
 import { applyUiLanguage, translate } from '@app/renderer/i18n'
 import type {
   PersistedWorkspaceState,
@@ -21,7 +22,6 @@ import { toRuntimeNodes } from '@contexts/workspace/presentation/renderer/utils/
 import { resolveCanvasCanonicalBucketFromViewport } from '@contexts/workspace/presentation/renderer/utils/workspaceNodeSizing'
 import { sanitizeWorkspaceSpaces } from '@contexts/workspace/presentation/renderer/utils/workspaceSpaces'
 import { hydrateAgentNode } from '@contexts/agent/presentation/renderer/hydrateAgentNode'
-import { useAppStore } from '../store/useAppStore'
 
 function toShellWorkspaceState(workspace: PersistedWorkspaceState): WorkspaceState {
   const nodes = toRuntimeNodes(workspace)
@@ -136,6 +136,12 @@ function mergeHydratedNode(
           : currentNode.data.title,
       sessionId: hydratedNode.data.sessionId,
       profileId: hydratedNode.data.profileId ?? currentNode.data.profileId ?? null,
+      credentialProfileId:
+        hydratedNode.data.credentialProfileId ?? currentNode.data.credentialProfileId ?? null,
+      activeCredentialProfileId:
+        hydratedNode.data.activeCredentialProfileId ??
+        currentNode.data.activeCredentialProfileId ??
+        null,
       runtimeKind: hydratedNode.data.runtimeKind ?? currentNode.data.runtimeKind,
       status: hydratedNode.data.status,
       startedAt: hydratedNode.data.startedAt,
@@ -193,14 +199,17 @@ async function inferInitialStandardWindowSizeBucket(): Promise<StandardWindowSiz
 export async function hydrateRuntimeNode({
   node,
   workspacePath,
-  agentFullAccess,
-  defaultTerminalProfileId,
+  agentSettings,
 }: {
   node: Node<TerminalNodeData>
   workspacePath: string
-  agentFullAccess: boolean
-  defaultTerminalProfileId?: string | null
+  agentSettings: Pick<
+    AgentSettings,
+    'agentFullAccess' | 'defaultTerminalProfileId' | 'terminalCredentials'
+  >
 }): Promise<Node<TerminalNodeData>> {
+  const { agentFullAccess, defaultTerminalProfileId } = agentSettings
+
   if (node.data.kind === 'agent' && node.data.agent) {
     return hydrateAgentNode({
       node,
@@ -217,6 +226,10 @@ export async function hydrateRuntimeNode({
     const spawned = await window.freecliApi.pty.spawn({
       cwd: resolveTerminalHydrationCwd(node, workspacePath),
       profileId: node.data.profileId ?? defaultTerminalProfileId ?? undefined,
+      credential: resolveTerminalCredentialSpawnInput({
+        settings: agentSettings,
+        credentialProfileId: node.data.credentialProfileId,
+      }),
       cols: 80,
       rows: 24,
     })
@@ -266,6 +279,7 @@ export async function hydrateRuntimeNode({
             ...node.data,
             sessionId: spawned.sessionId,
             profileId: spawned.profileId,
+            activeCredentialProfileId: node.data.credentialProfileId ?? null,
             runtimeKind: spawned.runtimeKind,
             status: null,
             startedAt: null,
@@ -306,6 +320,7 @@ export async function hydrateRuntimeNode({
             ...node.data,
             sessionId: spawned.sessionId,
             profileId: spawned.profileId,
+            activeCredentialProfileId: node.data.credentialProfileId ?? null,
             runtimeKind: spawned.runtimeKind,
             kind: 'terminal' as const,
             status: 'restoring',
@@ -333,6 +348,7 @@ export async function hydrateRuntimeNode({
             ...node.data,
             sessionId: spawned.sessionId,
             profileId: spawned.profileId,
+            activeCredentialProfileId: node.data.credentialProfileId ?? null,
             runtimeKind: spawned.runtimeKind,
             kind: 'terminal' as const,
             status: null,
@@ -363,6 +379,7 @@ export async function hydrateRuntimeNode({
         ...node.data,
         sessionId: spawned.sessionId,
         profileId: spawned.profileId,
+        activeCredentialProfileId: node.data.credentialProfileId ?? null,
         runtimeKind: spawned.runtimeKind,
         kind: 'terminal' as const,
         status: null,
@@ -376,18 +393,28 @@ export async function hydrateRuntimeNode({
         task: null,
       },
     }
-  } catch {
-    return node
+  } catch (error) {
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        lastError: translate('messages.terminalLaunchFailed', {
+          message: toErrorMessage(error),
+        }),
+      },
+    }
   }
 }
 
 export function useHydrateAppState({
+  agentSettings,
   workspaces,
   activeWorkspaceId,
   setAgentSettings,
   setWorkspaces,
   setActiveWorkspaceId,
 }: {
+  agentSettings: AgentSettings
   workspaces: WorkspaceState[]
   activeWorkspaceId: string | null
   setAgentSettings: React.Dispatch<React.SetStateAction<AgentSettings>>
@@ -405,6 +432,11 @@ export function useHydrateAppState({
   const initialHydrationCompletedRef = useRef(false)
   const previousActiveWorkspaceIdRef = useRef<string | null>(null)
   const workspacesRef = useRef<WorkspaceState[]>(workspaces)
+  const agentSettingsRef = useRef(agentSettings)
+
+  useEffect(() => {
+    agentSettingsRef.current = agentSettings
+  }, [agentSettings])
 
   const markInitialHydrationComplete = useCallback((workspaceId: string | null): void => {
     if (initialHydrationCompletedRef.current) {
@@ -608,12 +640,10 @@ export function useHydrateAppState({
 
       const hydrationPromise = Promise.allSettled(
         runtimeNodes.map(async node => {
-          const { agentFullAccess, defaultTerminalProfileId } = useAppStore.getState().agentSettings
           const hydratedNode = await hydrateRuntimeNode({
             node,
             workspacePath: persistedWorkspace.path,
-            agentFullAccess,
-            defaultTerminalProfileId,
+            agentSettings: agentSettingsRef.current,
           })
 
           applyHydratedNode(workspaceId, hydratedNode)
@@ -670,6 +700,11 @@ export function useHydrateAppState({
       if (persisted) {
         await applyUiLanguage(resolvedSettings.language)
       }
+
+      // Initial workspace hydration may start before React applies setAgentSettings.
+      // Keep the ref aligned with the persisted settings so terminal credential env injection
+      // uses the same authoritative settings snapshot during the first restore pass.
+      agentSettingsRef.current = resolvedSettings
 
       if (recovery) {
         const recoveryMessage =

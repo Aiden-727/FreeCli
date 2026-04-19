@@ -91,7 +91,7 @@ internal sealed class TaskbarMonitorForm : Form
 
         notifyIcon = new NotifyIcon
         {
-            Text = "OpenCove 系统监控",
+            Text = "FreeCli 系统监控",
             Visible = false,
             ContextMenuStrip = notifyMenu,
             Icon = SystemIcons.Application,
@@ -468,12 +468,12 @@ internal sealed class TaskbarMonitorForm : Form
     {
         if (!string.IsNullOrWhiteSpace(runtimeError))
         {
-            return $"OpenCove 系统监控：{runtimeError}";
+            return $"FreeCli 系统监控：{runtimeError}";
         }
 
         if (snapshot is null)
         {
-            return "OpenCove 系统监控";
+            return "FreeCli 系统监控";
         }
 
         TaskbarWidgetConfig notifyConfig = new()

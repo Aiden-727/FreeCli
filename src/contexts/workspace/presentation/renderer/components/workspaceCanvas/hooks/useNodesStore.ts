@@ -364,6 +364,88 @@ export function useWorkspaceCanvasNodesStore({
     [onFlushPersistNow, onRequestPersistFlush, setNodes],
   )
 
+  const setTerminalCredentialProfile = useCallback(
+    (nodeId: string, credentialProfileId: string | null) => {
+      let didChange = false
+
+      setNodes(
+        prevNodes => {
+          const nextNodes = prevNodes.map(node => {
+            if (node.id !== nodeId || node.data.kind !== 'terminal') {
+              return node
+            }
+
+            const normalizedCredentialProfileId =
+              typeof credentialProfileId === 'string' && credentialProfileId.trim().length > 0
+                ? credentialProfileId.trim()
+                : null
+            if ((node.data.credentialProfileId ?? null) === normalizedCredentialProfileId) {
+              return node
+            }
+
+            didChange = true
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                credentialProfileId: normalizedCredentialProfileId,
+              },
+            }
+          })
+
+          return didChange ? nextNodes : prevNodes
+        },
+        { syncLayout: false },
+      )
+
+      if (didChange) {
+        onRequestPersistFlush?.()
+      }
+    },
+    [onRequestPersistFlush, setNodes],
+  )
+
+  const setTerminalActiveCredentialProfile = useCallback(
+    (nodeId: string, credentialProfileId: string | null) => {
+      let didChange = false
+
+      setNodes(
+        prevNodes => {
+          const nextNodes = prevNodes.map(node => {
+            if (node.id !== nodeId || node.data.kind !== 'terminal') {
+              return node
+            }
+
+            const normalizedCredentialProfileId =
+              typeof credentialProfileId === 'string' && credentialProfileId.trim().length > 0
+                ? credentialProfileId.trim()
+                : null
+            if ((node.data.activeCredentialProfileId ?? null) === normalizedCredentialProfileId) {
+              return node
+            }
+
+            didChange = true
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                activeCredentialProfileId: normalizedCredentialProfileId,
+              },
+            }
+          })
+
+          return didChange ? nextNodes : prevNodes
+        },
+        { syncLayout: false },
+      )
+
+      if (didChange) {
+        onRequestPersistFlush?.()
+      }
+    },
+    [onRequestPersistFlush, setNodes],
+  )
+
   const setTerminalPersistenceMode = useCallback(
     (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => {
       let didChange = false
@@ -682,6 +764,8 @@ export function useWorkspaceCanvasNodesStore({
     updateNodeScrollback,
     updateTerminalTitle,
     renameTerminalTitle,
+    setTerminalCredentialProfile,
+    setTerminalActiveCredentialProfile,
     setTerminalPersistenceMode,
     trackTerminalHostedAgent,
     setTerminalHostedAgentActiveState,

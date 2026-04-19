@@ -382,8 +382,8 @@
 
 .workspace-item__status-dot--active {
   --workspace-status-dot: rgba(61, 255, 164, 0.92);
-  --workspace-status-glow: rgba(61, 255, 164, 0.3);
-  --workspace-status-dot-ring-opacity: 0.32;
+  --workspace-status-glow: rgba(61, 255, 164, 0.42);
+  --workspace-status-dot-ring-opacity: 0.5;
 }
 
 .workspace-item__status-dot--error {
@@ -683,28 +683,73 @@ button.workspace-agent-item:focus-visible {
   100% {
     transform: scale(1);
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--workspace-status-dot) 22%, transparent),
-      0 0 10px var(--workspace-status-glow);
+      0 0 0 1px color-mix(in srgb, var(--workspace-status-dot) 28%, transparent),
+      0 0 12px color-mix(in srgb, var(--workspace-status-glow) 86%, transparent),
+      0 0 22px color-mix(in srgb, var(--workspace-status-glow) 54%, transparent);
   }
 
-  50% {
-    transform: scale(1.08);
+  45% {
+    transform: scale(1.22);
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--workspace-status-dot) 28%, transparent),
-      0 0 18px color-mix(in srgb, var(--workspace-status-glow) 120%, transparent);
+      0 0 0 2px color-mix(in srgb, var(--workspace-status-dot) 42%, transparent),
+      0 0 20px color-mix(in srgb, var(--workspace-status-glow) 130%, transparent),
+      0 0 34px color-mix(in srgb, var(--workspace-status-glow) 110%, transparent),
+      0 0 52px color-mix(in srgb, var(--workspace-status-glow) 72%, transparent);
+  }
+
+  70% {
+    transform: scale(1.12);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--workspace-status-dot) 34%, transparent),
+      0 0 16px color-mix(in srgb, var(--workspace-status-glow) 110%, transparent),
+      0 0 28px color-mix(in srgb, var(--workspace-status-glow) 78%, transparent);
   }
 }
 
 @keyframes workspace-status-dot-wave {
   0% {
-    opacity: 0.42;
-    transform: scale(0.72);
+    opacity: 0.56;
+    transform: scale(0.64);
   }
 
-  70%,
+  58% {
+    opacity: 0.2;
+    transform: scale(1.7);
+  }
+
   100% {
     opacity: 0;
-    transform: scale(1.42);
+    transform: scale(2.15);
+  }
+}
+
+.workspace-item__status-dot--active::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--workspace-status-dot) 52%, transparent) 0%,
+    color-mix(in srgb, var(--workspace-status-glow) 48%, transparent) 38%,
+    transparent 76%
+  );
+  opacity: 0.58;
+  filter: blur(6px);
+  z-index: -1;
+  animation: workspace-status-dot-aura 1.85s ease-in-out infinite;
+}
+
+@keyframes workspace-status-dot-aura {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 0.84;
+    transform: scale(1.36);
   }
 }
 

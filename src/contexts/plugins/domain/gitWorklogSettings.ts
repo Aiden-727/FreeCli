@@ -26,11 +26,15 @@ export function createDefaultGitWorklogRepository(index = 0): GitWorklogReposito
     label: `Repository ${index + 1}`,
     path: '',
     enabled: true,
+    origin: 'manual',
+    assignedWorkspaceId: null,
   }
 }
 
 export const DEFAULT_GIT_WORKLOG_SETTINGS: GitWorklogSettingsDto = {
   repositories: [createDefaultGitWorklogRepository()],
+  repositoryOrder: ['repo_1'],
+  workspaceOrder: [],
   ignoredAutoRepositoryPaths: [],
   autoImportedWorkspacePaths: [],
   authorFilter: '',
@@ -59,6 +63,27 @@ function normalizeWorkspaceText(value: unknown): string | null {
 
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeUniqueGitWorklogIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const normalized: string[] = []
+  const seen = new Set<string>()
+
+  for (const item of value) {
+    const entry = normalizeText(item)
+    if (entry.length === 0 || seen.has(entry)) {
+      continue
+    }
+
+    seen.add(entry)
+    normalized.push(entry)
+  }
+
+  return normalized
 }
 
 function normalizeIntegerInRange(
@@ -125,10 +150,80 @@ export function normalizeGitWorklogRepositories(value: unknown): GitWorklogRepos
       label: normalizeText(record.label, fallback.label) || fallback.label,
       path: normalizeText(record.path),
       enabled: normalizeBoolean(record.enabled, fallback.enabled),
+      origin: record.origin === 'auto' ? 'auto' : 'manual',
+      assignedWorkspaceId: normalizeWorkspaceText(record.assignedWorkspaceId),
     })
   }
 
   return normalized.length > 0 ? normalized : [...DEFAULT_GIT_WORKLOG_SETTINGS.repositories]
+}
+
+export function reconcileGitWorklogEntityOrder(
+  order: readonly string[],
+  validIds: readonly string[],
+): string[] {
+  const nextOrder: string[] = []
+  const seen = new Set<string>()
+  const validIdSet = new Set(validIds)
+
+  for (const id of order) {
+    if (!validIdSet.has(id) || seen.has(id)) {
+      continue
+    }
+
+    seen.add(id)
+    nextOrder.push(id)
+  }
+
+  for (const id of validIds) {
+    if (seen.has(id)) {
+      continue
+    }
+
+    seen.add(id)
+    nextOrder.push(id)
+  }
+
+  return nextOrder
+}
+
+export function reorderGitWorklogEntityOrder(
+  order: readonly string[],
+  activeId: string,
+  overId: string,
+): string[] {
+  if (activeId === overId) {
+    return [...order]
+  }
+
+  const activeIndex = order.indexOf(activeId)
+  const overIndex = order.indexOf(overId)
+  if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
+    return [...order]
+  }
+
+  const nextOrder = [...order]
+  const [movedId] = nextOrder.splice(activeIndex, 1)
+  nextOrder.splice(overIndex, 0, movedId)
+  return nextOrder
+}
+
+export function moveGitWorklogEntityAfterAnchor(
+  order: readonly string[],
+  activeId: string,
+  anchorId: string | null,
+): string[] {
+  const nextOrder = order.filter(id => id !== activeId)
+  if (anchorId) {
+    const anchorIndex = nextOrder.indexOf(anchorId)
+    if (anchorIndex >= 0) {
+      nextOrder.splice(anchorIndex + 1, 0, activeId)
+      return nextOrder
+    }
+  }
+
+  nextOrder.push(activeId)
+  return nextOrder
 }
 
 export function normalizeGitWorklogWorkspaces(value: unknown): GitWorklogWorkspaceDto[] {
@@ -172,9 +267,15 @@ export function normalizeGitWorklogSettings(value: unknown): GitWorklogSettingsD
   const record = value as Record<string, unknown>
   const rangeStartDay = normalizeDayKey(record.rangeStartDay)
   const rangeEndDay = normalizeDayKey(record.rangeEndDay)
+  const repositories = normalizeGitWorklogRepositories(record.repositories)
 
   return {
-    repositories: normalizeGitWorklogRepositories(record.repositories),
+    repositories,
+    repositoryOrder: reconcileGitWorklogEntityOrder(
+      normalizeUniqueGitWorklogIds(record.repositoryOrder),
+      repositories.map(repository => repository.id),
+    ),
+    workspaceOrder: normalizeUniqueGitWorklogIds(record.workspaceOrder),
     ignoredAutoRepositoryPaths: normalizeUniqueGitWorklogPaths(record.ignoredAutoRepositoryPaths),
     autoImportedWorkspacePaths: normalizeUniqueGitWorklogPaths(record.autoImportedWorkspacePaths),
     authorFilter: normalizeText(record.authorFilter),

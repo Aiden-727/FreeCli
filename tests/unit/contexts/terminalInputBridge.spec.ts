@@ -198,4 +198,39 @@ describe('handleTerminalCustomKeyEvent', () => {
       { data: String.fromCharCode(64, 80), encoding: 'binary' },
     ])
   })
+
+  it('notifies queue busy and idle transitions while writes are pending', async () => {
+    const states: Array<{ pendingCount: number; isWriting: boolean }> = []
+    let resolveWrite: (() => void) | null = null
+    const pendingWrite = new Promise<void>(resolve => {
+      resolveWrite = resolve
+    })
+    const ptyWriteQueue = createPtyWriteQueue(() => pendingWrite, {
+      onStateChange: state => {
+        states.push(state)
+      },
+    })
+
+    ptyWriteQueue.enqueue('chunk-a')
+    ptyWriteQueue.enqueue('chunk-b')
+    ptyWriteQueue.flush()
+
+    expect(states).toEqual([
+      { pendingCount: 1, isWriting: false },
+      { pendingCount: 2, isWriting: false },
+      { pendingCount: 0, isWriting: true },
+    ])
+
+    resolveWrite?.()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(states).toEqual([
+      { pendingCount: 1, isWriting: false },
+      { pendingCount: 2, isWriting: false },
+      { pendingCount: 0, isWriting: true },
+      { pendingCount: 0, isWriting: false },
+      { pendingCount: 0, isWriting: false },
+    ])
+  })
 })

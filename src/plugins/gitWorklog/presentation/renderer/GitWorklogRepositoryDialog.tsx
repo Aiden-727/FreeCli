@@ -1,7 +1,7 @@
 import React from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
-import type { GitWorklogRepositoryDto } from '@shared/contracts/dto'
+import type { GitWorklogRepositoryDto, GitWorklogWorkspaceDto } from '@shared/contracts/dto'
 
 export function GitWorklogRepositoryDialog({
   repository,
@@ -11,7 +11,9 @@ export function GitWorklogRepositoryDialog({
   onRemove,
   onChangeLabel,
   onChangePath,
+  onChangeAssignedWorkspaceId,
   onPickDirectory,
+  availableWorkspaces,
 }: {
   repository: GitWorklogRepositoryDto
   canRemove: boolean
@@ -20,7 +22,9 @@ export function GitWorklogRepositoryDialog({
   onRemove: () => void
   onChangeLabel: (label: string) => void
   onChangePath: (path: string) => void
+  onChangeAssignedWorkspaceId: (workspaceId: string | null) => void
   onPickDirectory: () => void
+  availableWorkspaces: GitWorklogWorkspaceDto[]
 }): React.JSX.Element {
   const { t } = useTranslation()
 
@@ -147,6 +151,28 @@ export function GitWorklogRepositoryDialog({
               {t('pluginManager.plugins.gitWorklog.pickDirectory')}
             </button>
           </div>
+        </div>
+
+        <div className="cove-window__field-row">
+          <label htmlFor={`git-worklog-repository-workspace-${repository.id}`}>
+            {t('pluginManager.plugins.gitWorklog.workspaceGroupLabel')}
+          </label>
+          <select
+            id={`git-worklog-repository-workspace-${repository.id}`}
+            className="cove-field"
+            data-testid={`git-worklog-repository-workspace-${repository.id}`}
+            value={repository.assignedWorkspaceId ?? ''}
+            onChange={event => {
+              onChangeAssignedWorkspaceId(event.target.value || null)
+            }}
+          >
+            <option value="">{t('pluginManager.plugins.gitWorklog.externalWorkspaceGroupTitle')}</option>
+            {availableWorkspaces.map(workspace => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="cove-window__actions">

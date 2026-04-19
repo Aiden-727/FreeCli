@@ -26,6 +26,18 @@ export function normalizeSpawnTerminalPayload(payload: unknown): SpawnTerminalIn
   const cwd = typeof record.cwd === 'string' ? record.cwd.trim() : ''
   const profileId = typeof record.profileId === 'string' ? record.profileId.trim() : ''
   const shell = typeof record.shell === 'string' ? record.shell.trim() : ''
+  const credentialInput =
+    record.credential && typeof record.credential === 'object'
+      ? (record.credential as Record<string, unknown>)
+      : null
+  const credentialProvider =
+    credentialInput?.provider === 'codex' || credentialInput?.provider === 'claude-code'
+      ? credentialInput.provider
+      : null
+  const credentialApiKey =
+    typeof credentialInput?.apiKey === 'string' ? credentialInput.apiKey.trim() : ''
+  const credentialBaseUrl =
+    typeof credentialInput?.baseUrl === 'string' ? credentialInput.baseUrl.trim() : ''
 
   const cols =
     typeof record.cols === 'number' && Number.isFinite(record.cols) && record.cols > 0
@@ -52,6 +64,14 @@ export function normalizeSpawnTerminalPayload(payload: unknown): SpawnTerminalIn
     cwd,
     profileId: profileId.length > 0 ? profileId : undefined,
     shell: shell.length > 0 ? shell : undefined,
+    credential:
+      credentialProvider && (credentialApiKey.length > 0 || credentialBaseUrl.length > 0)
+        ? {
+            provider: credentialProvider,
+            ...(credentialApiKey.length > 0 ? { apiKey: credentialApiKey } : {}),
+            ...(credentialBaseUrl.length > 0 ? { baseUrl: credentialBaseUrl } : {}),
+          }
+        : undefined,
     cols,
     rows,
   }

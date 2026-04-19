@@ -20,6 +20,7 @@ import type {
   SpaceWorktreeDialogState,
   TaskCreatorState,
   TaskEditorState,
+  TerminalCredentialRestartDialogState,
   WorkspaceCanvasProps,
 } from './types'
 
@@ -88,8 +89,11 @@ export interface WorkspaceCanvasViewProps {
   selectedNodeCount: number
   isMinimapVisible: boolean
   minimapNodeColor: (node: Node<TerminalNodeData>) => string
+  minimapNodeStrokeColor: (node: Node<TerminalNodeData>) => string
+  minimapNodeClassName: (node: Node<TerminalNodeData>) => string
   setIsMinimapVisible: React.Dispatch<React.SetStateAction<boolean>>
   onMinimapVisibilityChange: (isVisible: boolean) => void
+  focusNodeTargetZoom: number
   spaces: WorkspaceSpaceState[]
   activateSpace: (spaceId: string) => void
   activateAllSpaces: () => void
@@ -129,6 +133,10 @@ export interface WorkspaceCanvasViewProps {
     React.SetStateAction<NodeDeleteConfirmationState | null>
   >
   confirmNodeDelete: () => Promise<void>
+  terminalCredentialRestartDialog: TerminalCredentialRestartDialogState | null
+  dismissTerminalCredentialRestartDialog: () => void
+  confirmTerminalCredentialRestart: () => Promise<void>
+  isTerminalCredentialRestarting: boolean
   spaceWorktreeMismatchDropWarning: SpaceWorktreeMismatchDropWarningState | null
   cancelSpaceWorktreeMismatchDropWarning: () => void
   continueSpaceWorktreeMismatchDropWarning: () => void

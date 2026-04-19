@@ -7,6 +7,7 @@ import {
   resolveTaskTitleProvider,
   resolveWorktreeNameSuggestionProvider,
 } from '../../../src/contexts/settings/domain/agentSettings'
+import { resolveTerminalCredentialEnv } from '../../../src/contexts/settings/domain/terminalCredentials'
 
 describe('agent settings normalization', () => {
   it('returns defaults for invalid input', () => {
@@ -214,6 +215,36 @@ describe('agent settings normalization', () => {
     ])
   })
 
+  it('maps terminal credential profiles to the real CLI environment variables', () => {
+    expect(
+      resolveTerminalCredentialEnv({
+        id: 'codex-default',
+        label: 'Codex Default',
+        provider: 'codex',
+        apiKey: 'sk-codex',
+        baseUrl: 'https://api.openai.example',
+        enabled: true,
+      })?.values,
+    ).toEqual({
+      OPENAI_API_KEY: 'sk-codex',
+      OPENAI_BASE_URL: 'https://api.openai.example',
+    })
+
+    expect(
+      resolveTerminalCredentialEnv({
+        id: 'claude-default',
+        label: 'Claude Default',
+        provider: 'claude-code',
+        apiKey: 'sk-ant',
+        baseUrl: 'https://api.anthropic.example',
+        enabled: true,
+      })?.values,
+    ).toEqual({
+      ANTHROPIC_API_KEY: 'sk-ant',
+      ANTHROPIC_BASE_URL: 'https://api.anthropic.example',
+    })
+  })
+
   it('clamps numeric appearance settings to safe ranges', () => {
     const result = normalizeAgentSettings({
       defaultTerminalWindowScalePercent: 999,
@@ -416,6 +447,8 @@ describe('agent settings normalization', () => {
       rangeEndDay: '2026-04-02',
       autoImportedWorkspacePaths: ['D:\\Project\\Drone'],
       ignoredAutoRepositoryPaths: ['D:\\Project\\Drone\\.uv-cache\\sdists-v9'],
+      repositoryOrder: ['repo_a'],
+      workspaceOrder: [],
       autoDiscoverEnabled: true,
       autoDiscoverDepth: 3,
       autoRefreshEnabled: true,
@@ -426,6 +459,8 @@ describe('agent settings normalization', () => {
           label: 'Repo A',
           path: 'D:\\Project\\demo-a',
           enabled: true,
+          origin: 'manual',
+          assignedWorkspaceId: null,
         },
       ],
     })

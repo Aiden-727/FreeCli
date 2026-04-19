@@ -80,8 +80,11 @@ export function WorkspaceCanvasView({
   selectedNodeCount,
   isMinimapVisible,
   minimapNodeColor,
+  minimapNodeStrokeColor,
+  minimapNodeClassName,
   setIsMinimapVisible,
   onMinimapVisibilityChange,
+  focusNodeTargetZoom,
   spaces,
   activateSpace,
   activateAllSpaces,
@@ -119,6 +122,10 @@ export function WorkspaceCanvasView({
   nodeDeleteConfirmation,
   setNodeDeleteConfirmation,
   confirmNodeDelete,
+  terminalCredentialRestartDialog,
+  dismissTerminalCredentialRestartDialog,
+  confirmTerminalCredentialRestart,
+  isTerminalCredentialRestarting,
   spaceWorktreeMismatchDropWarning,
   cancelSpaceWorktreeMismatchDropWarning,
   continueSpaceWorktreeMismatchDropWarning,
@@ -315,8 +322,11 @@ export function WorkspaceCanvasView({
         <WorkspaceMinimapDock
           isMinimapVisible={isMinimapVisible}
           minimapNodeColor={minimapNodeColor}
+          minimapNodeStrokeColor={minimapNodeStrokeColor}
+          minimapNodeClassName={minimapNodeClassName}
           setIsMinimapVisible={setIsMinimapVisible}
           onMinimapVisibilityChange={onMinimapVisibilityChange}
+          focusNodeTargetZoom={focusNodeTargetZoom}
         />
 
         <Controls className="workspace-canvas__controls" showInteractive={false} />
@@ -414,6 +424,10 @@ export function WorkspaceCanvasView({
         nodeDeleteConfirmation={nodeDeleteConfirmation}
         setNodeDeleteConfirmation={setNodeDeleteConfirmation}
         confirmNodeDelete={confirmNodeDelete}
+        terminalCredentialRestartDialog={terminalCredentialRestartDialog}
+        dismissTerminalCredentialRestartDialog={dismissTerminalCredentialRestartDialog}
+        confirmTerminalCredentialRestart={confirmTerminalCredentialRestart}
+        isTerminalCredentialRestarting={isTerminalCredentialRestarting}
         spaceWorktreeMismatchDropWarning={spaceWorktreeMismatchDropWarning}
         cancelSpaceWorktreeMismatchDropWarning={cancelSpaceWorktreeMismatchDropWarning}
         continueSpaceWorktreeMismatchDropWarning={continueSpaceWorktreeMismatchDropWarning}

@@ -1,5 +1,9 @@
 import React from 'react'
-import type { GitWorklogRepositoryDto, GitWorklogSettingsDto } from '@shared/contracts/dto'
+import type {
+  GitWorklogAutoCandidateDto,
+  GitWorklogRepositoryDto,
+  GitWorklogSettingsDto,
+} from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
 import type { AgentSettings } from '@contexts/settings/domain/agentSettings'
 import type { SettingsPluginSectionProps } from '../../../../contexts/plugins/presentation/renderer/types'
@@ -8,14 +12,19 @@ import { createDefaultGitWorklogRepository } from '../../../../contexts/plugins/
 import { GitWorklogConfigurationDialog } from './GitWorklogConfigurationDialog'
 import { GitWorklogOverview } from './GitWorklogOverview'
 import { GitWorklogRepositoryDialog } from './GitWorklogRepositoryDialog'
+import {
+  appendRepositoryWithOrdering,
+  inferAssignedWorkspaceId,
+  moveRepositoryToWorkspaceGroup,
+  normalizeRepoPathForCompare,
+  reconcileGitWorklogSettingsOrdering,
+  removeRepositoryWithOrdering,
+  updateRepositoryWithOrdering,
+} from './gitWorklogOrdering'
 import { useGitWorklogState } from './useGitWorklogState'
 
 function nextRepoId(existing: GitWorklogRepositoryDto[]): string {
   return `repo_${existing.length + 1}`
-}
-
-function normalizeRepoPathForCompare(value: string): string {
-  return value.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/').toLowerCase()
 }
 
 function updateGitWorklogSettings(
@@ -30,14 +39,6 @@ function updateGitWorklogSettings(
       gitWorklog: updater(settings.plugins.gitWorklog),
     },
   })
-}
-
-function updateRepository(
-  repositories: GitWorklogRepositoryDto[],
-  repoId: string,
-  updater: (current: GitWorklogRepositoryDto) => GitWorklogRepositoryDto,
-): GitWorklogRepositoryDto[] {
-  return repositories.map(repo => (repo.id === repoId ? updater(repo) : repo))
 }
 
 export default function GitWorklogSettingsSection({
@@ -62,6 +63,28 @@ export default function GitWorklogSettingsSection({
     [onChange, settings],
   )
 
+  const availableWorkspaceOptions = React.useMemo(
+    () =>
+      (state.availableWorkspaces ?? []).map(workspace => ({
+        id: workspace.id,
+        path: workspace.path,
+      })),
+    [state.availableWorkspaces],
+  )
+
+  const resolveRepositoryPath = React.useCallback(async (pathValue: string) => {
+    const resolver = window.freecliApi?.plugins?.gitWorklog?.resolveRepository
+    if (typeof resolver !== 'function') {
+      return null
+    }
+
+    try {
+      return await resolver({ path: pathValue })
+    } catch {
+      return null
+    }
+  }, [])
+
   const selectRepositoryDirectory = React.useCallback(
     async (repoId: string) => {
       const picker = window.freecliApi?.workspace?.selectDirectory
@@ -74,68 +97,84 @@ export default function GitWorklogSettingsSection({
         return
       }
 
+      const resolved = await resolveRepositoryPath(selected.path)
+      if (!resolved) {
+        return
+      }
+
+      const assignedWorkspaceId = inferAssignedWorkspaceId(
+        resolved.path,
+        availableWorkspaceOptions,
+      )
+
       updateSettings(current => ({
-        ...current,
-        repositories: updateRepository(current.repositories, repoId, repo => ({
+        ...updateRepositoryWithOrdering(current, repoId, repo => ({
           ...repo,
-          path: selected.path,
+          path: resolved.path,
+          origin: 'manual',
+          assignedWorkspaceId,
           label:
             repo.label.trim().length === 0 ||
             repo.label === repo.id ||
             repo.label.startsWith('Repository ')
-              ? selected.name
+              ? resolved.label
               : repo.label,
         })),
       }))
     },
-    [updateSettings],
+    [availableWorkspaceOptions, resolveRepositoryPath, updateSettings],
   )
 
   const convertAutoRepoToManual = React.useCallback(
-    (repo: { label: string; path: string }) => {
+    async (repo: GitWorklogAutoCandidateDto) => {
+      const resolved = await resolveRepositoryPath(repo.path)
+      if (!resolved) {
+        return
+      }
+
       updateSettings(current => {
-        const normalizedTargetPath = normalizeRepoPathForCompare(repo.path)
+        const normalizedTargetPath = normalizeRepoPathForCompare(resolved.path)
         const existingIndex = current.repositories.findIndex(
           candidate => normalizeRepoPathForCompare(candidate.path) === normalizedTargetPath,
         )
+        const assignedWorkspaceId =
+          repo.parentWorkspaceId ??
+          inferAssignedWorkspaceId(resolved.path, availableWorkspaceOptions)
 
         if (existingIndex >= 0) {
           return {
-            ...current,
-            repositories: current.repositories.map((candidate, index) =>
-              index === existingIndex
-                ? {
-                    ...candidate,
-                    enabled: true,
-                    path: repo.path,
-                    label:
-                      candidate.label.trim().length === 0 ||
-                      candidate.label === candidate.id ||
-                      candidate.label.startsWith('Repository ')
-                        ? repo.label
-                        : candidate.label,
-                  }
-                : candidate,
+            ...updateRepositoryWithOrdering(
+              current,
+              current.repositories[existingIndex].id,
+              candidate => ({
+                ...candidate,
+                enabled: true,
+                path: resolved.path,
+                origin: 'manual',
+                assignedWorkspaceId,
+                label:
+                  candidate.label.trim().length === 0 ||
+                  candidate.label === candidate.id ||
+                  candidate.label.startsWith('Repository ')
+                    ? resolved.label
+                    : candidate.label,
+              }),
             ),
           }
         }
 
-        return {
-          ...current,
-          repositories: [
-            ...current.repositories,
-            {
-              ...createDefaultGitWorklogRepository(current.repositories.length),
-              id: nextRepoId(current.repositories),
-              label: repo.label,
-              path: repo.path,
-              enabled: true,
-            },
-          ],
-        }
+        return appendRepositoryWithOrdering(current, {
+          ...createDefaultGitWorklogRepository(current.repositories.length),
+          id: nextRepoId(current.repositories),
+          label: resolved.label,
+          path: resolved.path,
+          enabled: true,
+          origin: 'manual',
+          assignedWorkspaceId,
+        })
       })
     },
-    [updateSettings],
+    [availableWorkspaceOptions, resolveRepositoryPath, updateSettings],
   )
 
   const ignoreAutoRepo = React.useCallback(
@@ -171,25 +210,6 @@ export default function GitWorklogSettingsSection({
     [updateSettings],
   )
 
-  const resetImportedWorkspace = React.useCallback(
-    (path: string) => {
-      updateSettings(current => ({
-        ...current,
-        autoImportedWorkspacePaths: current.autoImportedWorkspacePaths.filter(
-          candidate => normalizeRepoPathForCompare(candidate) !== normalizeRepoPathForCompare(path),
-        ),
-      }))
-    },
-    [updateSettings],
-  )
-
-  const resetAllImportedWorkspaces = React.useCallback(() => {
-    updateSettings(current => ({
-      ...current,
-      autoImportedWorkspacePaths: [],
-    }))
-  }, [updateSettings])
-
   const editingRepository =
     worklogSettings.repositories.find(repository => repository.id === editingRepositoryId) ?? null
 
@@ -205,28 +225,22 @@ export default function GitWorklogSettingsSection({
   const createRepository = React.useCallback(() => {
     const nextId = nextRepoId(worklogSettings.repositories)
     setEditingRepositoryId(nextId)
-    updateSettings(current => ({
-      ...current,
-      repositories: [
-        ...current.repositories,
-        {
-          ...createDefaultGitWorklogRepository(current.repositories.length),
-          id: nextId,
-        },
-      ],
-    }))
+    updateSettings(current =>
+      appendRepositoryWithOrdering(current, {
+        ...createDefaultGitWorklogRepository(current.repositories.length),
+        id: nextId,
+      }),
+    )
   }, [updateSettings, worklogSettings.repositories])
 
   const removeRepository = React.useCallback(
     (repoId: string) => {
       setEditingRepositoryId(current => (current === repoId ? null : current))
-      updateSettings(current => ({
-        ...current,
-        repositories:
-          current.repositories.length > 1
-            ? current.repositories.filter(candidate => candidate.id !== repoId)
-            : current.repositories,
-      }))
+      updateSettings(current =>
+        current.repositories.length > 1
+          ? removeRepositoryWithOrdering(current, repoId)
+          : reconcileGitWorklogSettingsOrdering(current),
+      )
     },
     [updateSettings],
   )
@@ -456,13 +470,13 @@ export default function GitWorklogSettingsSection({
         </section>
       </div>
 
-      {worklogSettings.autoImportedWorkspacePaths.length > 0 ||
+      {(state.autoCandidates?.length ?? 0) > 0 ||
       worklogSettings.ignoredAutoRepositoryPaths.length > 0 ? (
         <div className="git-worklog-config__status-grid">
-          {worklogSettings.autoImportedWorkspacePaths.length > 0 ? (
+          {(state.autoCandidates?.length ?? 0) > 0 ? (
             <section
               className="git-worklog-config__panel git-worklog-config__panel--state"
-              data-testid="git-worklog-imported-workspaces"
+              data-testid="git-worklog-auto-candidates"
             >
               <div className="git-worklog-config__panel-head">
                 <strong>{t('pluginManager.plugins.gitWorklog.importedWorkspacesLabel')}</strong>
@@ -471,36 +485,40 @@ export default function GitWorklogSettingsSection({
               <div className="git-worklog-config__imported-header">
                 <span className="git-worklog-config__state-count">
                   {t('pluginManager.plugins.gitWorklog.repositoriesImportedSummary', {
-                    count: worklogSettings.autoImportedWorkspacePaths.length,
+                    count: state.autoCandidates?.length ?? 0,
                   })}
                 </span>
-                <button
-                  type="button"
-                  className="cove-window__action cove-window__action--ghost"
-                  data-testid="git-worklog-reset-all-imported-workspaces"
-                  onClick={resetAllImportedWorkspaces}
-                >
-                  {t('pluginManager.plugins.gitWorklog.resetAllImportedWorkspacesAction')}
-                </button>
               </div>
               <div className="git-worklog-config__ignored-list">
-                {worklogSettings.autoImportedWorkspacePaths.map(path => (
+                {(state.autoCandidates ?? []).map(candidate => (
                   <div
-                    key={path}
+                    key={candidate.id}
                     className="git-worklog-config__ignored-item"
-                    data-testid={`git-worklog-imported-workspace-${normalizeRepoPathForCompare(path)}`}
+                    data-testid={`git-worklog-auto-candidate-${candidate.id}`}
                   >
-                    <span className="git-worklog-config__ignored-path">{path}</span>
-                    <button
-                      type="button"
-                      className="cove-window__action cove-window__action--ghost"
-                      data-testid={`git-worklog-reset-imported-workspace-${normalizeRepoPathForCompare(path)}`}
-                      onClick={() => {
-                        resetImportedWorkspace(path)
-                      }}
-                    >
-                      {t('pluginManager.plugins.gitWorklog.resetImportedWorkspaceAction')}
-                    </button>
+                    <span className="git-worklog-config__ignored-path">{candidate.path}</span>
+                    <div className="git-worklog-overview__repo-actions">
+                      <button
+                        type="button"
+                        className="cove-window__action cove-window__action--ghost"
+                        data-testid={`git-worklog-confirm-auto-candidate-${candidate.id}`}
+                        onClick={() => {
+                          void convertAutoRepoToManual(candidate)
+                        }}
+                      >
+                        {t('pluginManager.plugins.gitWorklog.convertAutoRepoAction')}
+                      </button>
+                      <button
+                        type="button"
+                        className="cove-window__action cove-window__action--ghost"
+                        data-testid={`git-worklog-ignore-auto-candidate-${candidate.id}`}
+                        onClick={() => {
+                          ignoreAutoRepo({ path: candidate.path })
+                        }}
+                      >
+                        {t('pluginManager.plugins.gitWorklog.ignoreAutoRepoAction')}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -554,6 +572,7 @@ export default function GitWorklogSettingsSection({
         isPluginEnabled={isPluginEnabled}
         state={state}
         configuredRepositories={worklogSettings.repositories}
+        availableWorkspaces={state.availableWorkspaces}
         onRefresh={() => {
           void refresh()
         }}
@@ -561,8 +580,34 @@ export default function GitWorklogSettingsSection({
         onManageRepository={repoId => {
           setEditingRepositoryId(repoId)
         }}
-        onConvertAutoRepoToManual={convertAutoRepoToManual}
+        onConvertAutoRepoToManual={repo => {
+          void convertAutoRepoToManual(repo)
+        }}
         onIgnoreAutoRepo={ignoreAutoRepo}
+        repositoryOrder={worklogSettings.repositoryOrder}
+        workspaceOrder={worklogSettings.workspaceOrder}
+        onChangeWorkspaceOrder={workspaceOrder => {
+          updateSettings(current => ({
+            ...current,
+            workspaceOrder,
+          }))
+        }}
+        onChangeRepositoryOrder={repositoryOrder => {
+          updateSettings(current => ({
+            ...current,
+            repositoryOrder,
+          }))
+        }}
+        onMoveRepositoryToWorkspaceGroup={(repositoryId, workspaceId, anchorRepositoryId) => {
+          updateSettings(current =>
+            moveRepositoryToWorkspaceGroup({
+              settings: reconcileGitWorklogSettingsOrdering(current),
+              repositoryId,
+              targetWorkspaceId: workspaceId,
+              anchorRepositoryId,
+            }),
+          )
+        }}
       />
 
       <div className="plugin-manager-panel__section-grid plugin-manager-panel__section-grid--stack">
@@ -598,7 +643,7 @@ export default function GitWorklogSettingsSection({
             </span>
             <span className="git-worklog-config__summary-pill">
               {t('pluginManager.plugins.gitWorklog.repositoriesImportedSummary', {
-                count: worklogSettings.autoImportedWorkspacePaths.length,
+                count: state.autoCandidates?.length ?? 0,
               })}
             </span>
           </div>
@@ -619,14 +664,14 @@ export default function GitWorklogSettingsSection({
         <GitWorklogRepositoryDialog
           repository={editingRepository}
           canRemove={worklogSettings.repositories.length > 1}
+          availableWorkspaces={state.availableWorkspaces ?? []}
           onClose={() => {
             setEditingRepositoryId(null)
           }}
           onToggleEnabled={enabled => {
             updateSettings(current => ({
-              ...current,
-              repositories: updateRepository(
-                current.repositories,
+              ...updateRepositoryWithOrdering(
+                current,
                 editingRepository.id,
                 candidate => ({
                   ...candidate,
@@ -640,9 +685,8 @@ export default function GitWorklogSettingsSection({
           }}
           onChangeLabel={label => {
             updateSettings(current => ({
-              ...current,
-              repositories: updateRepository(
-                current.repositories,
+              ...updateRepositoryWithOrdering(
+                current,
                 editingRepository.id,
                 candidate => ({
                   ...candidate,
@@ -653,13 +697,25 @@ export default function GitWorklogSettingsSection({
           }}
           onChangePath={path => {
             updateSettings(current => ({
-              ...current,
-              repositories: updateRepository(
-                current.repositories,
+              ...updateRepositoryWithOrdering(
+                current,
                 editingRepository.id,
                 candidate => ({
                   ...candidate,
                   path,
+                  origin: 'manual',
+                }),
+              ),
+            }))
+          }}
+          onChangeAssignedWorkspaceId={assignedWorkspaceId => {
+            updateSettings(current => ({
+              ...updateRepositoryWithOrdering(
+                current,
+                editingRepository.id,
+                candidate => ({
+                  ...candidate,
+                  assignedWorkspaceId,
                 }),
               ),
             }))

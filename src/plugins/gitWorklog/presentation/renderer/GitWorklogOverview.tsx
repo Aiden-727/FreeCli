@@ -1,14 +1,23 @@
 import React from 'react'
-import type { GitWorklogRepositoryDto, GitWorklogStateDto } from '@shared/contracts/dto'
+import type {
+  GitWorklogAutoCandidateDto,
+  GitWorklogRepositoryDto,
+  GitWorklogStateDto,
+  GitWorklogWorkspaceDto,
+} from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
 import { GitWorklogHeatmap } from './GitWorklogHeatmap'
 import { GitWorklogMiniTrend } from './GitWorklogMiniTrend'
 import { GitWorklogSummaryTrend } from './GitWorklogSummaryTrend'
 import { formatGitWorklogCount } from './gitWorklogFormatting'
+import {
+  normalizeRepoPathForCompare,
+  reconcileGitWorklogSettingsOrdering,
+  reorderRepositoriesWithinOrder,
+  reorderWorkspaceGroups,
+} from './gitWorklogOrdering'
 
-function normalizeRepoPathForCompare(value: string): string {
-  return value.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/').toLowerCase()
-}
+const REPO_DRAG_START_DISTANCE_PX = 8
 
 function formatDisplayPath(value: string): string {
   return value.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/')
@@ -102,27 +111,102 @@ type DisplayRepo = RuntimeRepo & {
   workspaceDepth: number
 }
 
+type DisplayGroup = {
+  id: string
+  name: string
+  path: string | null
+  repos: DisplayRepo[]
+}
+
+type WorkspaceDropPlacement = 'before' | 'after'
+
+type DragEntity =
+  | {
+      kind: 'workspace'
+      id: string
+      groupId: string
+    }
+  | {
+      kind: 'repo'
+      id: string
+      groupId: string
+    }
+
+type DragTarget =
+  | {
+      kind: 'workspace'
+      id: string
+      placement: WorkspaceDropPlacement
+    }
+  | {
+      kind: 'repo'
+      id: string
+      groupId: string
+    }
+  | {
+      kind: 'workspace-body'
+      groupId: string
+    }
+
 export function GitWorklogOverview({
   isPluginEnabled,
   state,
   onRefresh,
   configuredRepositories,
+  repositoryOrder,
+  workspaceOrder,
+  availableWorkspaces,
   onAddRepository,
   onManageRepository,
   onConvertAutoRepoToManual,
   onIgnoreAutoRepo,
+  onChangeWorkspaceOrder,
+  onChangeRepositoryOrder,
+  onMoveRepositoryToWorkspaceGroup,
 }: {
   isPluginEnabled: boolean
   state: GitWorklogStateDto
   onRefresh: () => void
   configuredRepositories: GitWorklogRepositoryDto[]
+  repositoryOrder: string[]
+  workspaceOrder: string[]
+  availableWorkspaces?: GitWorklogWorkspaceDto[]
   onAddRepository?: () => void
   onManageRepository?: (repositoryId: string) => void
-  onConvertAutoRepoToManual?: (repo: { label: string; path: string }) => void
+  onConvertAutoRepoToManual?: (repo: GitWorklogAutoCandidateDto) => void
   onIgnoreAutoRepo?: (repo: { label: string; path: string }) => void
+  onChangeWorkspaceOrder?: (workspaceOrder: string[]) => void
+  onChangeRepositoryOrder?: (repositoryOrder: string[]) => void
+  onMoveRepositoryToWorkspaceGroup?: (
+    repositoryId: string,
+    workspaceId: string | null,
+    anchorRepositoryId: string | null,
+  ) => void
 }): React.JSX.Element {
   const { t } = useTranslation()
   const statusText = t(`pluginManager.plugins.gitWorklog.runtimeStatus.${state.status}`)
+  const normalizedOrdering = React.useMemo(
+    () =>
+      reconcileGitWorklogSettingsOrdering({
+        repositories: configuredRepositories,
+        repositoryOrder,
+        workspaceOrder,
+        ignoredAutoRepositoryPaths: [],
+        autoImportedWorkspacePaths: [],
+        authorFilter: '',
+        rangeMode: 'recent_days',
+        recentDays: 7,
+        rangeStartDay: '',
+        rangeEndDay: '',
+        autoRefreshEnabled: false,
+        refreshIntervalMs: 60_000,
+        autoDiscoverEnabled: true,
+        autoDiscoverDepth: 3,
+      }),
+    [configuredRepositories, repositoryOrder, workspaceOrder],
+  )
+  const effectiveRepositoryOrder = normalizedOrdering.repositoryOrder
+  const effectiveWorkspaceOrder = normalizedOrdering.workspaceOrder
   const configuredRepositoryIdByPath = React.useMemo(() => {
     const mapping = new Map<string, string>()
     for (const repository of configuredRepositories) {
@@ -131,14 +215,21 @@ export function GitWorklogOverview({
     return mapping
   }, [configuredRepositories])
 
-  const groupedRepos = React.useMemo(() => {
+  const groupedRepos = React.useMemo<DisplayGroup[]>(() => {
     const runtimeRepoByPath = new Map(
       state.repos.map(repo => [normalizeRepoPathForCompare(repo.path), repo] as const),
+    )
+    const workspaceById = new Map(
+      (availableWorkspaces ?? []).map(workspace => [workspace.id, workspace] as const),
     )
     const mergedRepos: DisplayRepo[] = configuredRepositories.map(repository => {
       const normalizedPath = normalizeRepoPathForCompare(repository.path)
       const runtimeRepo = runtimeRepoByPath.get(normalizedPath)
       const label = repository.label.trim().length > 0 ? repository.label : repository.id
+      const assignedWorkspace =
+        repository.assignedWorkspaceId && workspaceById.has(repository.assignedWorkspaceId)
+          ? workspaceById.get(repository.assignedWorkspaceId) ?? null
+          : null
       runtimeRepoByPath.delete(normalizedPath)
 
       return {
@@ -147,9 +238,9 @@ export function GitWorklogOverview({
           label,
           path: repository.path,
           origin: 'manual' as const,
-          parentWorkspaceId: null,
-          parentWorkspaceName: null,
-          parentWorkspacePath: null,
+          parentWorkspaceId: assignedWorkspace?.id ?? null,
+          parentWorkspaceName: assignedWorkspace?.name ?? null,
+          parentWorkspacePath: assignedWorkspace?.path ?? null,
           commitCountToday: 0,
           filesChangedToday: 0,
           additionsToday: 0,
@@ -170,6 +261,9 @@ export function GitWorklogOverview({
         repoId: repository.id,
         label,
         path: repository.path,
+        parentWorkspaceId: assignedWorkspace?.id ?? runtimeRepo?.parentWorkspaceId ?? null,
+        parentWorkspaceName: assignedWorkspace?.name ?? runtimeRepo?.parentWorkspaceName ?? null,
+        parentWorkspacePath: assignedWorkspace?.path ?? runtimeRepo?.parentWorkspacePath ?? null,
         configuredRepositoryId: repository.id,
         isConfiguredEnabled: repository.enabled,
         hasRuntimeData: runtimeRepo !== undefined,
@@ -189,15 +283,7 @@ export function GitWorklogOverview({
       workspaceDepth: 0,
     }))
 
-    const groups = new Map<
-      string,
-      {
-        id: string
-        name: string
-        path: string | null
-        repos: DisplayRepo[]
-      }
-    >()
+    const groups = new Map<string, DisplayGroup>()
 
     for (const repo of [...mergedRepos, ...residualRuntimeRepos]) {
       const key = repo.parentWorkspaceId ?? '__external__'
@@ -217,70 +303,414 @@ export function GitWorklogOverview({
       })
     }
 
-    return [...groups.values()]
-      .map(group => {
-        const repos = group.repos
-          .map(repo => {
-            const relativeWorkspacePath = getRelativeRepoPath(repo.path, group.path)
-            const workspaceDepth =
-              relativeWorkspacePath?.split('/').filter(segment => segment.length > 0).length ?? 0
+    const groupRepositoryOrder = new Map<string, string[]>()
+    for (const group of groups.values()) {
+      groupRepositoryOrder.set(
+        group.id,
+        effectiveRepositoryOrder.filter(repoId => group.repos.some(repo => repo.repoId === repoId)),
+      )
+    }
+    const workspaceOrderIndex = new Map(
+      effectiveWorkspaceOrder.map((workspaceId, index) => [workspaceId, index] as const),
+    )
 
-            return {
-              ...repo,
-              relativeWorkspacePath,
-              workspaceDepth,
-              isWorkspaceRootRepo: group.path
-                ? normalizeRepoPathForCompare(repo.path) === normalizeRepoPathForCompare(group.path)
-                : false,
-            }
-          })
-          .sort((left, right) => {
-            const rootRank = Number(right.isWorkspaceRootRepo) - Number(left.isWorkspaceRootRepo)
-            if (rootRank !== 0) {
-              return rootRank
-            }
-
-            if (left.workspaceDepth !== right.workspaceDepth) {
-              return left.workspaceDepth - right.workspaceDepth
-            }
-
-            const enabledRank =
-              Number(right.isConfiguredEnabled ?? false) - Number(left.isConfiguredEnabled ?? false)
-            if (enabledRank !== 0) {
-              return enabledRank
-            }
-
-            if (left.origin !== right.origin) {
-              return left.origin === 'manual' ? -1 : 1
-            }
-
-            return left.label.localeCompare(right.label, undefined, {
-              sensitivity: 'base',
-            })
-          })
+    const normalizedGroups = [...groups.values()].map(group => {
+      const preparedRepos = group.repos.map(repo => {
+        const relativeWorkspacePath = getRelativeRepoPath(repo.path, group.path)
+        const workspaceDepth =
+          relativeWorkspacePath?.split('/').filter(segment => segment.length > 0).length ?? 0
 
         return {
-          ...group,
-          repos,
+          ...repo,
+          relativeWorkspacePath,
+          workspaceDepth,
+          isWorkspaceRootRepo: group.path
+            ? normalizeRepoPathForCompare(repo.path) === normalizeRepoPathForCompare(group.path)
+            : false,
         }
       })
-      .sort((left, right) => {
-        if (left.path === null && right.path !== null) {
-          return 1
-        }
-        if (left.path !== null && right.path === null) {
-          return -1
+
+      const fallbackRepos = [...preparedRepos].sort((left, right) => {
+        const rootRank = Number(right.isWorkspaceRootRepo) - Number(left.isWorkspaceRootRepo)
+        if (rootRank !== 0) {
+          return rootRank
         }
 
-        return left.name.localeCompare(right.name, undefined, {
+        if (left.workspaceDepth !== right.workspaceDepth) {
+          return left.workspaceDepth - right.workspaceDepth
+        }
+
+        const enabledRank =
+          Number(right.isConfiguredEnabled ?? false) - Number(left.isConfiguredEnabled ?? false)
+        if (enabledRank !== 0) {
+          return enabledRank
+        }
+
+        if (left.origin !== right.origin) {
+          return left.origin === 'manual' ? -1 : 1
+        }
+
+        return left.label.localeCompare(right.label, undefined, {
           sensitivity: 'base',
         })
       })
-  }, [configuredRepositories, state.repos, t])
+
+      const orderedRepoIds = groupRepositoryOrder.get(group.id) ?? []
+      const preparedRepoById = new Map(preparedRepos.map(repo => [repo.repoId, repo] as const))
+      const repos: DisplayRepo[] = []
+      const seenRepoIds = new Set<string>()
+
+      for (const repoId of orderedRepoIds) {
+        const repo = preparedRepoById.get(repoId)
+        if (!repo || seenRepoIds.has(repoId)) {
+          continue
+        }
+
+        seenRepoIds.add(repoId)
+        repos.push(repo)
+      }
+
+      for (const repo of fallbackRepos) {
+        if (seenRepoIds.has(repo.repoId)) {
+          continue
+        }
+
+        seenRepoIds.add(repo.repoId)
+        repos.push(repo)
+      }
+
+      return {
+        ...group,
+        repos,
+      }
+    })
+
+    const fallbackGroups = [...normalizedGroups].sort((left, right) => {
+      if (left.path === null && right.path !== null) {
+        return 1
+      }
+      if (left.path !== null && right.path === null) {
+        return -1
+      }
+
+      return left.name.localeCompare(right.name, undefined, {
+        sensitivity: 'base',
+      })
+    })
+
+    const groupById = new Map(normalizedGroups.map(group => [group.id, group] as const))
+    const orderedGroups: DisplayGroup[] = []
+    const seenGroupIds = new Set<string>()
+
+    for (const groupId of effectiveWorkspaceOrder) {
+      const group = groupById.get(groupId)
+      if (!group || seenGroupIds.has(groupId)) {
+        continue
+      }
+
+      seenGroupIds.add(groupId)
+      orderedGroups.push(group)
+    }
+
+    for (const group of fallbackGroups) {
+      if (seenGroupIds.has(group.id)) {
+        continue
+      }
+
+      seenGroupIds.add(group.id)
+      orderedGroups.push(group)
+    }
+
+    return orderedGroups
+  }, [
+    availableWorkspaces,
+    configuredRepositories,
+    effectiveRepositoryOrder,
+    state.repos,
+    t,
+  ])
 
   const totalMonitoredRepositories = React.useMemo(
     () => groupedRepos.reduce((sum, group) => sum + group.repos.length, 0),
     [groupedRepos],
+  )
+
+  const [draggedEntity, setDraggedEntity] = React.useState<DragEntity | null>(null)
+  const [dragTarget, setDragTarget] = React.useState<DragTarget | null>(null)
+  const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 })
+  const pendingPointerDownRef = React.useRef<{
+    entity: DragEntity
+    startX: number
+    startY: number
+    startedDragging: boolean
+  } | null>(null)
+  const draggedEntityRef = React.useRef<DragEntity | null>(null)
+  const dragTargetRef = React.useRef<DragTarget | null>(null)
+  const suppressClickRef = React.useRef(false)
+  const workspaceRefs = React.useRef(new Map<string, HTMLElement>())
+  const workspaceBodyRefs = React.useRef(new Map<string, HTMLElement>())
+  const repoRefs = React.useRef(new Map<string, HTMLElement>())
+
+  const setDraggedEntityState = React.useCallback((entity: DragEntity | null) => {
+    draggedEntityRef.current = entity
+    setDraggedEntity(entity)
+  }, [])
+
+  const setDragTargetState = React.useCallback((target: DragTarget | null) => {
+    dragTargetRef.current = target
+    setDragTarget(target)
+  }, [])
+
+  const registerWorkspaceRef = React.useCallback((groupId: string, node: HTMLElement | null) => {
+    if (node) {
+      workspaceRefs.current.set(groupId, node)
+      return
+    }
+
+    workspaceRefs.current.delete(groupId)
+  }, [])
+
+  const registerWorkspaceBodyRef = React.useCallback(
+    (groupId: string, node: HTMLElement | null) => {
+      if (node) {
+        workspaceBodyRefs.current.set(groupId, node)
+        return
+      }
+
+      workspaceBodyRefs.current.delete(groupId)
+    },
+    [],
+  )
+
+  const registerRepoRef = React.useCallback((repoId: string, node: HTMLElement | null) => {
+    if (node) {
+      repoRefs.current.set(repoId, node)
+      return
+    }
+
+    repoRefs.current.delete(repoId)
+  }, [])
+
+  const resolveDragTarget = React.useCallback(
+    (clientX: number, clientY: number): DragTarget | null => {
+      const activeDrag = draggedEntityRef.current
+      if (!activeDrag) {
+        return null
+      }
+
+      if (activeDrag.kind === 'workspace') {
+        let nearest: DragTarget | null = null
+        let nearestDistance = Number.POSITIVE_INFINITY
+
+        for (const group of groupedRepos) {
+          const element = workspaceRefs.current.get(group.id)
+          if (!element) {
+            continue
+          }
+
+          const rect = element.getBoundingClientRect()
+          const midY = rect.top + rect.height / 2
+          const placement: WorkspaceDropPlacement = clientY < midY ? 'before' : 'after'
+          const distance =
+            clientY >= rect.top && clientY <= rect.bottom
+              ? 0
+              : Math.abs(clientY - midY)
+
+          if (distance < nearestDistance) {
+            nearestDistance = distance
+            nearest = {
+              kind: 'workspace',
+              id: group.id,
+              placement,
+            }
+          }
+        }
+
+        return nearest
+      }
+
+      for (const group of groupedRepos) {
+        for (const repo of group.repos) {
+          const element = repoRefs.current.get(repo.repoId)
+          if (!element) {
+            continue
+          }
+
+          const rect = element.getBoundingClientRect()
+          if (
+            clientX >= rect.left &&
+            clientX <= rect.right &&
+            clientY >= rect.top &&
+            clientY <= rect.bottom
+          ) {
+            return {
+              kind: 'repo',
+              id: repo.repoId,
+              groupId: group.id,
+            }
+          }
+        }
+
+        const bodyElement = workspaceBodyRefs.current.get(group.id)
+        if (!bodyElement) {
+          continue
+        }
+
+        const bodyRect = bodyElement.getBoundingClientRect()
+        if (
+          clientX >= bodyRect.left &&
+          clientX <= bodyRect.right &&
+          clientY >= bodyRect.top &&
+          clientY <= bodyRect.bottom
+        ) {
+          return {
+            kind: 'workspace-body',
+            groupId: group.id,
+          }
+        }
+      }
+
+      return null
+    },
+    [groupedRepos],
+  )
+
+  const resetDragState = React.useCallback(() => {
+    pendingPointerDownRef.current = null
+    setDraggedEntityState(null)
+    setDragTargetState(null)
+    setDragOffset({ x: 0, y: 0 })
+  }, [setDragTargetState, setDraggedEntityState])
+
+  const finishDrag = React.useCallback(() => {
+    const pending = pendingPointerDownRef.current
+    const activeDrag = draggedEntityRef.current
+    const currentTarget = dragTargetRef.current
+
+    resetDragState()
+
+    if (!pending?.startedDragging || !activeDrag || !currentTarget) {
+      return
+    }
+
+    suppressClickRef.current = true
+    window.setTimeout(() => {
+      suppressClickRef.current = false
+    }, 0)
+
+    if (activeDrag.kind === 'workspace' && currentTarget.kind === 'workspace') {
+      if (!onChangeWorkspaceOrder || activeDrag.id === currentTarget.id) {
+        return
+      }
+
+      const nextOrder = reorderWorkspaceGroups(
+        groupedRepos.map(group => group.id),
+        activeDrag.id,
+        currentTarget.id,
+      )
+      onChangeWorkspaceOrder(nextOrder)
+      return
+    }
+
+    if (activeDrag.kind !== 'repo') {
+      return
+    }
+
+    if (currentTarget.kind === 'repo') {
+      if (currentTarget.id !== activeDrag.id && onChangeRepositoryOrder) {
+        const nextOrder = reorderRepositoriesWithinOrder(
+          groupedRepos.flatMap(group => group.repos.map(repo => repo.repoId)),
+          activeDrag.id,
+          currentTarget.id,
+        )
+        onChangeRepositoryOrder(nextOrder)
+      }
+
+      if (
+        onMoveRepositoryToWorkspaceGroup &&
+        currentTarget.groupId !== activeDrag.groupId
+      ) {
+        onMoveRepositoryToWorkspaceGroup(
+          activeDrag.id,
+          currentTarget.groupId === '__external__' ? null : currentTarget.groupId,
+          currentTarget.id,
+        )
+      }
+      return
+    }
+
+    if (currentTarget.kind === 'workspace-body' && onMoveRepositoryToWorkspaceGroup) {
+      const targetGroup = groupedRepos.find(group => group.id === currentTarget.groupId) ?? null
+      const anchorRepositoryId = targetGroup?.repos.at(-1)?.repoId ?? null
+      onMoveRepositoryToWorkspaceGroup(
+        activeDrag.id,
+        currentTarget.groupId === '__external__' ? null : currentTarget.groupId,
+        anchorRepositoryId,
+      )
+    }
+  }, [
+    groupedRepos,
+    onChangeRepositoryOrder,
+    onChangeWorkspaceOrder,
+    onMoveRepositoryToWorkspaceGroup,
+    resetDragState,
+  ])
+
+  React.useEffect(() => {
+    const handleWindowMouseMove = (event: MouseEvent) => {
+      const pending = pendingPointerDownRef.current
+      if (!pending) {
+        return
+      }
+
+      const movedDistance = Math.hypot(
+        event.clientX - pending.startX,
+        event.clientY - pending.startY,
+      )
+      if (!pending.startedDragging && movedDistance < REPO_DRAG_START_DISTANCE_PX) {
+        return
+      }
+
+      if (!pending.startedDragging) {
+        pending.startedDragging = true
+        setDraggedEntityState(pending.entity)
+      }
+
+      setDragOffset({
+        x: event.clientX - pending.startX,
+        y: event.clientY - pending.startY,
+      })
+      setDragTargetState(resolveDragTarget(event.clientX, event.clientY))
+    }
+
+    const handleWindowMouseUp = () => {
+      finishDrag()
+    }
+
+    window.addEventListener('mousemove', handleWindowMouseMove)
+    window.addEventListener('mouseup', handleWindowMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove)
+      window.removeEventListener('mouseup', handleWindowMouseUp)
+    }
+  }, [finishDrag, resolveDragTarget, setDragTargetState, setDraggedEntityState])
+
+  const handlePointerDown = React.useCallback(
+    (entity: DragEntity, event: React.MouseEvent<HTMLElement>) => {
+      if (event.button !== 0) {
+        return
+      }
+
+      pendingPointerDownRef.current = {
+        entity,
+        startX: event.clientX,
+        startY: event.clientY,
+        startedDragging: false,
+      }
+      setDragTargetState(null)
+    },
+    [setDragTargetState],
   )
 
   return (
@@ -388,8 +818,42 @@ export function GitWorklogOverview({
               return (
                 <article
                   key={group.id}
-                  className="git-worklog-overview__workspace-card"
+                  ref={node => {
+                    registerWorkspaceRef(group.id, node)
+                  }}
+                  className={`git-worklog-overview__workspace-card${
+                    draggedEntity?.kind === 'workspace' && draggedEntity.id === group.id
+                      ? ' git-worklog-overview__workspace-card--dragging'
+                      : ''
+                  }${
+                    dragTarget?.kind === 'workspace' && dragTarget.id === group.id
+                      ? ' git-worklog-overview__workspace-card--drop-target'
+                      : ''
+                  }`}
                   data-testid={`git-worklog-workspace-card-${group.id}`}
+                  data-drop-placement={
+                    dragTarget?.kind === 'workspace' && dragTarget.id === group.id
+                      ? dragTarget.placement
+                      : undefined
+                  }
+                  style={
+                    draggedEntity?.kind === 'workspace' && draggedEntity.id === group.id
+                      ? ({
+                          '--git-worklog-drag-offset-x': `${dragOffset.x}px`,
+                          '--git-worklog-drag-offset-y': `${dragOffset.y}px`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
+                  onMouseDown={event => {
+                    handlePointerDown(
+                      {
+                        kind: 'workspace',
+                        id: group.id,
+                        groupId: group.id,
+                      },
+                      event,
+                    )
+                  }}
                 >
                   <div className="git-worklog-overview__workspace-head">
                     <div className="git-worklog-overview__workspace-copy">
@@ -425,7 +889,16 @@ export function GitWorklogOverview({
                     </div>
                   </div>
 
-                  <div className="git-worklog-overview__repo-list">
+                  <div
+                    ref={node => {
+                      registerWorkspaceBodyRef(group.id, node)
+                    }}
+                    className={`git-worklog-overview__repo-list${
+                      dragTarget?.kind === 'workspace-body' && dragTarget.groupId === group.id
+                        ? ' git-worklog-overview__repo-list--drop-target'
+                        : ''
+                    }`}
+                  >
                     {group.repos.map(repo => {
                       const hasError = repo.error !== null
                       const errorMessage = repo.error?.message ?? ''
@@ -440,9 +913,39 @@ export function GitWorklogOverview({
 
                       return (
                         <article
+                          ref={node => {
+                            registerRepoRef(repo.repoId, node)
+                          }}
                           key={repo.repoId}
-                          className={`git-worklog-overview__repo-row${hasError ? ' git-worklog-overview__repo-row--error' : ''}${repo.isWorkspaceRootRepo ? ' git-worklog-overview__repo-row--root' : ''}`}
+                          className={`git-worklog-overview__repo-row${hasError ? ' git-worklog-overview__repo-row--error' : ''}${repo.isWorkspaceRootRepo ? ' git-worklog-overview__repo-row--root' : ''}${
+                            draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
+                              ? ' git-worklog-overview__repo-row--dragging'
+                              : ''
+                          }${
+                            dragTarget?.kind === 'repo' && dragTarget.id === repo.repoId
+                              ? ' git-worklog-overview__repo-row--drop-target'
+                              : ''
+                          }`}
                           data-testid={`git-worklog-repo-card-${repo.repoId}`}
+                          onMouseDown={event => {
+                            event.stopPropagation()
+                            handlePointerDown(
+                              {
+                                kind: 'repo',
+                                id: repo.repoId,
+                                groupId: group.id,
+                              },
+                              event,
+                            )
+                          }}
+                          style={
+                            draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
+                              ? ({
+                                  '--git-worklog-drag-offset-x': `${dragOffset.x}px`,
+                                  '--git-worklog-drag-offset-y': `${dragOffset.y}px`,
+                                } as React.CSSProperties)
+                              : undefined
+                          }
                         >
                           <div className="git-worklog-overview__repo-top">
                             <div className="git-worklog-overview__repo-main">
@@ -503,7 +1006,13 @@ export function GitWorklogOverview({
                                     type="button"
                                     className="cove-window__action cove-window__action--secondary"
                                     data-testid={`git-worklog-manage-repository-${configuredRepositoryId}`}
+                                    onMouseDown={event => {
+                                      event.stopPropagation()
+                                    }}
                                     onClick={() => {
+                                      if (suppressClickRef.current) {
+                                        return
+                                      }
                                       onManageRepository(configuredRepositoryId)
                                     }}
                                   >
@@ -520,10 +1029,21 @@ export function GitWorklogOverview({
                                       type="button"
                                       className="cove-window__action cove-window__action--secondary"
                                       data-testid={`git-worklog-repo-convert-${repo.repoId}`}
+                                      onMouseDown={event => {
+                                        event.stopPropagation()
+                                      }}
                                       onClick={() => {
+                                        if (suppressClickRef.current) {
+                                          return
+                                        }
                                         onConvertAutoRepoToManual({
+                                          id: repo.repoId,
                                           label: repo.label,
                                           path: repo.path,
+                                          parentWorkspaceId: repo.parentWorkspaceId,
+                                          parentWorkspaceName: repo.parentWorkspaceName,
+                                          parentWorkspacePath: repo.parentWorkspacePath,
+                                          detectedAt: repo.lastScannedAt,
                                         })
                                       }}
                                     >
@@ -535,7 +1055,13 @@ export function GitWorklogOverview({
                                       type="button"
                                       className="cove-window__action cove-window__action--secondary"
                                       data-testid={`git-worklog-repo-ignore-${repo.repoId}`}
+                                      onMouseDown={event => {
+                                        event.stopPropagation()
+                                      }}
                                       onClick={() => {
+                                        if (suppressClickRef.current) {
+                                          return
+                                        }
                                         onIgnoreAutoRepo({
                                           label: repo.label,
                                           path: repo.path,

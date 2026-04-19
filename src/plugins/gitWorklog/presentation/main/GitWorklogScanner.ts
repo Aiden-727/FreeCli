@@ -357,6 +357,49 @@ export class GitWorklogScanner {
     }
   }
 
+  public async resolveRepositoryRoot(
+    candidatePath: string,
+  ): Promise<{ ok: true; path: string; label: string } | { ok: false; error: GitWorklogErrorDto }> {
+    const repoPath = candidatePath.trim()
+    if (repoPath.length === 0) {
+      return {
+        ok: false,
+        error: createError('invalid_path', '仓库路径为空'),
+      }
+    }
+
+    try {
+      const stat = await fs.promises.stat(repoPath)
+      if (!stat.isDirectory()) {
+        return {
+          ok: false,
+          error: createError('invalid_path', '仓库路径不是文件夹'),
+        }
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        error: createError('invalid_path', '仓库路径不存在', this.toDetail(error)),
+      }
+    }
+
+    const topLevel = await this.runGitCommand(
+      ['-C', repoPath, 'rev-parse', '--show-toplevel'],
+      '校验 Git 仓库失败',
+    )
+    if (!topLevel.ok) {
+      return { ok: false, error: topLevel.error }
+    }
+
+    const resolvedPath = resolve(topLevel.stdout.trim())
+    const label = resolvedPath.split(/[\\/]/).filter(Boolean).at(-1) ?? resolvedPath
+    return {
+      ok: true,
+      path: resolvedPath,
+      label,
+    }
+  }
+
   private async scanRepository(
     settings: GitWorklogSettingsDto,
     repo: GitWorklogRepositoryDto,

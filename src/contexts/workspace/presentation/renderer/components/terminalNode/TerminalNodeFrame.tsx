@@ -19,6 +19,14 @@ interface TerminalNodeFrameProps {
   isAgentLike?: boolean
   labelColor?: LabelColor | null
   terminalThemeMode: TerminalThemeMode
+  credentialProfileId?: string | null
+  activeCredentialProfileId?: string | null
+  terminalCredentialProfiles?: Array<{
+    id: string
+    label: string
+    provider: 'codex' | 'claude-code'
+  }>
+  activeCredentialProvider?: 'codex' | 'claude-code' | null
   isSelected: boolean
   isDragging: boolean
   status: AgentRuntimeStatus | null
@@ -27,6 +35,8 @@ interface TerminalNodeFrameProps {
   persistenceMode: TerminalPersistenceMode
   sessionId: string
   isTerminalHydrated: boolean
+  isPasteIndicatorVisible: boolean
+  pasteIndicatorLabel: string
   sizeStyle: React.CSSProperties
   containerRef: React.RefObject<HTMLDivElement | null>
   handleTerminalBodyPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void
@@ -38,6 +48,7 @@ interface TerminalNodeFrameProps {
   consumeIgnoredTerminalBodyClick: (target: EventTarget | null) => boolean
   onInteractionStart?: (options?: TerminalNodeInteractionOptions) => void
   onTitleCommit?: (title: string) => void
+  onCredentialProfileChange?: (credentialProfileId: string | null) => void
   onPersistenceModeChange?: (mode: TerminalPersistenceMode) => void
   onClose: () => void
   onCopyLastMessage?: () => Promise<void>
@@ -61,6 +72,10 @@ export function TerminalNodeFrame({
   isAgentLike = false,
   labelColor,
   terminalThemeMode,
+  credentialProfileId,
+  activeCredentialProfileId,
+  terminalCredentialProfiles,
+  activeCredentialProvider,
   isSelected,
   isDragging,
   status,
@@ -69,6 +84,8 @@ export function TerminalNodeFrame({
   persistenceMode,
   sessionId,
   isTerminalHydrated,
+  isPasteIndicatorVisible,
+  pasteIndicatorLabel,
   sizeStyle,
   containerRef,
   handleTerminalBodyPointerDownCapture,
@@ -80,6 +97,7 @@ export function TerminalNodeFrame({
   consumeIgnoredTerminalBodyClick,
   onInteractionStart,
   onTitleCommit,
+  onCredentialProfileChange,
   onPersistenceModeChange,
   onClose,
   onCopyLastMessage,
@@ -163,14 +181,21 @@ export function TerminalNodeFrame({
         status={status}
         labelColor={labelColor ?? null}
         directoryMismatch={directoryMismatch}
+        credentialProfileId={credentialProfileId}
+        activeCredentialProfileId={activeCredentialProfileId}
+        terminalCredentialProfiles={terminalCredentialProfiles}
+        activeCredentialProvider={activeCredentialProvider}
         persistenceMode={kind === 'terminal' ? persistenceMode : undefined}
         onTitleCommit={onTitleCommit}
+        onCredentialProfileChange={onCredentialProfileChange}
         onPersistenceModeChange={onPersistenceModeChange}
         onClose={onClose}
         onCopyLastMessage={onCopyLastMessage}
       />
 
-      {showAgentChrome && lastError ? <div className="terminal-node__error">{lastError}</div> : null}
+      {showAgentChrome && lastError ? (
+        <div className="terminal-node__error">{lastError}</div>
+      ) : null}
 
       <TerminalNodeFindBar
         isOpen={find.isOpen}
@@ -191,7 +216,14 @@ export function TerminalNodeFrame({
         onPaste={handleTerminalBodyPaste}
         onDragOver={handleTerminalBodyDragOver}
         onDrop={handleTerminalBodyDrop}
-      />
+      >
+        {isPasteIndicatorVisible ? (
+          <div className="terminal-node__paste-indicator" role="status" aria-live="polite">
+            <span className="terminal-node__paste-indicator-dot" aria-hidden="true" />
+            <span>{pasteIndicatorLabel}</span>
+          </div>
+        ) : null}
+      </div>
 
       <NodeResizeHandles
         classNamePrefix="terminal-node"

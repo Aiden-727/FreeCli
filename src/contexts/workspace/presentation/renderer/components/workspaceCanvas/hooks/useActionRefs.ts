@@ -26,6 +26,12 @@ export interface WorkspaceCanvasActionRefs {
   updateNodeScrollbackRef: React.MutableRefObject<(nodeId: string, scrollback: string) => void>
   updateTerminalTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
   renameTerminalTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalCredentialProfileRef: React.MutableRefObject<
+    (nodeId: string, credentialProfileId: string | null) => void
+  >
+  setTerminalActiveCredentialProfileRef: React.MutableRefObject<
+    (nodeId: string, credentialProfileId: string | null) => void
+  >
   setTerminalPersistenceModeRef: React.MutableRefObject<
     (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => void
   >
@@ -79,6 +85,12 @@ export function useWorkspaceCanvasActionRefs(): WorkspaceCanvasActionRefs {
   const renameTerminalTitleRef = useRef<(nodeId: string, title: string) => void>(
     (_nodeId: string, _title: string) => undefined,
   )
+  const setTerminalCredentialProfileRef = useRef<
+    (nodeId: string, credentialProfileId: string | null) => void
+  >((_nodeId: string, _credentialProfileId: string | null) => undefined)
+  const setTerminalActiveCredentialProfileRef = useRef<
+    (nodeId: string, credentialProfileId: string | null) => void
+  >((_nodeId: string, _credentialProfileId: string | null) => undefined)
   const setTerminalPersistenceModeRef = useRef<
     (nodeId: string, persistenceMode: TerminalNodeData['persistenceMode']) => void
   >((_nodeId: string, _persistenceMode: TerminalNodeData['persistenceMode']) => undefined)
@@ -109,6 +121,8 @@ export function useWorkspaceCanvasActionRefs(): WorkspaceCanvasActionRefs {
     updateNodeScrollbackRef,
     updateTerminalTitleRef,
     renameTerminalTitleRef,
+    setTerminalCredentialProfileRef,
+    setTerminalActiveCredentialProfileRef,
     setTerminalPersistenceModeRef,
     trackTerminalHostedAgentRef,
     setTerminalHostedAgentActiveStateRef,
@@ -126,6 +140,8 @@ interface SyncActionRefsParams {
   updateNodeScrollback: (nodeId: string, scrollback: string) => void
   updateTerminalTitle: (nodeId: string, title: string) => void
   renameTerminalTitle: (nodeId: string, title: string) => void
+  setTerminalCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
+  setTerminalActiveCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
   setTerminalPersistenceMode: (
     nodeId: string,
     persistenceMode: TerminalNodeData['persistenceMode'],
@@ -148,6 +164,8 @@ export function useWorkspaceCanvasSyncActionRefs({
   updateNodeScrollback,
   updateTerminalTitle,
   renameTerminalTitle,
+  setTerminalCredentialProfile,
+  setTerminalActiveCredentialProfile,
   setTerminalPersistenceMode,
   trackTerminalHostedAgent,
   setTerminalHostedAgentActiveState,
@@ -195,6 +213,18 @@ export function useWorkspaceCanvasSyncActionRefs({
       renameTerminalTitle(nodeId, title)
     }
   }, [actionRefs.renameTerminalTitleRef, renameTerminalTitle])
+
+  useLayoutEffect(() => {
+    actionRefs.setTerminalCredentialProfileRef.current = (nodeId, credentialProfileId) => {
+      setTerminalCredentialProfile(nodeId, credentialProfileId)
+    }
+  }, [actionRefs.setTerminalCredentialProfileRef, setTerminalCredentialProfile])
+
+  useLayoutEffect(() => {
+    actionRefs.setTerminalActiveCredentialProfileRef.current = (nodeId, credentialProfileId) => {
+      setTerminalActiveCredentialProfile(nodeId, credentialProfileId)
+    }
+  }, [actionRefs.setTerminalActiveCredentialProfileRef, setTerminalActiveCredentialProfile])
 
   useLayoutEffect(() => {
     actionRefs.setTerminalPersistenceModeRef.current = (nodeId, persistenceMode) => {

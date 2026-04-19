@@ -41,4 +41,4 @@ if (!isNightly) {
 
 packageJson.version = releaseVersion
 await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)
-process.stdout.write(`Applied nightly CI version ${releaseVersion} to package.json\n`)
+process.stdout.write(`Applied beta CI version ${releaseVersion} to package.json\n`)

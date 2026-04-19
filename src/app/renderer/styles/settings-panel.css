@@ -264,6 +264,45 @@
   flex: 1;
 }
 
+.settings-panel__terminal-credentials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: min(100%, 720px);
+}
+
+.settings-panel__terminal-credentials-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-panel__terminal-credentials-field span {
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+}
+
+.settings-panel__terminal-credentials-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.settings-list-item--terminal-credential {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.settings-list-item__left--stack {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* --- Toggle Switch --- */
 .cove-toggle {
   position: relative;
@@ -448,5 +487,10 @@
   .settings-panel__input-row {
     width: 100%;
     max-width: none;
+  }
+
+  .settings-panel__terminal-credentials-grid {
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 }

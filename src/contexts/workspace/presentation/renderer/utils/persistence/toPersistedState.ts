@@ -60,6 +60,8 @@ export function toPersistedWorkspaceState(workspace: WorkspaceState): PersistedW
       height: node.data.height,
       kind: node.data.kind,
       profileId: normalizeOptionalString(node.data.profileId),
+      credentialProfileId: normalizeOptionalString(node.data.credentialProfileId),
+      activeCredentialProfileId: normalizeOptionalString(node.data.activeCredentialProfileId),
       runtimeKind: node.data.runtimeKind,
       labelColorOverride: normalizeNodeLabelColorOverride(node.data.labelColorOverride),
       status: node.data.status,

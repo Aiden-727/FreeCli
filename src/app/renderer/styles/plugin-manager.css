@@ -2018,6 +2018,52 @@
     0 10px 24px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 34%, transparent),
     0 2px 6px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 16%, transparent),
     inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  transition:
+    transform 140ms ease,
+    opacity 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.git-worklog-overview__workspace-card--dragging {
+  z-index: 2;
+  opacity: 0.88;
+  transform: translate3d(
+      var(--git-worklog-drag-offset-x, 0),
+      var(--git-worklog-drag-offset-y, 0),
+      0
+    )
+    scale(0.995);
+}
+
+.git-worklog-overview__workspace-card--drop-target {
+  position: relative;
+}
+
+.git-worklog-overview__workspace-card--drop-target::before,
+.git-worklog-overview__workspace-card--drop-target::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cove-accent) 76%, white 24%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cove-accent) 18%, transparent);
+  opacity: 0;
+}
+
+.git-worklog-overview__workspace-card--drop-target[data-drop-placement='before']::before,
+.git-worklog-overview__workspace-card--drop-target[data-drop-placement='after']::after {
+  opacity: 1;
+}
+
+.git-worklog-overview__workspace-card--drop-target::before {
+  top: -7px;
+}
+
+.git-worklog-overview__workspace-card--drop-target::after {
+  bottom: -7px;
 }
 
 .git-worklog-overview__workspace-head {
@@ -2097,10 +2143,36 @@
     0 10px 24px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 28%, transparent),
     0 2px 6px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 12%, transparent),
     inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  transition:
+    transform 140ms ease,
+    opacity 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .git-worklog-overview__repo-row--root {
   border-color: color-mix(in srgb, var(--cove-accent) 16%, var(--cove-git-worklog-card-border));
+}
+
+.git-worklog-overview__repo-row--dragging {
+  z-index: 2;
+  opacity: 0.88;
+  transform: translate3d(
+      var(--git-worklog-drag-offset-x, 0),
+      var(--git-worklog-drag-offset-y, 0),
+      0
+    )
+    scale(0.992);
+}
+
+.git-worklog-overview__repo-row--drop-target {
+  border-color: color-mix(in srgb, var(--cove-accent) 36%, var(--cove-git-worklog-card-border));
+  box-shadow:
+    0 24px 46px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 56%, transparent),
+    0 10px 24px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 28%, transparent),
+    0 2px 6px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 12%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--cove-accent) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
 }
 
 .git-worklog-overview__repo-top {
@@ -2242,6 +2314,12 @@
   align-items: flex-start;
   justify-content: flex-end;
   flex: 0 0 auto;
+}
+
+.git-worklog-overview__repo-list--drop-target {
+  outline: 1px dashed color-mix(in srgb, var(--cove-accent) 34%, transparent);
+  outline-offset: 6px;
+  border-radius: 18px;
 }
 
 .git-worklog-overview__repo-body {
@@ -3466,6 +3544,10 @@
   overflow: hidden;
 }
 
+.system-monitor-overview__metric-card--network {
+  grid-column: span 2;
+}
+
 .system-monitor-overview__metric-card::after {
   content: '';
   position: absolute;
@@ -3587,7 +3669,7 @@
 
 .system-monitor-overview__metric-dual {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 10px;
   font-size: calc(18px * var(--cove-ui-font-scale));
   line-height: 1.15;
@@ -3616,8 +3698,6 @@
 
 .system-monitor-overview__metric-dual-item span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -5752,6 +5832,14 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .system-monitor-overview__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .system-monitor-overview__metric-card--network {
+    grid-column: 1 / -1;
+  }
+
   .system-monitor-config__settings-grid,
   .system-monitor-config__settings-grid--toggles {
     grid-template-columns: 1fr;
@@ -5901,6 +5989,18 @@
   }
 
   .quota-monitor-overview__summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .system-monitor-overview__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .system-monitor-overview__metric-card--network {
+    grid-column: auto;
+  }
+
+  .system-monitor-overview__metric-dual {
     grid-template-columns: 1fr;
   }
 

@@ -1,6 +1,8 @@
 import type { MutableRefObject } from 'react'
 import type { Node } from '@xyflow/react'
 import type { StandardWindowSizeBucket } from '@contexts/settings/domain/agentSettings'
+import type { TerminalCredentialsSettings } from '@contexts/settings/domain/terminalCredentials'
+import { resolveDefaultTerminalCredentialProfile } from '@contexts/settings/domain/terminalCredentials'
 import { resolveSpaceWorkingDirectory } from '@contexts/space/application/resolveSpaceWorkingDirectory'
 import type { Point, TerminalNodeData, WorkspaceSpaceState } from '../../../types'
 import type { ContextMenuState, CreateNodeInput } from '../types'
@@ -11,6 +13,7 @@ import {
   findContainingSpaceByAnchor,
 } from './useInteractions.spaceAssignment'
 import { createNoteNodeAtAnchor } from './useInteractions.noteCreation'
+import { resolveTerminalCredentialSpawnInput } from '../../terminalNode/credentials'
 
 type SetNodes = (
   updater: (prevNodes: Node<TerminalNodeData>[]) => Node<TerminalNodeData>[],
@@ -20,6 +23,7 @@ type SetNodes = (
 export async function createTerminalNodeAtFlowPosition({
   anchor,
   defaultTerminalProfileId,
+  terminalCredentials,
   standardWindowSizeBucket,
   workspacePath,
   spacesRef,
@@ -30,6 +34,7 @@ export async function createTerminalNodeAtFlowPosition({
 }: {
   anchor: Point
   defaultTerminalProfileId: string | null
+  terminalCredentials: TerminalCredentialsSettings
   standardWindowSizeBucket: StandardWindowSizeBucket
   workspacePath: string
   spacesRef: MutableRefObject<WorkspaceSpaceState[]>
@@ -50,10 +55,19 @@ export async function createTerminalNodeAtFlowPosition({
   const targetSpace = findContainingSpaceByAnchor(spacesRef.current, cursorAnchor)
 
   const resolvedCwd = resolveSpaceWorkingDirectory(targetSpace, workspacePath)
+  const defaultCodexCredentialProfile = resolveDefaultTerminalCredentialProfile(
+    terminalCredentials,
+    'codex',
+  )
+  const credentialProfileId = defaultCodexCredentialProfile?.id ?? null
 
   const spawned = await window.freecliApi.pty.spawn({
     cwd: resolvedCwd,
     profileId: defaultTerminalProfileId ?? undefined,
+    credential: resolveTerminalCredentialSpawnInput({
+      settings: { terminalCredentials },
+      credentialProfileId,
+    }),
     cols: 80,
     rows: 24,
   })
@@ -61,6 +75,7 @@ export async function createTerminalNodeAtFlowPosition({
   const created = await createNodeForSession({
     sessionId: spawned.sessionId,
     profileId: spawned.profileId,
+    credentialProfileId,
     runtimeKind: spawned.runtimeKind,
     title: `terminal-${nodesRef.current.length + 1}`,
     anchor: nodeAnchor,
@@ -126,6 +141,7 @@ export function createNoteNodeAtFlowPosition({
 export async function createTerminalNodeFromPaneContextMenu({
   contextMenu,
   defaultTerminalProfileId,
+  terminalCredentials,
   workspacePath,
   spacesRef,
   nodesRef,
@@ -137,6 +153,7 @@ export async function createTerminalNodeFromPaneContextMenu({
 }: {
   contextMenu: ContextMenuState | null
   defaultTerminalProfileId: string | null
+  terminalCredentials: TerminalCredentialsSettings
   workspacePath: string
   spacesRef: MutableRefObject<WorkspaceSpaceState[]>
   nodesRef: MutableRefObject<Node<TerminalNodeData>[]>
@@ -157,6 +174,7 @@ export async function createTerminalNodeFromPaneContextMenu({
       y: contextMenu.flowY,
     },
     defaultTerminalProfileId,
+    terminalCredentials,
     standardWindowSizeBucket,
     workspacePath,
     spacesRef,

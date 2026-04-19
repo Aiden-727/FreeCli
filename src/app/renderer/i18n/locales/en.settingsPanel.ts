@@ -60,7 +60,7 @@ export const enSettingsPanel = {
       },
       channel: {
         stable: 'Stable',
-        nightly: 'Nightly',
+        nightly: 'Beta',
       },
       status: {
         disabled: 'Update checks are turned off.',
@@ -85,6 +85,28 @@ export const enSettingsPanel = {
     moveDown: 'Move down',
     fullAccessLabel: 'Full Access Mode',
     fullAccessHelp: 'Disable sandbox and manual approvals for agents.',
+    terminalCredentials: {
+      title: 'Terminal Credentials',
+      summaryTitle: 'Codex / Claude Terminal Credentials',
+      summaryHelp:
+        'Configure the real API key and base URL used inside terminals. Terminal nodes only keep a profile reference instead of duplicating secrets.',
+      providerTitle: '{{provider}} Profiles',
+      providerHelp:
+        'New or restored terminals for this provider inject env vars from the selected profile. Running shells are not treated as hot-switched automatically.',
+      defaultProfileLabel: 'Default Profile',
+      defaultProfileHelp:
+        'When a terminal does not explicitly choose a profile, this provider uses the default profile here first.',
+      useFirstEnabled: 'Use first enabled profile',
+      unnamedProfile: 'Unnamed profile',
+      profileTitle: 'Profile {{index}}',
+      profileHelp:
+        'Disabled profiles stay in settings, but they are skipped during automatic terminal startup injection.',
+      profileLabel: 'Label',
+      apiKeyLabel: 'API Key',
+      baseUrlLabel: 'Base URL',
+      removeProfile: 'Remove',
+      addProfile: 'Add {{provider}} Profile',
+    },
   },
   notifications: {
     title: 'Notifications',

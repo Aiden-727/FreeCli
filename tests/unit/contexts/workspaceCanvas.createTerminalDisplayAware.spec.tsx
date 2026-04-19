@@ -156,6 +156,22 @@ describe('WorkspaceCanvas create terminal standard sizing', () => {
             ...DEFAULT_AGENT_SETTINGS,
             defaultTerminalWindowScalePercent: 120,
             standardWindowSizeBucket: 'large',
+            terminalCredentials: {
+              profiles: [
+                {
+                  id: 'codex-default',
+                  label: 'Codex Default',
+                  provider: 'codex',
+                  apiKey: 'sk-codex',
+                  baseUrl: 'https://codex.example/v1',
+                  enabled: true,
+                },
+              ],
+              defaultProfileIdByProvider: {
+                codex: 'codex-default',
+                'claude-code': null,
+              },
+            },
           }}
         />
       )
@@ -184,5 +200,16 @@ describe('WorkspaceCanvas create terminal standard sizing', () => {
     })
     expect(latestNodes[0]?.data.width).toBe(expectedSize.width)
     expect(latestNodes[0]?.data.height).toBe(expectedSize.height)
+    expect(latestNodes[0]?.data.credentialProfileId).toBe('codex-default')
+    expect(latestNodes[0]?.data.activeCredentialProfileId).toBe('codex-default')
+    expect(spawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credential: {
+          provider: 'codex',
+          apiKey: 'sk-codex',
+          baseUrl: 'https://codex.example/v1',
+        },
+      }),
+    )
   })
 })

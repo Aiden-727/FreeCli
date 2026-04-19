@@ -82,10 +82,16 @@ export interface ImageNodeData {
   naturalHeight: number | null
 }
 
+export interface TerminalCredentialSelection {
+  profileId: string | null
+}
+
 export interface TerminalNodeData {
   [key: string]: unknown
   sessionId: string
   profileId?: string | null
+  credentialProfileId?: string | null
+  activeCredentialProfileId?: string | null
   runtimeKind?: TerminalRuntimeKind
   labelColorOverride?: NodeLabelColorOverride
   title: string
@@ -256,6 +262,8 @@ export interface PersistedTerminalNode {
   height: number
   kind: WorkspaceNodeKind
   profileId?: string | null
+  credentialProfileId?: string | null
+  activeCredentialProfileId?: string | null
   runtimeKind?: TerminalRuntimeKind
   labelColorOverride?: NodeLabelColorOverride
   status: AgentRuntimeStatus | null

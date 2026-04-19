@@ -73,6 +73,10 @@ export function TerminalNode({
   terminalThemeMode = 'sync-with-ui',
   profileId,
   runtimeKind,
+  credentialProfileId,
+  activeCredentialProfileId,
+  terminalCredentialProfiles,
+  activeCredentialProvider,
   isSelected = false,
   isDragging = false,
   status,
@@ -89,6 +93,7 @@ export function TerminalNode({
   onResize,
   onScrollbackChange,
   onTitleCommit,
+  onCredentialProfileChange,
   onPersistenceModeChange,
   onCommandRun,
   onAlternateScreenChange,
@@ -96,6 +101,7 @@ export function TerminalNode({
   onShowMessage,
 }: TerminalNodeProps): JSX.Element {
   const { t } = useTranslation()
+  const pasteIndicatorDelayMs = 180
   const isDragSurfaceSelectionMode = useStore(selectDragSurfaceSelectionMode)
   const isViewportInteractionActive = useStore(selectViewportInteractionActive)
   const outputSchedulerRef = useRef<ReturnType<typeof createTerminalOutputScheduler> | null>(null)
@@ -112,6 +118,12 @@ export function TerminalNode({
   const onAlternateScreenChangeRef = useRef(onAlternateScreenChange)
   const isTerminalHydratedRef = useRef(false)
   const [isTerminalHydrated, setIsTerminalHydrated] = useState(false)
+  const [isPasteIndicatorVisible, setIsPasteIndicatorVisible] = useState(false)
+  const isPasteIndicatorVisibleRef = useRef(false)
+  const pasteFlowActiveRef = useRef(false)
+  const pasteIntentSequenceRef = useRef(0)
+  const latestPasteIntentSequenceRef = useRef(0)
+  const pasteIndicatorTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const {
     state: findState,
     open: openTerminalFind,
@@ -151,6 +163,7 @@ export function TerminalNode({
         return false
       }
 
+      latestPasteIntentSequenceRef.current = ++pasteIntentSequenceRef.current
       targetTerminal.focus?.()
       targetTerminal.paste(pasteText)
       return true
@@ -212,9 +225,59 @@ export function TerminalNode({
         return
       }
 
+      latestPasteIntentSequenceRef.current = ++pasteIntentSequenceRef.current
       terminal.paste(text)
     },
     [pasteResolvedPathsIntoTerminal, resolveClipboardImageTempPath, t],
+  )
+
+  const clearPasteIndicatorTimer = useCallback(() => {
+    if (pasteIndicatorTimerRef.current === null) {
+      return
+    }
+
+    window.clearTimeout(pasteIndicatorTimerRef.current)
+    pasteIndicatorTimerRef.current = null
+  }, [])
+
+  const completePasteFlow = useCallback(() => {
+    pasteFlowActiveRef.current = false
+    latestPasteIntentSequenceRef.current = 0
+    isPasteIndicatorVisibleRef.current = false
+    clearPasteIndicatorTimer()
+    setIsPasteIndicatorVisible(false)
+  }, [clearPasteIndicatorTimer])
+
+  const handlePtyQueueStateChange = useCallback(
+    ({ isWriting, pendingCount }: { isWriting: boolean; pendingCount: number }) => {
+      const isBusy = isWriting || pendingCount > 0
+
+      if (!isBusy) {
+        if (pasteFlowActiveRef.current || isPasteIndicatorVisibleRef.current) {
+          completePasteFlow()
+        }
+        return
+      }
+
+      if (!pasteFlowActiveRef.current && latestPasteIntentSequenceRef.current > 0) {
+        pasteFlowActiveRef.current = true
+        latestPasteIntentSequenceRef.current = 0
+        clearPasteIndicatorTimer()
+        pasteIndicatorTimerRef.current = window.setTimeout(() => {
+          pasteIndicatorTimerRef.current = null
+          if (pasteFlowActiveRef.current) {
+            isPasteIndicatorVisibleRef.current = true
+            setIsPasteIndicatorVisible(true)
+          }
+        }, pasteIndicatorDelayMs)
+        return
+      }
+
+      if (!pasteFlowActiveRef.current) {
+        return
+      }
+    },
+    [completePasteFlow],
   )
 
   const hasImageClipboardData = useCallback(
@@ -241,6 +304,9 @@ export function TerminalNode({
     onCommandRunRef.current = onCommandRun
   }, [onCommandRun])
   useEffect(() => {
+    isPasteIndicatorVisibleRef.current = isPasteIndicatorVisible
+  }, [isPasteIndicatorVisible])
+  useEffect(() => {
     onAlternateScreenChangeRef.current = onAlternateScreenChange
   }, [onAlternateScreenChange])
   useEffect(() => {
@@ -266,7 +332,17 @@ export function TerminalNode({
     alternateScreenStateRef.current = createTerminalAlternateScreenState()
     isTerminalHydratedRef.current = false
     setIsTerminalHydrated(false)
-  }, [sessionId])
+    completePasteFlow()
+  }, [completePasteFlow, sessionId])
+
+  useEffect(() => {
+    return () => {
+      pasteFlowActiveRef.current = false
+      latestPasteIntentSequenceRef.current = 0
+      isPasteIndicatorVisibleRef.current = false
+      clearPasteIndicatorTimer()
+    }
+  }, [clearPasteIndicatorTimer])
 
   const syncTerminalSize = useCallback(() => {
     syncTerminalNodeSize({
@@ -361,12 +437,16 @@ export function TerminalNode({
         })()
       : () => undefined
     let disposeTerminalSelectionTestHandle: () => void = () => undefined
-    const ptyWriteQueue = createPtyWriteQueue(({ data, encoding }) =>
-      window.freecliApi.pty.write({
-        sessionId,
-        data,
-        ...(encoding === 'binary' ? { encoding } : {}),
-      }),
+    const ptyWriteQueue = createPtyWriteQueue(
+      ({ data, encoding }) =>
+        window.freecliApi.pty.write({
+          sessionId,
+          data,
+          ...(encoding === 'binary' ? { encoding } : {}),
+        }),
+      {
+        onStateChange: handlePtyQueueStateChange,
+      },
     )
     terminal.attachCustomKeyEventHandler(event =>
       handleTerminalCustomKeyEvent({
@@ -630,6 +710,7 @@ export function TerminalNode({
     disposeScrollbackPublish,
     markScrollbackDirty,
     openTerminalFind,
+    handlePtyQueueStateChange,
     pasteClipboardContentIntoTerminal,
     scrollbackBufferRef,
     sessionId,
@@ -745,6 +826,10 @@ export function TerminalNode({
       isAgentLike={isAgentLike}
       labelColor={labelColor}
       terminalThemeMode={terminalThemeMode}
+      credentialProfileId={credentialProfileId}
+      activeCredentialProfileId={activeCredentialProfileId}
+      terminalCredentialProfiles={terminalCredentialProfiles}
+      activeCredentialProvider={activeCredentialProvider}
       isSelected={hasSelectedDragSurface}
       isDragging={isDragging}
       status={status}
@@ -753,6 +838,8 @@ export function TerminalNode({
       persistenceMode={persistenceMode}
       sessionId={sessionId}
       isTerminalHydrated={isTerminalHydrated}
+      isPasteIndicatorVisible={isPasteIndicatorVisible}
+      pasteIndicatorLabel={t('terminalNode.pasting')}
       sizeStyle={sizeStyle}
       containerRef={containerRef}
       handleTerminalBodyPointerDownCapture={handleTerminalBodyPointerDownCapture}
@@ -764,6 +851,7 @@ export function TerminalNode({
       consumeIgnoredTerminalBodyClick={consumeIgnoredTerminalBodyClick}
       onInteractionStart={onInteractionStart}
       onTitleCommit={onTitleCommit}
+      onCredentialProfileChange={onCredentialProfileChange}
       onPersistenceModeChange={onPersistenceModeChange}
       onClose={onClose}
       onCopyLastMessage={onCopyLastMessage}

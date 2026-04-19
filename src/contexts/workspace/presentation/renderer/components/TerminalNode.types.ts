@@ -26,6 +26,14 @@ export interface TerminalNodeProps {
   terminalThemeMode?: TerminalThemeMode
   profileId?: string | null
   runtimeKind?: TerminalRuntimeKind
+  credentialProfileId?: string | null
+  activeCredentialProfileId?: string | null
+  terminalCredentialProfiles?: Array<{
+    id: string
+    label: string
+    provider: 'codex' | 'claude-code'
+  }>
+  activeCredentialProvider?: 'codex' | 'claude-code' | null
   isSelected?: boolean
   isDragging?: boolean
   status: AgentRuntimeStatus | null
@@ -42,6 +50,7 @@ export interface TerminalNodeProps {
   onResize: (frame: NodeFrame) => void
   onScrollbackChange?: (scrollback: string) => void
   onTitleCommit?: (title: string) => void
+  onCredentialProfileChange?: (credentialProfileId: string | null) => void
   onPersistenceModeChange?: (mode: TerminalPersistenceMode) => void
   onCommandRun?: (command: string) => void
   onAlternateScreenChange?: (active: boolean) => void

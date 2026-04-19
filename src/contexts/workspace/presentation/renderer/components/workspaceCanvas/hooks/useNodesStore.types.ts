@@ -48,6 +48,8 @@ export interface UseWorkspaceCanvasNodesStoreResult {
   updateNodeScrollback: (nodeId: string, scrollback: string) => void
   updateTerminalTitle: (nodeId: string, title: string) => void
   renameTerminalTitle: (nodeId: string, title: string) => void
+  setTerminalCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
+  setTerminalActiveCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
   setTerminalPersistenceMode: (
     nodeId: string,
     persistenceMode: TerminalNodeData['persistenceMode'],

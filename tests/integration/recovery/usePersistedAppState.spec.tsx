@@ -148,7 +148,7 @@ describe('usePersistedAppState', () => {
     expect(schedulePersistedStateWrite).toHaveBeenCalledTimes(1)
   })
 
-  it('still flushes when a workspace change explicitly requests persistence', () => {
+  it('still schedules an immediate pending write when a workspace change explicitly requests persistence', () => {
     schedulePersistedStateWrite.mockImplementation(() => {})
 
     const producePersistedState = vi.fn(() => ({
@@ -182,7 +182,38 @@ describe('usePersistedAppState', () => {
     rerender({ workspaces: [] })
 
     expect(schedulePersistedStateWrite).toHaveBeenCalledTimes(1)
-    expect(flushScheduledPersistedStateWrite).toHaveBeenCalledTimes(1)
+    expect(flushScheduledPersistedStateWrite).not.toHaveBeenCalled()
+  })
+
+  it('enqueues a persisted write immediately when an explicit flush is requested', () => {
+    schedulePersistedStateWrite.mockImplementation(() => {})
+
+    const producePersistedState = vi.fn(() => ({
+      formatVersion: 0,
+      activeWorkspaceId: 'workspace-1',
+      workspaces: [],
+      settings: DEFAULT_AGENT_SETTINGS,
+    }))
+
+    const { result } = renderHook(() =>
+      usePersistedAppState({
+        workspaces: [],
+        activeWorkspaceId: 'workspace-1',
+        agentSettings: DEFAULT_AGENT_SETTINGS,
+        isHydrated: true,
+        producePersistedState,
+      }),
+    )
+
+    schedulePersistedStateWrite.mockClear()
+    flushScheduledPersistedStateWrite.mockClear()
+
+    act(() => {
+      result.current.requestPersistFlush()
+    })
+
+    expect(schedulePersistedStateWrite).toHaveBeenCalledTimes(1)
+    expect(flushScheduledPersistedStateWrite).not.toHaveBeenCalled()
   })
 
   it('keeps automatic persistence for durable shell inputs', () => {
