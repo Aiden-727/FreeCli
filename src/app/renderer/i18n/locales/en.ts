@@ -995,6 +995,8 @@ export const en = {
     credentialPending: 'Pending restart',
     copyLastMessage: 'Copy last agent message',
     copyingLastMessage: 'Copying last agent message',
+    editTitle: 'Edit title',
+    finishEditingTitle: 'Finish editing title',
     persistenceModeLabel: 'Persistence',
     persistenceModePersistent: 'Persistent',
     persistenceModeEphemeral: 'One-time',

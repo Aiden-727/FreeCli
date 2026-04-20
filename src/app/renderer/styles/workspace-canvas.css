@@ -201,6 +201,34 @@
 
 .workspace-canvas .workspace-canvas__minimap-node {
   cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 180ms ease,
+    opacity 160ms ease;
+}
+
+.workspace-canvas .workspace-canvas__minimap-node-hitbox {
+  pointer-events: auto;
+}
+
+.workspace-canvas .workspace-canvas__minimap-node-shadow {
+  opacity: 0.62;
+  filter: var(--cove-canvas-minimap-node-shadow-filter);
+  transform: translateY(0.8px) scale(0.985);
+  transform-origin: center;
+  transition:
+    opacity 180ms ease,
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.workspace-canvas .workspace-canvas__minimap-node-hover-halo {
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    stroke 180ms ease,
+    transform 180ms ease;
 }
 
 .workspace-canvas .workspace-canvas__minimap-node-frame {
@@ -211,10 +239,42 @@
     box-shadow 160ms ease;
 }
 
+.workspace-canvas .workspace-canvas__minimap-node.hovered,
+.workspace-canvas .workspace-canvas__minimap-node:hover,
+.workspace-canvas .workspace-canvas__minimap-node.selected {
+  transform: translateY(-1px);
+}
+
+.workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-shadow,
+.workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-shadow,
+.workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-shadow {
+  opacity: 0.94;
+  filter: var(--cove-canvas-minimap-node-shadow-filter-hover);
+  transform: translateY(1.4px) scale(0.99);
+}
+
+.workspace-canvas
+  .workspace-canvas__minimap-node.hovered
+  .workspace-canvas__minimap-node-hover-halo,
+.workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-hover-halo,
+.workspace-canvas
+  .workspace-canvas__minimap-node.selected
+  .workspace-canvas__minimap-node-hover-halo {
+  opacity: 1;
+}
+
+.workspace-canvas
+  .workspace-canvas__minimap-node.selected
+  .workspace-canvas__minimap-node-hover-halo {
+  stroke: var(--cove-canvas-minimap-node-hover-halo-stroke-active);
+}
+
+.workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-frame,
 .workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-frame,
 .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-frame {
   filter: var(--cove-canvas-minimap-node-hover-filter);
   stroke-width: 1.2;
+  transform: translateY(-0.5px);
 }
 
 .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-frame {
@@ -228,20 +288,51 @@
     filter 160ms ease;
 }
 
+.workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-header,
 .workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-header,
 .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-header {
   opacity: 0.96;
+  filter: brightness(1.06);
 }
 
+.workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-divider,
 .workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-divider,
 .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-divider {
   opacity: 0.9;
+  filter: brightness(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-canvas .workspace-canvas__minimap-node,
+  .workspace-canvas .workspace-canvas__minimap-node-shadow,
+  .workspace-canvas .workspace-canvas__minimap-node-hover-halo,
+  .workspace-canvas .workspace-canvas__minimap-node-frame,
+  .workspace-canvas .workspace-canvas__minimap-node-header,
+  .workspace-canvas .workspace-canvas__minimap-node-divider {
+    transition: none;
+  }
+
+  .workspace-canvas .workspace-canvas__minimap-node.hovered,
+  .workspace-canvas .workspace-canvas__minimap-node:hover,
+  .workspace-canvas .workspace-canvas__minimap-node.selected,
+  .workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-frame,
+  .workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-frame,
+  .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-frame,
+  .workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-shadow,
+  .workspace-canvas .workspace-canvas__minimap-node:hover .workspace-canvas__minimap-node-shadow,
+  .workspace-canvas
+    .workspace-canvas__minimap-node.selected
+    .workspace-canvas__minimap-node-shadow {
+    transform: none;
+  }
 }
 
 .workspace-canvas .react-flow__minimap-mask {
-  stroke: var(--cove-canvas-minimap-mask);
-  stroke-width: 1.5;
-  opacity: 0.62;
+  fill: transparent !important;
+  stroke: transparent !important;
+  stroke-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .workspace-canvas .react-flow__minimap:hover,

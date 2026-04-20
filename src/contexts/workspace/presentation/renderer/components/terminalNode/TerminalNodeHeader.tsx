@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, type JSX } from 'react'
 import { useTranslation } from '@app/renderer/i18n'
-import { Check, ChevronDown, Copy, KeyRound, LoaderCircle } from 'lucide-react'
+import { Check, ChevronDown, Copy, KeyRound, LoaderCircle, PencilLine } from 'lucide-react'
 import type { AgentRuntimeStatus, TerminalPersistenceMode, WorkspaceNodeKind } from '../../types'
 import type { LabelColor } from '@shared/types/labelColor'
 import { getStatusClassName } from './status'
@@ -83,6 +83,7 @@ export function TerminalNodeHeader({
     activeCredentialProfile?.label ?? t('terminalNodeHeader.noCredentialProfile')
   const selectedCredentialLabel =
     selectedCredentialProfile?.label ?? t('terminalNodeHeader.noCredentialProfile')
+  const credentialCapsuleLabel = activeCredentialProfile?.label ?? null
   const shouldRenderPersistenceToggle =
     isTerminalNode && persistenceMode && typeof onPersistenceModeChange === 'function'
 
@@ -144,6 +145,20 @@ export function TerminalNodeHeader({
     setTitleDraft(title)
   }, [title])
 
+  const startTitleEdit = useCallback(() => {
+    if (!isTitleEditable || isTitleEditing) {
+      return
+    }
+
+    setTitleDraft(title)
+    setIsTitleEditing(true)
+  }, [isTitleEditable, isTitleEditing, title])
+
+  const finishTitleEdit = useCallback(() => {
+    commitTitleEdit()
+    setIsTitleEditing(false)
+  }, [commitTitleEdit])
+
   const handleHeaderClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (
@@ -157,9 +172,9 @@ export function TerminalNodeHeader({
       }
 
       event.stopPropagation()
-      setIsTitleEditing(true)
+      startTitleEdit()
     },
-    [isTitleEditable, isTitleEditing],
+    [isTitleEditable, isTitleEditing, startTitleEdit],
   )
 
   const statusLabel = (() => {
@@ -213,8 +228,7 @@ export function TerminalNodeHeader({
                 setTitleDraft(event.target.value)
               }}
               onBlur={() => {
-                commitTitleEdit()
-                setIsTitleEditing(false)
+                finishTitleEdit()
               }}
               onKeyDown={event => {
                 if (event.key === 'Escape') {
@@ -226,13 +240,45 @@ export function TerminalNodeHeader({
 
                 if (event.key === 'Enter') {
                   event.preventDefault()
-                  event.currentTarget.blur()
+                  finishTitleEdit()
                 }
               }}
             />
+            <button
+              type="button"
+              className="terminal-node__action terminal-node__action--icon terminal-node__title-confirm nodrag"
+              data-testid="terminal-node-title-confirm"
+              aria-label={t('terminalNodeHeader.finishEditingTitle')}
+              title={t('terminalNodeHeader.finishEditingTitle')}
+              onMouseDown={event => {
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+              onClick={event => {
+                event.stopPropagation()
+                finishTitleEdit()
+              }}
+            >
+              <Check className="terminal-node__action-icon" />
+            </button>
           </>
         ) : (
-          <span className="terminal-node__title">{titleDraft}</span>
+          <>
+            <span className="terminal-node__title">{titleDraft}</span>
+            <button
+              type="button"
+              className="terminal-node__action terminal-node__action--icon terminal-node__title-edit nodrag"
+              data-testid="terminal-node-title-edit"
+              aria-label={t('terminalNodeHeader.editTitle')}
+              title={t('terminalNodeHeader.editTitle')}
+              onClick={event => {
+                event.stopPropagation()
+                startTitleEdit()
+              }}
+            >
+              <PencilLine className="terminal-node__action-icon" />
+            </button>
+          </>
         )
       ) : (
         <span className="terminal-node__title">{title}</span>
@@ -297,7 +343,9 @@ export function TerminalNodeHeader({
             <span className="terminal-node__credential-provider">
               {t('terminalNodeHeader.providerCodex')}
             </span>
-            <span className="terminal-node__credential-name">{activeCredentialLabel}</span>
+            {credentialCapsuleLabel ? (
+              <span className="terminal-node__credential-name">{credentialCapsuleLabel}</span>
+            ) : null}
             {hasPendingCredentialChange ? (
               <span className="terminal-node__credential-pending">
                 {t('terminalNodeHeader.credentialPending')}

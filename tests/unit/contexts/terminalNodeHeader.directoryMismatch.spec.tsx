@@ -87,6 +87,30 @@ describe('TerminalNodeHeader directory mismatch badge', () => {
     expect(onTitleCommit).toHaveBeenCalledWith('自定义 Agent 标题')
   })
 
+  it('opens title editing from the edit button and commits with the confirm button', () => {
+    const onTitleCommit = vi.fn()
+
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        onTitleCommit={onTitleCommit}
+        onClose={() => undefined}
+      />,
+    )
+
+    expect(screen.getByTestId('terminal-node-title-edit')).toBeVisible()
+    fireEvent.click(screen.getByTestId('terminal-node-title-edit'))
+
+    const input = screen.getByTestId('terminal-node-inline-title-input')
+    fireEvent.change(input, { target: { value: '终端标题已修改' } })
+    fireEvent.click(screen.getByTestId('terminal-node-title-confirm'))
+
+    expect(onTitleCommit).toHaveBeenCalledWith('终端标题已修改')
+    expect(screen.queryByTestId('terminal-node-inline-title-input')).not.toBeInTheDocument()
+  })
+
   it('shows hosted terminal agent chrome for tracked CLI sessions', () => {
     const onCopyLastMessage = vi.fn(async () => undefined)
 
@@ -169,7 +193,7 @@ describe('TerminalNodeHeader directory mismatch badge', () => {
     expect(capsule).toHaveTextContent('Codex Main')
   })
 
-  it('renders a no-credential Codex capsule when no profiles are configured', () => {
+  it('keeps the Codex capsule label compact when no profiles are configured', () => {
     render(
       <TerminalNodeHeader
         title="pwsh"
@@ -186,7 +210,7 @@ describe('TerminalNodeHeader directory mismatch badge', () => {
 
     const capsule = screen.getByTestId('terminal-node-credential-capsule')
     expect(capsule).toHaveTextContent('Codex')
-    expect(capsule).toHaveTextContent('不注入凭据')
+    expect(capsule).not.toHaveTextContent('不注入凭据')
   })
 
   it('shows pending restart when selected Codex profile differs from the active session profile', () => {

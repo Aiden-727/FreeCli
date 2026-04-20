@@ -953,6 +953,8 @@ export const zhCN = {
     credentialPending: '待重启',
     copyLastMessage: '复制上一条 Agent 消息',
     copyingLastMessage: '正在复制上一条 Agent 消息',
+    editTitle: '编辑标题',
+    finishEditingTitle: '完成标题编辑',
     persistenceModeLabel: '持久化',
     persistenceModePersistent: '持久化',
     persistenceModeEphemeral: '一次性',

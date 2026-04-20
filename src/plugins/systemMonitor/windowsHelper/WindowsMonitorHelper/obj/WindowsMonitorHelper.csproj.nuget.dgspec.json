@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Project\\opencove\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj": {}
+    "D:\\Project\\FreeCli\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj": {}
   },
   "projects": {
-    "D:\\Project\\opencove\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj": {
+    "D:\\Project\\FreeCli\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Project\\opencove\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj",
+        "projectUniqueName": "D:\\Project\\FreeCli\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj",
         "projectName": "WindowsMonitorHelper",
-        "projectPath": "D:\\Project\\opencove\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj",
+        "projectPath": "D:\\Project\\FreeCli\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj",
         "packagesPath": "C:\\Users\\Aiden\\.nuget\\packages\\",
-        "outputPath": "D:\\Project\\opencove\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\obj\\",
+        "outputPath": "D:\\Project\\FreeCli\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "D:\\Code\\Microsoft Visual Studio\\Shared\\NuGetPackages"

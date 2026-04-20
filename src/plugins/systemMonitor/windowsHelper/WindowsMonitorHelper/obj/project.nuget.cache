@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "35IwSnkPbxY=",
+  "dgSpecHash": "tCGn5j06ZvU=",
   "success": true,
-  "projectFilePath": "D:\\Project\\opencove\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj",
+  "projectFilePath": "D:\\Project\\FreeCli\\src\\plugins\\systemMonitor\\windowsHelper\\WindowsMonitorHelper\\WindowsMonitorHelper.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Aiden\\.nuget\\packages\\system.codedom\\8.0.0\\system.codedom.8.0.0.nupkg.sha512",
     "C:\\Users\\Aiden\\.nuget\\packages\\system.management\\8.0.0\\system.management.8.0.0.nupkg.sha512",

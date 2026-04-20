@@ -86,12 +86,12 @@
     );
   color: var(--cove-text);
   border-radius: 999px;
-  min-height: 25px;
-  max-width: 250px;
-  padding: 3px 7px;
+  min-height: 26px;
+  max-width: 260px;
+  padding: 3px 8px 3px 7px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
   box-shadow: 0 1px 0 color-mix(in srgb, white 7%, transparent) inset;
   transition:
@@ -123,22 +123,22 @@
 
 .terminal-node__credential-provider {
   font-size: calc(10px * var(--cove-ui-font-scale));
-  font-weight: 800;
+  font-weight: 750;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: var(--cove-text);
   flex: 0 0 auto;
 }
 
 .terminal-node__credential-name {
   min-width: 0;
-  max-width: 120px;
+  max-width: 122px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: calc(10px * var(--cove-ui-font-scale));
-  font-weight: 650;
-  color: var(--cove-text-muted);
+  font-weight: 620;
+  color: color-mix(in srgb, var(--cove-text-muted) 82%, var(--cove-text) 18%);
 }
 
 .terminal-node__credential-pending {
@@ -496,6 +496,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.terminal-node__title-edit,
+.terminal-node__title-confirm {
+  flex: 0 0 auto;
 }
 
 .terminal-node__title-proxy {

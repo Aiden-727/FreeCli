@@ -46,7 +46,9 @@ interface WorkspaceMinimapNodeComponentProps {
   strokeWidth?: number
   headerColor?: string
   selected: boolean
+  hovered?: boolean
   onClick?: (event: React.MouseEvent, id: string) => void
+  onHoverChange?: (id: string | null) => void
 }
 
 interface WorkspaceMinimapFlowPosition {
@@ -70,7 +72,9 @@ function resolveWorkspaceMinimapTaskState(node: Node<TerminalNodeData>): Workspa
   }
 }
 
-function resolveWorkspaceMinimapAgentState(node: Node<TerminalNodeData>): WorkspaceMinimapRuntimeState {
+function resolveWorkspaceMinimapAgentState(
+  node: Node<TerminalNodeData>,
+): WorkspaceMinimapRuntimeState {
   switch (node.data.status) {
     case 'running':
     case 'restoring':
@@ -278,20 +282,18 @@ export function resolveWorkspaceMinimapNodeAtPosition(
   position: WorkspaceMinimapFlowPosition,
 ): Node<TerminalNodeData> | null {
   return (
-    [...nodes]
-      .reverse()
-      .find(node => {
-        if (node.hidden) {
-          return false
-        }
+    [...nodes].reverse().find(node => {
+      if (node.hidden) {
+        return false
+      }
 
-        return (
-          position.x >= node.position.x &&
-          position.x <= node.position.x + node.data.width &&
-          position.y >= node.position.y &&
-          position.y <= node.position.y + node.data.height
-        )
-      }) ?? null
+      return (
+        position.x >= node.position.x &&
+        position.x <= node.position.x + node.data.width &&
+        position.y >= node.position.y &&
+        position.y <= node.position.y + node.data.height
+      )
+    }) ?? null
   )
 }
 
@@ -384,17 +386,59 @@ export function WorkspaceMinimapNode({
   strokeWidth,
   headerColor,
   selected,
+  hovered = false,
   onClick,
+  onHoverChange,
 }: WorkspaceMinimapNodeComponentProps): React.JSX.Element {
   const headerHeight = Math.max(6, Math.min(18, height * 0.2))
   const bodyBorderRadius = Math.min(borderRadius, Math.max(3, Math.min(width, height) * 0.18))
 
   return (
     <g
-      className={`${className}${selected ? ' selected' : ''}`}
+      className={`${className}${selected ? ' selected' : ''}${hovered ? ' hovered' : ''}`}
+      data-testid={`workspace-minimap-group-${id}`}
       transform={`translate(${x} ${y})`}
       onClick={onClick ? event => onClick(event, id) : undefined}
     >
+      <rect
+        className="workspace-canvas__minimap-node-hitbox"
+        data-testid={`workspace-minimap-hitbox-${id}`}
+        width={width}
+        height={height}
+        rx={bodyBorderRadius}
+        ry={bodyBorderRadius}
+        fill="rgba(255, 255, 255, 0.001)"
+        shapeRendering={shapeRendering}
+        pointerEvents="all"
+        onMouseEnter={onHoverChange ? () => onHoverChange(id) : undefined}
+        onMouseLeave={onHoverChange ? () => onHoverChange(null) : undefined}
+      />
+      <rect
+        className="workspace-canvas__minimap-node-shadow"
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        rx={bodyBorderRadius}
+        ry={bodyBorderRadius}
+        fill="var(--cove-canvas-minimap-node-shadow-fill)"
+        shapeRendering={shapeRendering}
+        pointerEvents="none"
+      />
+      <rect
+        className="workspace-canvas__minimap-node-hover-halo"
+        x={-1.5}
+        y={-1.5}
+        width={width + 3}
+        height={height + 3}
+        rx={bodyBorderRadius + 1}
+        ry={bodyBorderRadius + 1}
+        fill="none"
+        stroke="var(--cove-canvas-minimap-node-hover-halo-stroke)"
+        strokeWidth={0.9}
+        shapeRendering={shapeRendering}
+        pointerEvents="none"
+      />
       <rect
         className="workspace-canvas__minimap-node-frame"
         data-testid={`workspace-minimap-node-${id}`}

@@ -88,7 +88,7 @@ test.describe('Workspace Canvas - Unified Node Chrome', () => {
     }
   })
 
-  test('starts task and terminal renaming only after header double click', async () => {
+  test('supports explicit terminal title editing without relying on header double click', async () => {
     const { electronApp, window } = await launchApp()
 
     try {
@@ -128,20 +128,20 @@ test.describe('Workspace Canvas - Unified Node Chrome', () => {
         '[data-testid="terminal-node-inline-title-input"]',
       )
       const taskTitleInput = taskNode.locator('[data-testid="task-node-inline-title-input"]')
+      const terminalEditButton = terminalNode.locator('[data-testid="terminal-node-title-edit"]')
+      const terminalConfirmButton = terminalNode.locator('[data-testid="terminal-node-title-confirm"]')
 
       await terminalHeader.click({ position: { x: 72, y: 16 } })
       await taskHeader.click({ position: { x: 72, y: 16 } })
       await expect(terminalTitleInput).toHaveCount(0)
       await expect(taskTitleInput).toHaveCount(0)
 
-      await terminalHeader.evaluate(header => {
-        header.dispatchEvent(
-          new MouseEvent('click', { bubbles: true, cancelable: true, detail: 2 }),
-        )
-      })
+      await expect(terminalEditButton).toBeVisible({ timeout: 30_000 })
+      await terminalEditButton.click()
       await expect(terminalTitleInput).toBeVisible({ timeout: 30_000 })
       await terminalTitleInput.fill('terminal renamed')
-      await terminalTitleInput.press('Enter')
+      await expect(terminalConfirmButton).toBeVisible({ timeout: 30_000 })
+      await terminalConfirmButton.click()
       await expect(terminalTitleInput).toHaveCount(0)
       await expect(terminalHeader).toContainText('terminal renamed')
 
