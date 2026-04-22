@@ -26,6 +26,7 @@ import { SettingsPanelNavButton } from './settingsPanel/SettingsPanelNavButton'
 import { ShortcutsSection } from './settingsPanel/ShortcutsSection'
 import { TaskConfigurationSection } from './settingsPanel/TaskConfigurationSection'
 import { TerminalCredentialsSection } from './settingsPanel/TerminalCredentialsSection'
+import { AgentExtensionsSection } from './settingsPanel/AgentExtensionsSection'
 import { WorkspaceSection } from './settingsPanel/WorkspaceSection'
 import type { WorkspaceState } from '@contexts/workspace/presentation/renderer/types'
 
@@ -59,6 +60,7 @@ interface SettingsPanelProps {
 type CorePageId =
   | 'general'
   | 'agent'
+  | 'ai'
   | 'notifications'
   | 'canvas'
   | 'shortcuts'
@@ -323,6 +325,12 @@ export function SettingsPanel({
             onClick={() => setActivePageId('agent')}
           />
           <SettingsPanelNavButton
+            isActive={activePageId === 'ai'}
+            label={t('settingsPanel.nav.ai')}
+            testId="settings-section-nav-ai"
+            onClick={() => setActivePageId('ai')}
+          />
+          <SettingsPanelNavButton
             isActive={activePageId === 'notifications'}
             label={t('settingsPanel.nav.notifications')}
             testId="settings-section-nav-notifications"
@@ -426,10 +434,16 @@ export function SettingsPanel({
                   onChangeAddModelInput={updateAddModelInput}
                   onAddCustomModelOption={addCustomModelOption}
                 />
+              </>
+            ) : null}
+
+            {activePageId === 'ai' ? (
+              <>
                 <TerminalCredentialsSection
                   settings={settings.terminalCredentials}
                   onChange={updateTerminalCredentials}
                 />
+                <AgentExtensionsSection />
               </>
             ) : null}
 

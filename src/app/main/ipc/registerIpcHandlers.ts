@@ -3,6 +3,7 @@ import { registerAgentIpcHandlers } from '../../../contexts/agent/presentation/m
 import { registerPtyIpcHandlers } from '../../../contexts/terminal/presentation/main-ipc/register'
 import { createPtyRuntime } from '../../../contexts/terminal/presentation/main-ipc/runtime'
 import { registerTaskIpcHandlers } from '../../../contexts/task/presentation/main-ipc/register'
+import { registerAgentExtensionsIpcHandlers } from '../../../contexts/agentExtensions/presentation/main-ipc/register'
 import { registerClipboardIpcHandlers } from '../../../contexts/clipboard/presentation/main-ipc/register'
 import { registerWorkspaceIpcHandlers } from '../../../contexts/workspace/presentation/main-ipc/register'
 import { createApprovedWorkspaceStore } from '../../../contexts/workspace/infrastructure/approval/ApprovedWorkspaceStore'
@@ -90,6 +91,7 @@ export function registerIpcHandlers(deps?: {
     registerWindowMetricsIpcHandlers(),
     registerPtyIpcHandlers(ptyRuntime, approvedWorkspaces),
     registerAgentIpcHandlers(ptyRuntime, approvedWorkspaces),
+    registerAgentExtensionsIpcHandlers(),
     registerTaskIpcHandlers(approvedWorkspaces),
   ]
 

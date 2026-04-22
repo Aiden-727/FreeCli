@@ -1,4 +1,5 @@
 import React from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import type { QuotaMonitorKeyProfileDto, QuotaMonitorSettingsDto } from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
 import type { AgentSettings } from '@contexts/settings/domain/agentSettings'
@@ -42,6 +43,7 @@ export default function QuotaMonitorSettingsSection({
   const { state, refresh } = useQuotaMonitorState()
   const quotaSettings = settings.plugins.quotaMonitor
   const isPluginEnabled = settings.plugins.enabledIds.includes('quota-monitor')
+  const [visibleApiKeyIds, setVisibleApiKeyIds] = React.useState<Record<string, boolean>>({})
 
   const updateSettings = React.useCallback(
     (updater: (current: QuotaMonitorSettingsDto) => QuotaMonitorSettingsDto) => {
@@ -337,23 +339,49 @@ export default function QuotaMonitorSettingsSection({
                   <label htmlFor={`quota-monitor-profile-api-key-${profile.id}`}>
                     {t('pluginManager.plugins.quotaMonitor.apiKeyLabel')}
                   </label>
-                  <input
-                    id={`quota-monitor-profile-api-key-${profile.id}`}
-                    className="cove-field"
-                    data-testid={`quota-monitor-profile-api-key-${profile.id}`}
-                    type="password"
-                    value={profile.apiKey}
-                    placeholder={t('pluginManager.plugins.quotaMonitor.apiKeyPlaceholder')}
-                    onChange={event => {
-                      updateSettings(current => ({
-                        ...current,
-                        keyProfiles: updateProfile(current.keyProfiles, profile.id, candidate => ({
-                          ...candidate,
-                          apiKey: event.target.value,
-                        })),
-                      }))
-                    }}
-                  />
+                  <div className="quota-monitor-config__secret-field">
+                    <input
+                      id={`quota-monitor-profile-api-key-${profile.id}`}
+                      className="cove-field"
+                      data-testid={`quota-monitor-profile-api-key-${profile.id}`}
+                      type={visibleApiKeyIds[profile.id] ? 'text' : 'password'}
+                      autoComplete="off"
+                      value={profile.apiKey}
+                      placeholder={t('pluginManager.plugins.quotaMonitor.apiKeyPlaceholder')}
+                      onChange={event => {
+                        updateSettings(current => ({
+                          ...current,
+                          keyProfiles: updateProfile(
+                            current.keyProfiles,
+                            profile.id,
+                            candidate => ({
+                              ...candidate,
+                              apiKey: event.target.value,
+                            }),
+                          ),
+                        }))
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="cove-window__action cove-window__action--ghost quota-monitor-config__secret-toggle"
+                      data-testid={`quota-monitor-profile-api-key-visibility-${profile.id}`}
+                      aria-pressed={visibleApiKeyIds[profile.id] ? 'true' : 'false'}
+                      aria-label={
+                        visibleApiKeyIds[profile.id]
+                          ? t('pluginManager.plugins.quotaMonitor.hideApiKey')
+                          : t('pluginManager.plugins.quotaMonitor.showApiKey')
+                      }
+                      onClick={() => {
+                        setVisibleApiKeyIds(current => ({
+                          ...current,
+                          [profile.id]: !current[profile.id],
+                        }))
+                      }}
+                    >
+                      {visibleApiKeyIds[profile.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
                 </div>
 
                 {profile.type === 'capped' ? (

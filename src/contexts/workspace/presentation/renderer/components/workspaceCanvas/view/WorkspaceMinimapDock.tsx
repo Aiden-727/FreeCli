@@ -11,6 +11,11 @@ import {
   WorkspaceMinimapNode,
 } from '../minimap'
 
+const WORKSPACE_MINIMAP_FALLBACK_SIZE = {
+  width: 200,
+  height: 136,
+}
+
 interface WorkspaceMinimapDockProps {
   isMinimapVisible: boolean
   minimapNodeColor: (node: Node<TerminalNodeData>) => string
@@ -52,7 +57,17 @@ export function WorkspaceMinimapDock({
     height: state.height,
   }))
   const [dockSize, setDockSize] = React.useState({ width: 0, height: 0 })
-  const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null)
+  const minimapRenderSize = React.useMemo(
+    () => ({
+      width:
+        dockSize.width > 0 ? Math.round(dockSize.width) : WORKSPACE_MINIMAP_FALLBACK_SIZE.width,
+      height:
+        dockSize.height > 0
+          ? Math.round(dockSize.height)
+          : WORKSPACE_MINIMAP_FALLBACK_SIZE.height,
+    }),
+    [dockSize.height, dockSize.width],
+  )
 
   React.useLayoutEffect(() => {
     if (!dockRef.current || !isMinimapVisible) {
@@ -96,108 +111,24 @@ export function WorkspaceMinimapDock({
       viewport,
       flowSize,
       minimapSize: dockSize,
+      renderSize: minimapRenderSize,
     })
-  }, [dockSize, flowSize, nodes, viewport])
+  }, [dockSize, flowSize, minimapRenderSize, nodes, viewport])
 
   const minimapNodesById = React.useMemo(() => {
     return new Map(nodes.map(node => [node.id, node] as const))
   }, [nodes])
 
-  const handleMinimapHoverChange = React.useCallback((nodeId: string | null) => {
-    setHoveredNodeId(previous => (previous === nodeId ? previous : nodeId))
-  }, [])
-
-  const handleMinimapPointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!isMinimapVisible) {
-        return
-      }
-
-      const minimapElement = dockRef.current?.querySelector('.workspace-canvas__minimap')
-      if (!(minimapElement instanceof HTMLElement)) {
-        return
-      }
-
-      const bounds = minimapElement.getBoundingClientRect()
-      if (bounds.width <= 0 || bounds.height <= 0) {
-        return
-      }
-      const minimapSize = {
-        width: bounds.width,
-        height: bounds.height,
-      }
-
-      const relativeX = (event.clientX - bounds.left) / bounds.width
-      const relativeY = (event.clientY - bounds.top) / bounds.height
-      if (relativeX < 0 || relativeX > 1 || relativeY < 0 || relativeY > 1) {
-        handleMinimapHoverChange(null)
-        return
-      }
-
-      let minX = -viewport.x / viewport.zoom
-      let minY = -viewport.y / viewport.zoom
-      let maxX = minX + flowSize.width / viewport.zoom
-      let maxY = minY + flowSize.height / viewport.zoom
-
-      for (const node of nodes) {
-        if (node.hidden) {
-          continue
-        }
-
-        const width = Number.isFinite(node.data.width) ? node.data.width : 0
-        const height = Number.isFinite(node.data.height) ? node.data.height : 0
-        if (width <= 0 || height <= 0) {
-          continue
-        }
-
-        minX = Math.min(minX, node.position.x)
-        minY = Math.min(minY, node.position.y)
-        maxX = Math.max(maxX, node.position.x + width)
-        maxY = Math.max(maxY, node.position.y + height)
-      }
-
-      const boundingRect = {
-        x: minX,
-        y: minY,
-        width: Math.max(1, maxX - minX),
-        height: Math.max(1, maxY - minY),
-      }
-      const scaledWidth = boundingRect.width / minimapSize.width
-      const scaledHeight = boundingRect.height / minimapSize.height
-      const viewScale = Math.max(scaledWidth, scaledHeight, Number.EPSILON)
-      const viewWidth = viewScale * minimapSize.width
-      const viewHeight = viewScale * minimapSize.height
-      const offset = 5 * viewScale
-      const minimapViewBox = {
-        x: boundingRect.x - (viewWidth - boundingRect.width) / 2 - offset,
-        y: boundingRect.y - (viewHeight - boundingRect.height) / 2 - offset,
-        width: viewWidth + offset * 2,
-        height: viewHeight + offset * 2,
-      }
-
-      const hoveredNode = resolveWorkspaceMinimapNodeAtPosition(nodes, {
-        x: minimapViewBox.x + relativeX * minimapViewBox.width,
-        y: minimapViewBox.y + relativeY * minimapViewBox.height,
-      })
-
-      handleMinimapHoverChange(hoveredNode?.id ?? null)
-    },
-    [flowSize, handleMinimapHoverChange, isMinimapVisible, nodes, viewport],
-  )
-
   return (
     <div
       ref={dockRef}
       className={`workspace-canvas__minimap-dock${isMinimapVisible ? ' workspace-canvas__minimap-dock--expanded' : ''}`}
-      onPointerMove={handleMinimapPointerMove}
-      onMouseLeave={() => {
-        setHoveredNodeId(null)
-      }}
     >
       {isMinimapVisible ? (
         <>
           <MiniMap
             className="workspace-canvas__minimap"
+            style={minimapRenderSize}
             pannable
             zoomable
             nodeColor={minimapNodeColor}
@@ -208,11 +139,9 @@ export function WorkspaceMinimapDock({
               return (
                 <WorkspaceMinimapNode
                   {...props}
-                  hovered={hoveredNodeId === props.id}
                   headerColor={
                     sourceNode ? resolveWorkspaceMinimapNodeHeaderColor(sourceNode) : undefined
                   }
-                  onHoverChange={handleMinimapHoverChange}
                 />
               )
             }}
@@ -232,16 +161,22 @@ export function WorkspaceMinimapDock({
             ariaLabel={t('workspaceCanvas.minimapAriaLabel')}
           />
           {resolvedViewportWindow ? (
-            <div
-              className="workspace-canvas__minimap-viewport-mask"
+            <svg
+              className="workspace-canvas__minimap-viewport-overlay"
               aria-hidden="true"
-              style={{
-                left: `${resolvedViewportWindow.left}%`,
-                top: `${resolvedViewportWindow.top}%`,
-                width: `${resolvedViewportWindow.width}%`,
-                height: `${resolvedViewportWindow.height}%`,
-              }}
-            />
+              viewBox={`${resolvedViewportWindow.viewBoxX} ${resolvedViewportWindow.viewBoxY} ${resolvedViewportWindow.viewBoxWidth} ${resolvedViewportWindow.viewBoxHeight}`}
+              preserveAspectRatio="none"
+            >
+              <rect
+                className="workspace-canvas__minimap-viewport-mask"
+                x={resolvedViewportWindow.viewportX}
+                y={resolvedViewportWindow.viewportY}
+                width={resolvedViewportWindow.viewportWidth}
+                height={resolvedViewportWindow.viewportHeight}
+                rx={resolvedViewportWindow.viewportRadiusX}
+                ry={resolvedViewportWindow.viewportRadiusY}
+              />
+            </svg>
           ) : null}
         </>
       ) : null}

@@ -101,6 +101,19 @@
 - **Type Safety**：避免 `any`，IPC payload、跨层 DTO、边界返回值都要保持可校验、可推断。
 - **Security**：保持 Context Isolation；Renderer 禁止 Node Integration；能启用 Sandbox 的路径不要随意放弃。
 
+### 开源与发版数据安全门禁（Open-Source & Release Data Safety Gate）
+
+以下要求适用于**所有**后续开发、重构、脚本修改、CI 调整、打包配置修改与发版操作；默认在每次任务中与其他安全检查一并执行，不需要用户重复提醒：
+
+- **GitHub 源码上传门禁**：禁止把任何 secrets、tokens、API Key、AccessKey、私钥、证书、账号口令、用户本地配置、用户数据库、会话文件、诊断包、日志、截图、崩溃转储或其他个人数据提交到仓库。
+- **发版打包门禁**：禁止把用户 `userData`、本地数据库、运行期缓存、控制面连接文件、日志、诊断输出、测试产物、开发临时文件或任何真实用户数据打进安装包、便携包或更新包。
+- **新增文件/目录时先判断归属**：凡是 `.env`、`.db`、`.sqlite`、`.log`、会话导出、临时截图、崩溃文件、缓存目录、诊断目录、用户生成内容，默认视为**不得入仓/不得进包**，除非是脱敏后的固定测试夹具且已明确说明用途。
+- **修改打包配置时必须复核输入面**：凡修改 `package.json` 的 `build`、`extraResources`、`files`、构建脚本、发布脚本、GitHub Actions、安装器配置时，必须显式确认新增输入不会把敏感信息或用户个人数据带入发布产物。
+- **修改忽略规则时必须复核外泄风险**：凡修改 `.gitignore`、发布白名单、归档脚本、上传脚本时，必须检查是否会让本地数据库、日志、缓存、`.freecli/`、测试产物或其他用户文件进入 GitHub 或 release。
+- **示例与测试数据必须脱敏**：文档、测试、fixture、截图、录屏、release notes、README 示例中禁止出现真实用户 API Key、真实 OSS 凭据、真实个人路径、真实账号、真实邮箱、真实令牌或可复用会话信息。
+- **发布前最小安全检查**：发版前至少检查一次仓库 tracked 文件、构建输入、`extraResources`、发布脚本与工作区新增文件，确认本次源码上传和 release 产物均不包含敏感信息或用户个人数据。
+- **默认结论表达**：若审查范围仅限“GitHub 源码上传 + 正常发版流程”，应明确区分“仓库/发版是否会外带数据”与“应用运行时本地如何存储数据”是两类不同问题，避免混淆。
+
 ### UI 自动化与验证（UI Automation & Verification）
 
 对 UI 改动，尤其是 **Large Change**、高交互风险改动、或真实体验比纯逻辑更重要的改动，按以下方式选择验证手段：
@@ -133,6 +146,7 @@
     -   运行 `pnpm pre-commit` 前，必须先 `git add` 本次改动，再执行 `pnpm line-check:staged`，因为行数门禁只检查 staged 文件。
     -   若 staged 文件中存在超过 500 行的文件，先重构/拆分，过门禁后再继续，不要带着超长文件直接运行 `pnpm pre-commit`。
     -   `pnpm pre-commit` 会执行 `pnpm naming-check:staged`：禁止在新代码里重新引入 `cove:*`（对外/协议/持久化），仅允许显式 legacy 迁移用途；UI 设计系统前缀仍保留 `cove`（见上文命名约定）。
+    -   若本次改动涉及打包配置、发布脚本、GitHub Actions、`.gitignore`、构建输入目录或新增资源归档逻辑，提交前必须额外确认：不会把 secrets、用户本地数据、数据库、日志、缓存、控制面连接文件、诊断文件或其他个人数据带入 GitHub 仓库或 release 产物。
     -   若本次改动包含用户可感知变化（新增功能、UX 改动、修复 bug、默认行为变化），应先提交代码并创建 PR；拿到 PR 链接/编号后，再更新 `CHANGELOG.md` 的 `## [Unreleased]` 并单独提交（每个变化一条，尽量附 `#PR` 编号）。`nightly` tag 不要求更新 changelog；发 `stable` 时再把 `Unreleased` 结算进新版本段。
     -   创建/更新 PR 时：若本次改动包含用户可感知变化，必须跑 Playwright E2E（通常 `pnpm test:e2e`，或统一跑 `pnpm pre-commit`）。
     -   若本次改动涉及 **Renderer 用户可见文案**，必须做好 i18n：禁止新增硬编码用户文案，新增/修改文案时同步更新 `src/app/renderer/i18n/locales/en.ts` 与 `src/app/renderer/i18n/locales/zh-CN.ts`，并在提交前做一次对应语言的最小 smoke/测试验证。

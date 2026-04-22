@@ -4,6 +4,7 @@ export const BUILTIN_PLUGIN_IDS = [
   'quota-monitor',
   'git-worklog',
   'oss-backup',
+  'workspace-assistant',
 ] as const
 
 export type BuiltinPluginId = (typeof BUILTIN_PLUGIN_IDS)[number]
@@ -13,6 +14,7 @@ export const BUILTIN_PLUGIN_SETTINGS_KEYS = [
   'quotaMonitor',
   'gitWorklog',
   'ossBackup',
+  'workspaceAssistant',
 ] as const
 export type BuiltinPluginSettingsKey = (typeof BUILTIN_PLUGIN_SETTINGS_KEYS)[number]
 export type PluginCloudBackupRole = 'none' | 'participant' | 'owner'
@@ -99,6 +101,20 @@ const BUILTIN_PLUGIN_MANIFESTS: Record<BuiltinPluginId, PluginManifest> = {
     contributes: {
       headerWidget: true,
       controlCenterWidget: false,
+      settingsSection: true,
+      mainRuntime: true,
+    },
+  },
+  'workspace-assistant': {
+    id: 'workspace-assistant',
+    defaultEnabled: false,
+    titleKey: 'pluginManager.plugins.workspaceAssistant.title',
+    descriptionKey: 'pluginManager.plugins.workspaceAssistant.description',
+    settingsKey: 'workspaceAssistant',
+    cloudBackupRole: 'none',
+    contributes: {
+      headerWidget: true,
+      controlCenterWidget: true,
       settingsSection: true,
       mainRuntime: true,
     },

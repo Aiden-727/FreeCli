@@ -522,6 +522,43 @@
   min-height: 38px;
 }
 
+.quota-monitor-config__secret-field {
+  position: relative;
+}
+
+.quota-monitor-config__secret-field .cove-field {
+  padding-right: 42px;
+}
+
+.quota-monitor-config__secret-toggle.cove-window__action--ghost {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--cove-quota-pill-border) 82%, transparent);
+  border-radius: 10px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-quota-pill-surface) 96%, white 4%) 0%,
+    var(--cove-quota-pill-surface) 100%
+  );
+  color: var(--cove-text);
+  transform: translateY(-50%);
+  box-shadow:
+    0 8px 16px color-mix(in srgb, var(--cove-quota-card-shadow) 14%, transparent),
+    0 2px 6px color-mix(in srgb, var(--cove-quota-card-shadow) 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.quota-monitor-config__secret-toggle.cove-window__action--ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--cove-accent) 22%, var(--cove-quota-pill-border));
+  background: color-mix(in srgb, var(--cove-accent) 8%, var(--cove-quota-pill-surface));
+}
+
 .quota-monitor-config__policy-grid {
   width: 100%;
 }
@@ -4320,6 +4357,26 @@
   color: var(--cove-text-muted);
 }
 
+.quota-monitor-overview__hero-status-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.quota-monitor-overview__hero-status-line p {
+  margin-top: 6px;
+}
+
+.quota-monitor-overview__hero-status-meta {
+  margin-top: 6px;
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.55;
+  color: var(--cove-text-faint);
+  white-space: nowrap;
+}
+
 .quota-monitor-overview__hero-type {
   display: inline-flex;
   align-items: center;
@@ -4352,21 +4409,14 @@
   min-width: 0;
 }
 
-.quota-monitor-overview__hero-primary strong {
-  font-size: calc(44px * var(--cove-ui-font-scale));
-  line-height: 1;
-  letter-spacing: -0.04em;
-  color: var(--cove-text);
-}
-
 .quota-monitor-overview__hero-primary-meta {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
 }
 
-.quota-monitor-overview__hero-primary-meta span,
+.quota-monitor-overview__hero-primary-label,
 .quota-monitor-overview__hero-primary-meta p {
   margin: 0;
   font-size: calc(13px * var(--cove-ui-font-scale));
@@ -4375,28 +4425,47 @@
   word-break: break-word;
 }
 
+.quota-monitor-overview__hero-primary strong {
+  font-size: calc(44px * var(--cove-ui-font-scale));
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--cove-text);
+}
+
 .quota-monitor-overview__hero-primary-stats {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   min-width: 0;
 }
 
-.quota-monitor-overview__hero-primary-stats p {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
+.quota-monitor-overview__hero-primary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--cove-quota-subcard-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-quota-subcard-surface) 96%, white 4%) 0%,
+    var(--cove-quota-subcard-surface) 100%
+  );
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
 }
 
-.quota-monitor-overview__hero-primary-stats p + p::before {
-  content: '';
-  width: 4px;
-  height: 4px;
-  margin-right: 12px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--cove-text-faint) 76%, transparent);
+.quota-monitor-overview__hero-primary-stat-label {
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  line-height: 1.45;
+  color: var(--cove-text-faint);
+}
+
+.quota-monitor-overview__hero-primary-stat-value {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  line-height: 1.5;
+  color: var(--cove-text);
+  word-break: break-word;
 }
 
 .quota-monitor-overview__hero-metrics,
@@ -4452,7 +4521,7 @@
 
 .quota-monitor-overview__summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 

@@ -6,6 +6,7 @@ import type {
   OssBackupStateDto,
   OssSyncComparisonDto,
   QuotaMonitorStateDto,
+  WorkspaceAssistantStateDto,
 } from '../../../src/shared/contracts/dto'
 import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 import { PluginManagerPanel } from '../../../src/contexts/plugins/presentation/renderer/PluginManagerPanel'
@@ -317,6 +318,56 @@ function installOssBackupApiMock(
   return ossBackupApi
 }
 
+function installWorkspaceAssistantApiMock(overrides: Partial<WorkspaceAssistantStateDto> = {}) {
+  const state: WorkspaceAssistantStateDto = {
+    isEnabled: true,
+    isDockCollapsed: false,
+    isAutoOpenOnStartup: true,
+    status: 'ready',
+    lastUpdatedAt: '2026-04-21T08:00:00.000Z',
+    unreadInsights: 0,
+    currentWorkspace: null,
+    insights: [],
+    conversation: [],
+    settings: {
+      ...DEFAULT_AGENT_SETTINGS.plugins.workspaceAssistant,
+      enabled: true,
+    },
+    ...overrides,
+  }
+
+  const current = (window as unknown as { freecliApi?: Record<string, unknown> }).freecliApi
+  const workspaceAssistantApi = {
+    getState: vi.fn().mockResolvedValue(state),
+    syncSettings: vi.fn().mockResolvedValue(state),
+    syncWorkspaceSnapshot: vi.fn().mockResolvedValue(state),
+    testConnection: vi.fn().mockResolvedValue({
+      ok: true,
+      message: '连接成功。',
+    }),
+    prompt: vi.fn(),
+    onState: vi.fn().mockImplementation(() => () => undefined),
+  }
+
+  Object.defineProperty(window, 'freecliApi', {
+    configurable: true,
+    value: {
+      ...(current ?? {}),
+      meta: {
+        isTest: true,
+        allowWhatsNewInTests: true,
+        platform: 'win32',
+      },
+      plugins: {
+        ...((current?.plugins as Record<string, unknown> | undefined) ?? {}),
+        workspaceAssistant: workspaceAssistantApi,
+      },
+    },
+  })
+
+  return workspaceAssistantApi
+}
+
 describe('PluginManagerPanel', () => {
   afterEach(() => {
     delete (window as unknown as { freecliApi?: unknown }).freecliApi
@@ -342,6 +393,29 @@ describe('PluginManagerPanel', () => {
       plugins: {
         ...DEFAULT_AGENT_SETTINGS.plugins,
         enabledIds: ['input-stats'],
+      },
+    })
+  })
+
+  it('enables workspace assistant from the host-level plugin list without requiring an inner enabled flag', () => {
+    const onChange = vi.fn()
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={DEFAULT_AGENT_SETTINGS}
+        onChange={onChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-toggle-workspace-assistant'))
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...DEFAULT_AGENT_SETTINGS,
+      plugins: {
+        ...DEFAULT_AGENT_SETTINGS.plugins,
+        enabledIds: ['workspace-assistant'],
       },
     })
   })
@@ -668,7 +742,9 @@ describe('PluginManagerPanel', () => {
     fireEvent.click(screen.getByTestId('git-worklog-open-config-dialog'))
     expect(await screen.findByTestId('git-worklog-auto-candidates')).toBeVisible()
 
-    fireEvent.click(screen.getByTestId('git-worklog-confirm-auto-candidate-auto_workspace_root_apps__admin'))
+    fireEvent.click(
+      screen.getByTestId('git-worklog-confirm-auto-candidate-auto_workspace_root_apps__admin'),
+    )
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith({
@@ -779,13 +855,13 @@ describe('PluginManagerPanel', () => {
           plugins: {
             ...DEFAULT_AGENT_SETTINGS.plugins,
             enabledIds: ['git-worklog'],
-          gitWorklog: {
-            ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
-            repositoryOrder: ['repo_1', 'repo_2'],
-            workspaceOrder: [],
-            repositories: [
-              {
-                id: 'repo_1',
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: ['repo_1', 'repo_2'],
+              workspaceOrder: [],
+              repositories: [
+                {
+                  id: 'repo_1',
                   label: 'Drone API',
                   path: 'D:\\Project\\Drone\\api',
                   enabled: true,
@@ -921,6 +997,89 @@ describe('PluginManagerPanel', () => {
     expect(within(overview).getAllByText('2048').at(0)).toBeVisible()
   })
 
+  it('renders the updated quota hero wording and average quota metric', async () => {
+    installQuotaMonitorApiMock({
+      status: 'ready',
+      lastUpdatedAt: '2026-04-02T09:30:00.000Z',
+      configuredProfileCount: 1,
+      successfulProfileCount: 1,
+      profiles: [createQuotaProfileState()],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['quota-monitor'],
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-quota-monitor'))
+
+    const hero = await screen.findByTestId('quota-monitor-hero')
+    expect(within(hero).getByText('剩余额度')).toBeVisible()
+    expect(within(hero).getByText('预估剩余工作时长')).toBeVisible()
+    expect(within(hero).getByText('剩余273天')).toBeVisible()
+    expect(within(hero).getByText('96时0分')).toBeVisible()
+
+    const usageGrid = screen.getByTestId('quota-monitor-usage-grid')
+    expect(within(usageGrid).getByText('单次均额')).toBeVisible()
+    expect(within(usageGrid).getByText('8')).toBeVisible()
+  })
+
+  it('toggles api key visibility inside quota monitor key profiles', async () => {
+    installQuotaMonitorApiMock()
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['quota-monitor'],
+            quotaMonitor: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.quotaMonitor,
+              keyProfiles: [
+                {
+                  ...DEFAULT_AGENT_SETTINGS.plugins.quotaMonitor.keyProfiles[0],
+                  id: 'key_1',
+                  apiKey: 'sk-test-visible',
+                },
+              ],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-quota-monitor'))
+    expect(await screen.findByTestId('plugin-manager-plugin-quota-monitor-section')).toBeVisible()
+
+    const apiKeyInput = screen.getByTestId('quota-monitor-profile-api-key-key_1')
+    const visibilityToggle = screen.getByTestId('quota-monitor-profile-api-key-visibility-key_1')
+    expect(apiKeyInput).toHaveAttribute('type', 'password')
+    expect(visibilityToggle).toHaveAttribute('aria-label', '显示原文')
+    expect(visibilityToggle).not.toHaveTextContent('显示原文')
+    expect(visibilityToggle).not.toHaveTextContent('隐藏原文')
+
+    fireEvent.click(visibilityToggle)
+    expect(apiKeyInput).toHaveAttribute('type', 'text')
+    expect(visibilityToggle).toHaveAttribute('aria-label', '隐藏原文')
+
+    fireEvent.click(visibilityToggle)
+    expect(apiKeyInput).toHaveAttribute('type', 'password')
+  })
+
   it('falls back to general navigation when the active plugin is disabled', async () => {
     installQuotaMonitorApiMock()
 
@@ -955,5 +1114,49 @@ describe('PluginManagerPanel', () => {
       'settings-panel__nav-button--active',
     )
     expect(screen.queryByTestId('plugin-manager-nav-quota-monitor')).not.toBeInTheDocument()
+  })
+
+  it('tests workspace assistant ai configuration and shows inline feedback', async () => {
+    const workspaceAssistantApi = installWorkspaceAssistantApiMock()
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['workspace-assistant'],
+            workspaceAssistant: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.workspaceAssistant,
+              enabled: true,
+              modelProvider: 'openai-compatible',
+              apiBaseUrl: 'https://model.example.test/v1',
+              apiKey: 'sk-test',
+              modelName: 'gpt-4.1-mini',
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onFlushPersistNow={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-workspace-assistant'))
+    expect(
+      await screen.findByTestId('plugin-manager-plugin-workspace-assistant-section'),
+    ).toBeVisible()
+
+    fireEvent.click(screen.getByTestId('workspace-assistant-test-connection'))
+
+    await waitFor(() => {
+      expect(workspaceAssistantApi.syncSettings).toHaveBeenCalledTimes(1)
+      expect(workspaceAssistantApi.testConnection).toHaveBeenCalledTimes(1)
+    })
+
+    expect(
+      await screen.findByTestId('workspace-assistant-test-connection-feedback'),
+    ).toHaveTextContent('AI 配置可用，工作助手将直接使用该配置回答：连接成功。')
   })
 })

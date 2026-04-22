@@ -13,6 +13,7 @@ Your primary directive is to **Read `DEVELOPMENT.md` first** and strictly adhere
 2.  **Monorepo**: Always set correct CWD. Follow the file structure defined in `DEVELOPMENT.md`.
 3.  **Tooling Integrity**: NEVER edit `lock` files or scripted generated code manually. Use the commands defined in the relevant module `DEVELOPMENT.md` (linked from root `DEVELOPMENT.md`).
 4.  **Keep AGENTS Concise**: `AGENTS.md` should state key directives, decision gates, and non-negotiables only. Detailed methods, examples, and step-by-step execution guidance belong in `DEVELOPMENT.md` or topic docs.
+5.  **Open-Source & Release Data Safety Gate**: Before any code, config, CI, or release change is finalized, ensure it does **not** cause GitHub source uploads or packaged releases to include secrets, tokens, private keys, user local data, diagnostics, logs, databases, or other personal information. Treat this as a required gate for all future development.
 
 ## 2. Decision Framework (Small vs Large)
 

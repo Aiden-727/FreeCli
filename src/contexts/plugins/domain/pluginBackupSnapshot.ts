@@ -1,9 +1,11 @@
 import type {
   BackupOssSettingsDto,
   BackupQuotaMonitorSettingsDto,
+  BackupWorkspaceAssistantSettingsDto,
   OssBackupSettingsDto,
   PluginBackupSnapshotDto,
   QuotaMonitorSettingsDto,
+  WorkspaceAssistantSettingsDto,
 } from '@shared/contracts/dto'
 import type { PluginSettings } from '@contexts/settings/domain/agentSettings'
 import { DEFAULT_GIT_WORKLOG_SETTINGS, normalizeGitWorklogSettings } from './gitWorklogSettings'
@@ -15,6 +17,7 @@ import {
 } from './quotaMonitorSettings'
 import { DEFAULT_SYSTEM_MONITOR_SETTINGS } from './systemMonitorSettings'
 import { normalizeBuiltinPluginIds } from './pluginManifest'
+import { normalizeWorkspaceAssistantSettings } from './workspaceAssistantSettings'
 
 export const PLUGIN_BACKUP_SNAPSHOT_FORMAT_VERSION = 1
 
@@ -48,6 +51,16 @@ function sanitizeOssBackupSettings(settings: OssBackupSettingsDto): BackupOssSet
   }
 }
 
+function sanitizeWorkspaceAssistantSettings(
+  settings: WorkspaceAssistantSettingsDto,
+): BackupWorkspaceAssistantSettingsDto {
+  return {
+    ...settings,
+    // The endpoint/model preference is portable, but the credential must stay local-only.
+    apiKey: '',
+  }
+}
+
 export function createPluginBackupSnapshot(options: {
   appVersion: string
   pluginSettings: PluginSettings
@@ -64,6 +77,7 @@ export function createPluginBackupSnapshot(options: {
       quotaMonitor: sanitizeQuotaMonitorSettings(pluginSettings.quotaMonitor),
       gitWorklog: normalizeGitWorklogSettings(pluginSettings.gitWorklog),
       ossBackup: sanitizeOssBackupSettings(pluginSettings.ossBackup),
+      workspaceAssistant: sanitizeWorkspaceAssistantSettings(pluginSettings.workspaceAssistant),
     },
   }
 }
@@ -117,6 +131,12 @@ export function normalizePluginBackupSnapshot(snapshot: unknown): PluginBackupSn
         plugins.ossBackup !== undefined
           ? sanitizeOssBackupSettings(normalizeOssBackupSettings(plugins.ossBackup))
           : undefined,
+      workspaceAssistant:
+        plugins.workspaceAssistant !== undefined
+          ? sanitizeWorkspaceAssistantSettings(
+              normalizeWorkspaceAssistantSettings(plugins.workspaceAssistant),
+            )
+          : undefined,
     },
   }
 }
@@ -150,6 +170,12 @@ export function mergeRestoredPluginSettings(
           ...snapshot.plugins.ossBackup,
         })
       : current.ossBackup,
+    workspaceAssistant: snapshot.plugins.workspaceAssistant
+      ? normalizeWorkspaceAssistantSettings({
+          ...current.workspaceAssistant,
+          ...snapshot.plugins.workspaceAssistant,
+        })
+      : current.workspaceAssistant,
   }
 }
 
@@ -161,5 +187,6 @@ export function getEmptyPluginSettingsForBackup(): PluginSettings {
     quotaMonitor: DEFAULT_QUOTA_MONITOR_SETTINGS,
     gitWorklog: DEFAULT_GIT_WORKLOG_SETTINGS,
     ossBackup: DEFAULT_OSS_BACKUP_SETTINGS,
+    workspaceAssistant: normalizeWorkspaceAssistantSettings(undefined),
   }
 }

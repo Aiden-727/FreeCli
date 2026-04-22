@@ -3,7 +3,6 @@ import { getPtyEventHub } from '@app/renderer/shell/utils/ptyEventHub'
 import {
   isFinalTerminalRuntimeStatus,
   resolveRuntimeStatusFromSessionState,
-  shouldPromoteRestoringToStandby,
 } from '@app/renderer/shell/utils/terminalRuntimeStatus'
 import type { Node } from '@xyflow/react'
 import { buildHostedTerminalDisplayModelLabel } from '@contexts/terminal/domain/hostedAgent'
@@ -83,11 +82,7 @@ function applyHostedTerminalStateToNodes(
     const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
     if (
       node.data.status === nextStatus &&
-      node.data.hostedAgent.state === 'active' &&
-      !shouldPromoteRestoringToStandby(node.data.status, {
-        hasHostedAgent: true,
-        restoreIntent: node.data.hostedAgent.restoreIntent,
-      })
+      node.data.hostedAgent.state === 'active'
     ) {
       return node
     }

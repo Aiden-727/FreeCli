@@ -6,6 +6,7 @@ import {
   resolveWorkspaceMinimapNodeAtPosition,
   resolveWorkspaceMinimapNodeClassName,
   resolveWorkspaceMinimapNodeColor,
+  resolveWorkspaceMinimapProjection,
   resolveWorkspaceMinimapNodeStrokeColor,
   resolveWorkspaceMinimapViewportWindowLayout,
 } from '../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/minimap'
@@ -113,10 +114,10 @@ describe('workspace minimap helpers', () => {
         status: 'running',
       },
     })
-    const standbyHostedTerminalNode = createNode({
-      id: 'terminal-standby',
+    const restoringHostedTerminalNode = createNode({
+      id: 'terminal-restoring',
       data: {
-        title: 'standby terminal',
+        title: 'restoring terminal',
         kind: 'terminal',
         width: 420,
         height: 260,
@@ -149,11 +150,11 @@ describe('workspace minimap helpers', () => {
       'workspace-canvas__minimap-node--terminal-running',
     )
 
-    expect(resolveWorkspaceMinimapNodeColor(standbyHostedTerminalNode)).toBe(
-      'var(--cove-canvas-minimap-node-terminal-standby)',
+    expect(resolveWorkspaceMinimapNodeColor(restoringHostedTerminalNode)).toBe(
+      'var(--cove-canvas-minimap-node-terminal-running)',
     )
-    expect(resolveWorkspaceMinimapNodeClassName(standbyHostedTerminalNode)).toContain(
-      'workspace-canvas__minimap-node--terminal-standby',
+    expect(resolveWorkspaceMinimapNodeClassName(restoringHostedTerminalNode)).toContain(
+      'workspace-canvas__minimap-node--terminal-running',
     )
 
     expect(resolveWorkspaceMinimapNodeColor(failedTerminalNode)).toBe(
@@ -168,11 +169,11 @@ describe('workspace minimap helpers', () => {
     expect(resolveWorkspaceMinimapNodeHeaderColor(runningTerminalNode)).toBe(
       'var(--cove-canvas-minimap-node-terminal-running-header)',
     )
-    expect(resolveWorkspaceMinimapNodeStrokeColor(standbyHostedTerminalNode)).toBe(
-      'var(--cove-canvas-minimap-node-terminal-standby-stroke)',
+    expect(resolveWorkspaceMinimapNodeStrokeColor(restoringHostedTerminalNode)).toBe(
+      'var(--cove-canvas-minimap-node-terminal-running-stroke)',
     )
-    expect(resolveWorkspaceMinimapNodeHeaderColor(standbyHostedTerminalNode)).toBe(
-      'var(--cove-canvas-minimap-node-terminal-standby-header)',
+    expect(resolveWorkspaceMinimapNodeHeaderColor(restoringHostedTerminalNode)).toBe(
+      'var(--cove-canvas-minimap-node-terminal-running-header)',
     )
     expect(resolveWorkspaceMinimapNodeStrokeColor(failedTerminalNode)).toBe(
       'var(--cove-canvas-minimap-node-terminal-inactive-stroke)',
@@ -218,6 +219,10 @@ describe('workspace minimap helpers', () => {
         width: 200,
         height: 136,
       },
+      renderSize: {
+        width: 200,
+        height: 150,
+      },
     })
 
     expect(layout).not.toBeNull()
@@ -227,6 +232,157 @@ describe('workspace minimap helpers', () => {
     expect(layout!.top).toBeGreaterThanOrEqual(0)
     expect(layout!.left + layout!.width).toBeLessThanOrEqual(100)
     expect(layout!.top + layout!.height).toBeLessThanOrEqual(100)
+    expect(layout!.viewBoxWidth).toBeGreaterThan(layout!.viewportWidth)
+    expect(layout!.viewBoxHeight).toBeGreaterThan(layout!.viewportHeight)
+    expect(layout!.viewportX).toBeCloseTo(200, 5)
+    expect(layout!.viewportY).toBeCloseTo(150, 5)
+  })
+
+  it('uses the minimap render size when projecting the viewport window', () => {
+    const layout = resolveWorkspaceMinimapViewportWindowLayout({
+      nodes: [
+        createNode({
+          position: { x: 100, y: 100 },
+          data: {
+            title: 'terminal-a',
+            kind: 'terminal',
+            width: 420,
+            height: 300,
+          },
+        }),
+        createNode({
+          id: 'node-2',
+          position: { x: 980, y: 760 },
+          data: {
+            title: 'terminal-b',
+            kind: 'terminal',
+            width: 460,
+            height: 280,
+          },
+        }),
+      ],
+      viewport: {
+        x: -360,
+        y: -240,
+        zoom: 1.1,
+      },
+      flowSize: {
+        width: 1280,
+        height: 800,
+      },
+      minimapSize: {
+        width: 200,
+        height: 136,
+      },
+      renderSize: {
+        width: 200,
+        height: 150,
+      },
+    })
+
+    expect(layout).not.toBeNull()
+    expect(layout!.left).toBeGreaterThanOrEqual(0)
+    expect(layout!.top).toBeGreaterThanOrEqual(0)
+    expect(layout!.width).toBeGreaterThan(0)
+    expect(layout!.height).toBeGreaterThan(0)
+    expect(layout!.left + layout!.width).toBeLessThanOrEqual(100)
+    expect(layout!.top + layout!.height).toBeLessThanOrEqual(100)
+  })
+
+  it('keeps viewport projection and hit projection on the same minimap coordinate system', () => {
+    const input = {
+      nodes: [
+        createNode({
+          position: { x: 100, y: 100 },
+          data: {
+            title: 'terminal-a',
+            kind: 'terminal',
+            width: 420,
+            height: 300,
+          },
+        }),
+        createNode({
+          id: 'node-2',
+          position: { x: 980, y: 760 },
+          data: {
+            title: 'terminal-b',
+            kind: 'terminal',
+            width: 460,
+            height: 280,
+          },
+        }),
+      ],
+      viewport: {
+        x: -360,
+        y: -240,
+        zoom: 1.1,
+      },
+      flowSize: {
+        width: 1280,
+        height: 800,
+      },
+      minimapSize: {
+        width: 200,
+        height: 136,
+      },
+      renderSize: {
+        width: 200,
+        height: 150,
+      },
+    } as const
+
+    const layout = resolveWorkspaceMinimapViewportWindowLayout(input)
+    const projection = resolveWorkspaceMinimapProjection(input)
+
+    expect(layout).not.toBeNull()
+    expect(projection).not.toBeNull()
+    expect(layout!.viewBoxX).toBeCloseTo(projection!.minimapViewBox.x, 5)
+    expect(layout!.viewBoxY).toBeCloseTo(projection!.minimapViewBox.y, 5)
+    expect(layout!.viewBoxWidth).toBeCloseTo(projection!.minimapViewBox.width, 5)
+    expect(layout!.viewBoxHeight).toBeCloseTo(projection!.minimapViewBox.height, 5)
+    expect(layout!.viewportX).toBeCloseTo(projection!.viewBounds.x, 5)
+    expect(layout!.viewportY).toBeCloseTo(projection!.viewBounds.y, 5)
+    expect(layout!.viewportWidth).toBeCloseTo(projection!.viewBounds.width, 5)
+    expect(layout!.viewportHeight).toBeCloseTo(projection!.viewBounds.height, 5)
+  })
+
+  it('converts viewport mask radius from minimap pixels into the same flow-space projection', () => {
+    const layout = resolveWorkspaceMinimapViewportWindowLayout({
+      nodes: [
+        createNode({
+          position: { x: 100, y: 100 },
+          data: {
+            title: 'terminal-a',
+            kind: 'terminal',
+            width: 420,
+            height: 300,
+          },
+        }),
+      ],
+      viewport: {
+        x: -120,
+        y: -80,
+        zoom: 1.25,
+      },
+      flowSize: {
+        width: 1000,
+        height: 700,
+      },
+      minimapSize: {
+        width: 200,
+        height: 136,
+      },
+      renderSize: {
+        width: 200,
+        height: 150,
+      },
+    })
+
+    expect(layout).not.toBeNull()
+    expect(layout!.viewportRadiusX).toBeGreaterThan(0)
+    expect(layout!.viewportRadiusY).toBeGreaterThan(0)
+    expect(layout!.viewportRadiusX).toBeLessThanOrEqual(layout!.viewportWidth / 2)
+    expect(layout!.viewportRadiusY).toBeLessThanOrEqual(layout!.viewportHeight / 2)
   })
 
   it('returns null for invalid viewport input', () => {
@@ -284,12 +440,12 @@ describe('workspace minimap helpers', () => {
       },
     })
 
-    expect(resolveWorkspaceMinimapNodeAtPosition([lowerNode, topNode], { x: 220, y: 220 })?.id).toBe(
-      'top-node',
-    )
-    expect(resolveWorkspaceMinimapNodeAtPosition([lowerNode, topNode], { x: 120, y: 120 })?.id).toBe(
-      'lower-node',
-    )
+    expect(
+      resolveWorkspaceMinimapNodeAtPosition([lowerNode, topNode], { x: 220, y: 220 })?.id,
+    ).toBe('top-node')
+    expect(
+      resolveWorkspaceMinimapNodeAtPosition([lowerNode, topNode], { x: 120, y: 120 })?.id,
+    ).toBe('lower-node')
     expect(resolveWorkspaceMinimapNodeAtPosition([lowerNode, topNode], { x: 20, y: 20 })).toBeNull()
   })
 })

@@ -1,4 +1,5 @@
 export * from './agent'
+export * from './agentExtensions'
 export * from './clipboard'
 export * from './controlSurface'
 export * from './filesystem'

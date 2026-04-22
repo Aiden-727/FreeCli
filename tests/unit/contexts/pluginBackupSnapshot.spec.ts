@@ -43,10 +43,20 @@ describe('plugin backup snapshot', () => {
           backupOnExitEnabled: true,
           includedPluginIds: ['quota-monitor'],
         },
+        workspaceAssistant: {
+          ...DEFAULT_AGENT_SETTINGS.plugins.workspaceAssistant,
+          aiEnabled: true,
+          modelProvider: 'openai-compatible',
+          apiBaseUrl: 'https://model.example.test/v1',
+          apiKey: 'sk-workspace-assistant',
+          modelName: 'gpt-4.1-mini',
+        },
       },
     })
 
     expect(snapshot.plugins.quotaMonitor?.keyProfiles[0]?.apiKey).toBe('')
+    expect(snapshot.plugins.workspaceAssistant?.apiKey).toBe('')
+    expect(snapshot.plugins.workspaceAssistant?.apiBaseUrl).toBe('https://model.example.test/v1')
     expect(snapshot.plugins.ossBackup).toEqual({
       provider: 'aliyun-oss',
       endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
@@ -103,11 +113,30 @@ describe('plugin backup snapshot', () => {
           backupOnExitEnabled: true,
           includedPluginIds: ['quota-monitor'],
         },
+        workspaceAssistant: {
+          enabled: true,
+          dockCollapsed: false,
+          autoOpenOnStartup: true,
+          proactiveRemindersEnabled: true,
+          proactiveReminderIntervalMinutes: 12,
+          modelProvider: 'openai-compatible',
+          aiEnabled: true,
+          apiBaseUrl: 'https://model.example.test/v1',
+          apiKey: 'should-be-cleared',
+          modelName: 'gpt-4.1-mini',
+          allowProjectScan: true,
+          allowWorkspaceSummary: true,
+          allowTaskInsight: true,
+          allowFollowUpQuestions: true,
+          allowSuggestionToasts: true,
+          assistantNotes: '保持简洁',
+        },
       },
     })
 
     expect(normalized).not.toBeNull()
     expect(normalized?.plugins.quotaMonitor?.keyProfiles[0]?.apiKey).toBe('')
+    expect(normalized?.plugins.workspaceAssistant?.apiKey).toBe('')
 
     const merged = mergeRestoredPluginSettings(DEFAULT_AGENT_SETTINGS.plugins, normalized!)
     expect(merged.enabledIds).toEqual(['quota-monitor', 'git-worklog'])
@@ -122,5 +151,9 @@ describe('plugin backup snapshot', () => {
     expect(merged.ossBackup.syncInputStatsHistoryEnabled).toBe(false)
     expect(merged.ossBackup.syncQuotaMonitorHistoryEnabled).toBe(false)
     expect(merged.ossBackup.syncGitWorklogHistoryEnabled).toBe(false)
+    expect(merged.workspaceAssistant.aiEnabled).toBe(true)
+    expect(merged.workspaceAssistant.apiBaseUrl).toBe('https://model.example.test/v1')
+    expect(merged.workspaceAssistant.apiKey).toBe('')
+    expect(merged.workspaceAssistant.assistantNotes).toBe('保持简洁')
   })
 })

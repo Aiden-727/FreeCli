@@ -11,6 +11,20 @@ import type { AppUpdateState } from '../../../src/shared/contracts/dto'
 import * as terminalProfilesHook from '../../../src/app/renderer/shell/hooks/useTerminalProfiles'
 import { SettingsPanel } from '../../../src/contexts/settings/presentation/renderer/SettingsPanel'
 
+const agentExtensionsApi = {
+  getState: vi.fn(),
+  addMcpServer: vi.fn(),
+  removeMcpServer: vi.fn(),
+  createSkill: vi.fn(),
+}
+
+Object.defineProperty(window, 'freecliApi', {
+  value: {
+    agentExtensions: agentExtensionsApi,
+  },
+  configurable: true,
+})
+
 function createModelCatalog() {
   return AGENT_PROVIDERS.reduce<
     Record<
@@ -67,6 +81,73 @@ function createUpdateState(overrides: Partial<AppUpdateState> = {}): AppUpdateSt
 }
 
 describe('SettingsPanel', () => {
+  const baseAgentExtensionsState = {
+    summary: {
+      provider: 'codex' as const,
+      scope: 'global' as const,
+      skillsDirectoryPath: 'C:/Users/Aiden/.codex/skills',
+      configPath: 'C:/Users/Aiden/.codex/config.toml',
+      cliAvailable: true,
+      supportsMcpWrite: true,
+      supportsSkillWrite: true,
+    },
+    mcpServers: [
+      {
+        name: 'openaiDeveloperDocs',
+        enabled: true,
+        transport: 'http' as const,
+        command: null,
+        args: [],
+        url: 'https://developers.openai.com/mcp',
+        env: {},
+        source: 'cli' as const,
+      },
+    ],
+    skills: [
+      {
+        name: 'openai-docs',
+        path: 'C:/Users/Aiden/.codex/skills/openai-docs',
+        hasSkillManifest: true,
+      },
+    ],
+  }
+
+  beforeEach(() => {
+    agentExtensionsApi.getState.mockReset()
+    agentExtensionsApi.addMcpServer.mockReset()
+    agentExtensionsApi.removeMcpServer.mockReset()
+    agentExtensionsApi.createSkill.mockReset()
+
+    agentExtensionsApi.getState.mockImplementation(async payload => {
+      if (payload.provider === 'claude-code') {
+        return {
+          summary: {
+            provider: 'claude-code',
+            scope: 'global',
+            skillsDirectoryPath: 'C:/Users/Aiden/.claude/skills',
+            configPath: 'C:/Users/Aiden/.claude.json',
+            cliAvailable: false,
+            supportsMcpWrite: true,
+            supportsSkillWrite: true,
+          },
+          mcpServers: [],
+          skills: [],
+        }
+      }
+
+      return baseAgentExtensionsState
+    })
+    agentExtensionsApi.addMcpServer.mockResolvedValue(undefined)
+    agentExtensionsApi.removeMcpServer.mockResolvedValue(undefined)
+    agentExtensionsApi.createSkill.mockResolvedValue({
+      skill: {
+        name: 'new-skill',
+        path: 'C:/Users/Aiden/.codex/skills/new-skill',
+        hasSkillManifest: true,
+      },
+    })
+  })
+
   it('persists the selected default profile', () => {
     const onChange = vi.fn()
     vi.spyOn(terminalProfilesHook, 'useTerminalProfiles').mockReturnValue({
@@ -186,7 +267,7 @@ describe('SettingsPanel', () => {
     })
   })
 
-  it('adds and edits terminal credential profiles from agent settings', () => {
+  it('adds and edits terminal credential profiles from AI settings', () => {
     const onChange = vi.fn()
     vi.spyOn(terminalProfilesHook, 'useTerminalProfiles').mockReturnValue({
       terminalProfiles: [],
@@ -222,7 +303,7 @@ describe('SettingsPanel', () => {
 
     render(<Harness />)
 
-    fireEvent.click(screen.getByTestId('settings-section-nav-agent'))
+    fireEvent.click(screen.getByTestId('settings-section-nav-ai'))
     fireEvent.click(screen.getByTestId('settings-terminal-credentials-add-codex'))
 
     const addedSettings = onChange.mock.calls.at(-1)?.[0]
@@ -252,6 +333,86 @@ describe('SettingsPanel', () => {
     expect(onChange.mock.calls.at(-1)?.[0].terminalCredentials.profiles[0].baseUrl).toBe(
       'https://api.openai.example',
     )
+  })
+
+  it('loads agent extensions and supports MCP/skill actions', async () => {
+    const onChange = vi.fn()
+    vi.spyOn(terminalProfilesHook, 'useTerminalProfiles').mockReturnValue({
+      terminalProfiles: [],
+      detectedDefaultTerminalProfileId: null,
+      refreshTerminalProfiles: async () => undefined,
+    })
+
+    render(
+      <SettingsPanel
+        settings={DEFAULT_AGENT_SETTINGS}
+        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
+        updateState={createUpdateState()}
+        modelCatalogByProvider={createModelCatalog()}
+        workspaces={[]}
+        onWorkspaceWorktreesRootChange={() => undefined}
+        isFocusNodeTargetZoomPreviewing={false}
+        onFocusNodeTargetZoomPreviewChange={() => undefined}
+        onChange={onChange}
+        onCheckForUpdates={() => undefined}
+        onDownloadUpdate={() => undefined}
+        onInstallUpdate={() => undefined}
+        onRestartApp={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('settings-section-nav-ai'))
+
+    expect(await screen.findByRole('heading', { name: 'Skills 与 MCP', level: 3 })).toBeVisible()
+    expect(agentExtensionsApi.getState).toHaveBeenCalledWith({
+      provider: 'codex',
+      scope: 'global',
+    })
+    expect(agentExtensionsApi.getState).toHaveBeenCalledWith({
+      provider: 'claude-code',
+      scope: 'global',
+    })
+
+    await screen.findByText('openaiDeveloperDocs')
+
+    fireEvent.change(screen.getByTestId('agent-extensions-mcp-name-codex'), {
+      target: { value: 'local-docs' },
+    })
+    fireEvent.click(screen.getByTestId('agent-extensions-mcp-transport-codex-trigger'))
+    fireEvent.click(screen.getByRole('option', { name: 'http' }))
+    fireEvent.change(screen.getByTestId('agent-extensions-mcp-url-codex'), {
+      target: { value: 'https://example.com/mcp' },
+    })
+    fireEvent.click(screen.getByTestId('agent-extensions-add-mcp-codex'))
+
+    expect(agentExtensionsApi.addMcpServer).toHaveBeenCalledWith({
+      provider: 'codex',
+      scope: 'global',
+      name: 'local-docs',
+      transport: 'http',
+      command: null,
+      args: [],
+      url: 'https://example.com/mcp',
+      env: {},
+    })
+
+    fireEvent.click(screen.getByTestId('agent-extensions-remove-mcp-codex-openaiDeveloperDocs'))
+    expect(agentExtensionsApi.removeMcpServer).toHaveBeenCalledWith({
+      provider: 'codex',
+      scope: 'global',
+      name: 'openaiDeveloperDocs',
+    })
+
+    fireEvent.change(screen.getByTestId('agent-extensions-skill-name-codex'), {
+      target: { value: 'new-skill' },
+    })
+    fireEvent.click(screen.getByTestId('agent-extensions-create-skill-codex'))
+    expect(agentExtensionsApi.createSkill).toHaveBeenCalledWith({
+      provider: 'codex',
+      scope: 'global',
+      name: 'new-skill',
+    })
   })
 
   it('updates release channel settings and exposes update actions', () => {

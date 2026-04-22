@@ -166,7 +166,7 @@ Renderer 在设置 hydration 完成后，会把当前启用插件列表同步给
 3. 插件不得直接写 renderer 全局 durable truth。
 4. 插件的能力入口必须经宿主与现有边界层，不要旁路 preload / IPC / persistence。
 5. `oss-backup` 只允许备份“已持久化的插件配置”，不允许上传 workspace / canvas / terminal 等其他 durable state。
-6. `quota-monitor.keyProfiles[].apiKey` 与 `oss-backup.accessKeySecret` 不得进入云端快照。
+6. `quota-monitor.keyProfiles[].apiKey`、`workspace-assistant.apiKey` 与 `oss-backup.accessKeySecret` 不得进入云端快照。
 7. `input-stats` 的采集与聚合只允许 Main 持有；Renderer 只能同步设置、订阅状态和触发手动刷新。
 8. `input-stats` 当前只在 Windows 支持真实输入采集；非 Windows 平台必须稳定降级为 `unsupported`，不能伪装成运行中。
 
@@ -364,6 +364,7 @@ Why：
 ### 12.3 脱敏规则
 
 - `quota-monitor.keyProfiles[].apiKey` 上传前统一清空为 `''`
+- `workspace-assistant.apiKey` 上传前统一清空为 `''`
 - `oss-backup.accessKeySecret` 不进入快照
 - `oss-backup.accessKeyId` 当前也不进入快照，避免把云端快照继续当成敏感凭证容器
 

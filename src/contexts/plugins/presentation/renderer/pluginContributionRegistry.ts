@@ -5,20 +5,26 @@ import type {
   ControlCenterPluginWidgetProps,
   HeaderPluginWidgetProps,
   SettingsPluginSectionProps,
+  WorkspaceOverlayPluginWidgetProps,
 } from './types'
 
 type LazyHeaderWidget = LazyExoticComponent<ComponentType<HeaderPluginWidgetProps>>
 type LazyControlCenterWidget = LazyExoticComponent<ComponentType<ControlCenterPluginWidgetProps>>
 type LazySettingsSection = LazyExoticComponent<ComponentType<SettingsPluginSectionProps>>
+type LazyWorkspaceOverlayWidget = LazyExoticComponent<
+  ComponentType<WorkspaceOverlayPluginWidgetProps>
+>
 type RendererContributionDefinition = {
   headerWidget?: () => Promise<{ default: ComponentType<HeaderPluginWidgetProps> }>
   controlCenterWidget?: () => Promise<{ default: ComponentType<ControlCenterPluginWidgetProps> }>
   settingsSection?: () => Promise<{ default: ComponentType<SettingsPluginSectionProps> }>
+  workspaceOverlayWidget?: () => Promise<{ default: ComponentType<WorkspaceOverlayPluginWidgetProps> }>
 }
 
 const headerWidgetCache = new Map<BuiltinPluginId, LazyHeaderWidget>()
 const controlCenterWidgetCache = new Map<BuiltinPluginId, LazyControlCenterWidget>()
 const settingsSectionCache = new Map<BuiltinPluginId, LazySettingsSection>()
+const workspaceOverlayWidgetCache = new Map<BuiltinPluginId, LazyWorkspaceOverlayWidget>()
 
 const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
   Record<BuiltinPluginId, RendererContributionDefinition>
@@ -73,6 +79,24 @@ const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
     settingsSection: async () =>
       await import('../../../../plugins/ossBackup/presentation/renderer/OssBackupSettingsSection'),
   },
+  'workspace-assistant': {
+    headerWidget: async () =>
+      await import(
+        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantHeaderWidget'
+      ),
+    controlCenterWidget: async () =>
+      await import(
+        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantControlCenterWidget'
+      ),
+    settingsSection: async () =>
+      await import(
+        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantSettingsSection'
+      ),
+    workspaceOverlayWidget: async () =>
+      await import(
+        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantOverlay'
+      ),
+  },
 }
 
 function getOrCreateLazyHeaderWidget(
@@ -117,6 +141,20 @@ function getOrCreateLazySettingsSection(
   return component
 }
 
+function getOrCreateLazyWorkspaceOverlayWidget(
+  pluginId: BuiltinPluginId,
+  loader: () => Promise<{ default: ComponentType<WorkspaceOverlayPluginWidgetProps> }>,
+): LazyWorkspaceOverlayWidget {
+  const existing = workspaceOverlayWidgetCache.get(pluginId)
+  if (existing) {
+    return existing
+  }
+
+  const component = lazy(loader)
+  workspaceOverlayWidgetCache.set(pluginId, component)
+  return component
+}
+
 export function getControlCenterPluginWidget(
   pluginId: BuiltinPluginId,
 ): LazyControlCenterWidget | null {
@@ -132,4 +170,11 @@ export function getHeaderPluginWidget(pluginId: BuiltinPluginId): LazyHeaderWidg
 export function getSettingsPluginSection(pluginId: BuiltinPluginId): LazySettingsSection | null {
   const loader = BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS[pluginId]?.settingsSection
   return loader ? getOrCreateLazySettingsSection(pluginId, loader) : null
+}
+
+export function getWorkspaceOverlayPluginWidget(
+  pluginId: BuiltinPluginId,
+): LazyWorkspaceOverlayWidget | null {
+  const loader = BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS[pluginId]?.workspaceOverlayWidget
+  return loader ? getOrCreateLazyWorkspaceOverlayWidget(pluginId, loader) : null
 }

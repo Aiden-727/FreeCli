@@ -10,7 +10,6 @@ import { useAppStore } from '../store/useAppStore'
 import {
   isFinalTerminalRuntimeStatus,
   resolveRuntimeStatusFromSessionState,
-  shouldPromoteRestoringToStandby,
 } from '../utils/terminalRuntimeStatus'
 
 function shouldIgnoreAgentStatusUpdate(status: TerminalNodeData['status']): boolean {
@@ -35,7 +34,7 @@ function normalizeOptionalText(rawValue: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
-function updateWorkspacesWithAgentNodes(
+function updateWorkspacesWithSessionNodes(
   workspaces: WorkspaceState[],
   {
     sessionId,
@@ -57,107 +56,7 @@ function updateWorkspacesWithAgentNodes(
     let workspaceDidChange = false
 
     const nextNodes = workspace.nodes.map(node => {
-      if (node.data.kind !== 'agent' || node.data.sessionId !== sessionId) {
-        return node
-      }
-
-      const updated = updateNode(node)
-      if (!updated) {
-        return node
-      }
-
-      workspaceDidChange = true
-      return updated
-    })
-
-    if (!workspaceDidChange) {
-      return workspace
-    }
-
-    didChange = true
-    return { ...workspace, nodes: nextNodes }
-  })
-
-  return { nextWorkspaces, didChange }
-}
-
-function updateWorkspacesWithHostedTerminalNodes(
-  workspaces: WorkspaceState[],
-  {
-    sessionId,
-    excludeWorkspaceId,
-    updateNode,
-  }: {
-    sessionId: string
-    excludeWorkspaceId: string | null
-    updateNode: (node: Node<TerminalNodeData>) => Node<TerminalNodeData> | null
-  },
-): { nextWorkspaces: WorkspaceState[]; didChange: boolean } {
-  let didChange = false
-
-  const nextWorkspaces = workspaces.map(workspace => {
-    if (excludeWorkspaceId && workspace.id === excludeWorkspaceId) {
-      return workspace
-    }
-
-    let workspaceDidChange = false
-
-    const nextNodes = workspace.nodes.map(node => {
-      if (
-        node.data.kind !== 'terminal' ||
-        node.data.sessionId !== sessionId ||
-        !node.data.hostedAgent
-      ) {
-        return node
-      }
-
-      const updated = updateNode(node)
-      if (!updated) {
-        return node
-      }
-
-      workspaceDidChange = true
-      return updated
-    })
-
-    if (!workspaceDidChange) {
-      return workspace
-    }
-
-    didChange = true
-    return { ...workspace, nodes: nextNodes }
-  })
-
-  return { nextWorkspaces, didChange }
-}
-
-function updateWorkspacesWithPlainTerminalNodes(
-  workspaces: WorkspaceState[],
-  {
-    sessionId,
-    excludeWorkspaceId,
-    updateNode,
-  }: {
-    sessionId: string
-    excludeWorkspaceId: string | null
-    updateNode: (node: Node<TerminalNodeData>) => Node<TerminalNodeData> | null
-  },
-): { nextWorkspaces: WorkspaceState[]; didChange: boolean } {
-  let didChange = false
-
-  const nextWorkspaces = workspaces.map(workspace => {
-    if (excludeWorkspaceId && workspace.id === excludeWorkspaceId) {
-      return workspace
-    }
-
-    let workspaceDidChange = false
-
-    const nextNodes = workspace.nodes.map(node => {
-      if (
-        node.data.kind !== 'terminal' ||
-        node.data.sessionId !== sessionId ||
-        node.data.hostedAgent
-      ) {
+      if (node.data.sessionId !== sessionId) {
         return node
       }
 
@@ -272,11 +171,11 @@ export function updateWorkspacesWithHostedTerminalMetadata({
     return { nextWorkspaces: workspaces, didChange: false }
   }
 
-  return updateWorkspacesWithHostedTerminalNodes(workspaces, {
+  return updateWorkspacesWithSessionNodes(workspaces, {
     sessionId,
     excludeWorkspaceId,
     updateNode: node => {
-      if (!node.data.hostedAgent) {
+      if (node.data.kind !== 'terminal' || !node.data.hostedAgent) {
         return null
       }
 
@@ -329,7 +228,8 @@ export function usePtyWorkspaceRuntimeSync({
       let didChange = false
 
       setWorkspaces(previous => {
-        const agentResult = updateWorkspacesWithAgentNodes(previous, {
+        const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
+        const result = updateWorkspacesWithSessionNodes(previous, {
           sessionId: event.sessionId,
           excludeWorkspaceId,
           updateNode: node => {
@@ -337,31 +237,35 @@ export function usePtyWorkspaceRuntimeSync({
               return null
             }
 
-            const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
-            if (node.data.status === nextStatus) {
+            if (node.data.kind === 'agent') {
+              if (node.data.status === nextStatus) {
+                return null
+              }
+
+              return { ...node, data: { ...node.data, status: nextStatus } }
+            }
+
+            if (node.data.kind !== 'terminal') {
               return null
             }
 
-            return { ...node, data: { ...node.data, status: nextStatus } }
-          },
-        })
+            if (!node.data.hostedAgent) {
+              if (node.data.status === nextStatus) {
+                return null
+              }
 
-        const hostedResult = updateWorkspacesWithHostedTerminalNodes(agentResult.nextWorkspaces, {
-          sessionId: event.sessionId,
-          excludeWorkspaceId,
-          updateNode: node => {
-            if (shouldIgnoreAgentStatusUpdate(node.data.status)) {
-              return null
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  status: nextStatus,
+                },
+              }
             }
 
-            const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
             if (
               node.data.status === nextStatus &&
-              node.data.hostedAgent?.state === 'active' &&
-              !shouldPromoteRestoringToStandby(node.data.status, {
-                hasHostedAgent: Boolean(node.data.hostedAgent),
-                restoreIntent: node.data.hostedAgent?.restoreIntent,
-              })
+              node.data.hostedAgent.state === 'active'
             ) {
               return null
             }
@@ -371,43 +275,18 @@ export function usePtyWorkspaceRuntimeSync({
               data: {
                 ...node.data,
                 status: nextStatus,
-                hostedAgent: node.data.hostedAgent
-                  ? {
-                      ...node.data.hostedAgent,
-                      state: 'active',
-                      restoreIntent: true,
-                    }
-                  : null,
+                hostedAgent: {
+                  ...node.data.hostedAgent,
+                  state: 'active',
+                  restoreIntent: true,
+                },
               },
             }
           },
         })
 
-        const terminalResult = updateWorkspacesWithPlainTerminalNodes(hostedResult.nextWorkspaces, {
-          sessionId: event.sessionId,
-          excludeWorkspaceId,
-          updateNode: node => {
-            if (shouldIgnoreAgentStatusUpdate(node.data.status)) {
-              return null
-            }
-
-            const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
-            if (node.data.status === nextStatus) {
-              return null
-            }
-
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                status: nextStatus,
-              },
-            }
-          },
-        })
-
-        didChange = agentResult.didChange || hostedResult.didChange || terminalResult.didChange
-        return didChange ? terminalResult.nextWorkspaces : previous
+        didChange = result.didChange
+        return didChange ? result.nextWorkspaces : previous
       })
     })
 
@@ -416,6 +295,12 @@ export function usePtyWorkspaceRuntimeSync({
       const nextEffectiveModel = normalizeOptionalText(event.effectiveModel)
       const nextReasoningEffort = normalizeOptionalText(event.reasoningEffort)
       const nextDisplayModelLabel = normalizeOptionalText(event.displayModelLabel)
+      const resolvedHostedDisplayModelLabel =
+        nextDisplayModelLabel ??
+        buildHostedTerminalDisplayModelLabel({
+          effectiveModel: nextEffectiveModel,
+          reasoningEffort: nextReasoningEffort,
+        })
 
       if (
         !nextResumeSessionId &&
@@ -430,24 +315,63 @@ export function usePtyWorkspaceRuntimeSync({
       let didChange = false
 
       setWorkspaces(previous => {
-        const agentResult = updateWorkspacesWithAgentNodes(previous, {
+        const result = updateWorkspacesWithSessionNodes(previous, {
           sessionId: event.sessionId,
           excludeWorkspaceId,
           updateNode: node => {
-            if (!node.data.agent) {
+            if (node.data.kind === 'agent') {
+              if (!node.data.agent || !nextResumeSessionId) {
+                return null
+              }
+
+              const nextVerified = true
+              if (
+                node.data.agent.resumeSessionId === nextResumeSessionId &&
+                node.data.agent.resumeSessionIdVerified === nextVerified
+              ) {
+                return null
+              }
+
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  agent: {
+                    ...node.data.agent,
+                    resumeSessionId: nextResumeSessionId,
+                    resumeSessionIdVerified: nextVerified,
+                  },
+                },
+              }
+            }
+
+            if (node.data.kind !== 'terminal' || !node.data.hostedAgent) {
               return null
             }
 
-            const nextVerified = true
+            const nextHostedAgent = {
+              ...node.data.hostedAgent,
+              ...(nextResumeSessionId
+                ? {
+                    resumeSessionId: nextResumeSessionId,
+                    resumeSessionIdVerified: true,
+                  }
+                : {}),
+              ...(nextEffectiveModel ? { effectiveModel: nextEffectiveModel } : {}),
+              ...(nextReasoningEffort ? { reasoningEffort: nextReasoningEffort } : {}),
+              ...(resolvedHostedDisplayModelLabel
+                ? { displayModelLabel: resolvedHostedDisplayModelLabel }
+                : {}),
+            }
+
             if (
-              nextResumeSessionId &&
-              node.data.agent.resumeSessionId === nextResumeSessionId &&
-              node.data.agent.resumeSessionIdVerified === nextVerified
+              nextHostedAgent.resumeSessionId === node.data.hostedAgent.resumeSessionId &&
+              nextHostedAgent.resumeSessionIdVerified ===
+                node.data.hostedAgent.resumeSessionIdVerified &&
+              nextHostedAgent.effectiveModel === node.data.hostedAgent.effectiveModel &&
+              nextHostedAgent.reasoningEffort === node.data.hostedAgent.reasoningEffort &&
+              nextHostedAgent.displayModelLabel === node.data.hostedAgent.displayModelLabel
             ) {
-              return null
-            }
-
-            if (!nextResumeSessionId) {
               return null
             }
 
@@ -455,28 +379,14 @@ export function usePtyWorkspaceRuntimeSync({
               ...node,
               data: {
                 ...node.data,
-                agent: {
-                  ...node.data.agent,
-                  resumeSessionId: nextResumeSessionId,
-                  resumeSessionIdVerified: nextVerified,
-                },
+                hostedAgent: nextHostedAgent,
               },
             }
           },
         })
 
-        const hostedResult = updateWorkspacesWithHostedTerminalMetadata({
-          workspaces: agentResult.nextWorkspaces,
-          sessionId: event.sessionId,
-          excludeWorkspaceId,
-          resumeSessionId: nextResumeSessionId,
-          effectiveModel: nextEffectiveModel,
-          reasoningEffort: nextReasoningEffort,
-          displayModelLabel: nextDisplayModelLabel,
-        })
-
-        didChange = agentResult.didChange || hostedResult.didChange
-        return didChange ? hostedResult.nextWorkspaces : previous
+        didChange = result.didChange
+        return didChange ? result.nextWorkspaces : previous
       })
 
       if (didChange) {
@@ -490,51 +400,52 @@ export function usePtyWorkspaceRuntimeSync({
       const excludeWorkspaceId = useAppStore.getState().activeWorkspaceId
 
       setWorkspaces(previous => {
-        const agentResult = updateWorkspacesWithAgentExit({
-          workspaces: previous,
+        const nextStatus = event.exitCode === 0 ? ('exited' as const) : ('failed' as const)
+        const result = updateWorkspacesWithSessionNodes(previous, {
           sessionId: event.sessionId,
           excludeWorkspaceId,
-          exitCode: event.exitCode,
-          now,
+          updateNode: node => {
+            if (node.data.kind === 'agent') {
+              if (node.data.status === 'stopped') {
+                return null
+              }
+
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  status: nextStatus,
+                  endedAt: now,
+                  exitCode: event.exitCode,
+                },
+              }
+            }
+
+            if (node.data.kind !== 'terminal') {
+              return null
+            }
+
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                status: nextStatus,
+                endedAt: now,
+                exitCode: event.exitCode,
+                hostedAgent: node.data.hostedAgent
+                  ? {
+                      ...node.data.hostedAgent,
+                      state: 'inactive',
+                      restoreIntent: false,
+                    }
+                  : null,
+              },
+            }
+          },
         })
 
-        const hostedResult = updateWorkspacesWithHostedTerminalNodes(agentResult.nextWorkspaces, {
-          sessionId: event.sessionId,
-          excludeWorkspaceId,
-          updateNode: node => ({
-            ...node,
-            data: {
-              ...node.data,
-              status: event.exitCode === 0 ? ('exited' as const) : ('failed' as const),
-              endedAt: now,
-              exitCode: event.exitCode,
-              hostedAgent: node.data.hostedAgent
-                ? {
-                    ...node.data.hostedAgent,
-                    state: 'inactive',
-                    restoreIntent: false,
-                  }
-                : null,
-            },
-          }),
-        })
-
-        const terminalResult = updateWorkspacesWithPlainTerminalNodes(hostedResult.nextWorkspaces, {
-          sessionId: event.sessionId,
-          excludeWorkspaceId,
-          updateNode: node => ({
-            ...node,
-            data: {
-              ...node.data,
-              status: event.exitCode === 0 ? ('exited' as const) : ('failed' as const),
-              endedAt: now,
-              exitCode: event.exitCode,
-            },
-          }),
-        })
-
-        didChange = agentResult.didChange || hostedResult.didChange || terminalResult.didChange
-        return didChange ? terminalResult.nextWorkspaces : previous
+        didChange = result.didChange
+        return didChange ? result.nextWorkspaces : previous
       })
 
       if (didChange) {

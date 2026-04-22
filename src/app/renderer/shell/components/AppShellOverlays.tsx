@@ -5,6 +5,7 @@ import type { FloatingMessageState } from '../hooks/useFloatingMessage'
 import { AppMessage } from './AppMessage'
 import { AppNotifications, type AppNotification } from './AppNotifications'
 import { ControlCenter } from './ControlCenter'
+import { PluginWorkspaceOverlaySlot } from '@contexts/plugins/presentation/renderer/PluginWorkspaceOverlaySlot'
 
 type SetStateAction<T> = T | ((prev: T) => T)
 
@@ -22,6 +23,7 @@ export function AppShellOverlays({
   onMinimapVisibilityChange,
   onOpenSettings,
   pluginControlCenterWidgets,
+  pluginWorkspaceOverlays,
 }: {
   floatingMessage: FloatingMessageState
   notifications: AppNotification[]
@@ -36,6 +38,7 @@ export function AppShellOverlays({
   onMinimapVisibilityChange: (isVisible: boolean) => void
   onOpenSettings: () => void
   pluginControlCenterWidgets?: React.ReactNode
+  pluginWorkspaceOverlays?: React.ReactNode
 }): React.JSX.Element {
   return (
     <>
@@ -99,6 +102,8 @@ export function AppShellOverlays({
         }}
         pluginWidgets={pluginControlCenterWidgets}
       />
+
+      {pluginWorkspaceOverlays}
     </>
   )
 }

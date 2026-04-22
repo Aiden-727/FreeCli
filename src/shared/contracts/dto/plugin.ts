@@ -6,6 +6,158 @@ export interface SyncPluginRuntimeStateResult {
   activePluginIds: string[]
 }
 
+export type WorkspaceAssistantTone = 'neutral' | 'helpful' | 'urgent'
+
+export interface WorkspaceAssistantSettingsDto {
+  enabled: boolean
+  dockCollapsed: boolean
+  autoOpenOnStartup: boolean
+  proactiveRemindersEnabled: boolean
+  proactiveReminderIntervalMinutes: number
+  modelProvider: 'local' | 'openai-compatible'
+  aiEnabled: boolean
+  apiBaseUrl: string
+  apiKey: string
+  modelName: string
+  allowProjectScan: boolean
+  allowWorkspaceSummary: boolean
+  allowTaskInsight: boolean
+  allowFollowUpQuestions: boolean
+  allowSuggestionToasts: boolean
+  assistantNotes: string
+}
+
+export interface WorkspaceAssistantInsightDto {
+  id: string
+  tone: WorkspaceAssistantTone
+  title: string
+  body: string
+  source: string
+  createdAt: string
+  actionLabel: string | null
+}
+
+export interface WorkspaceAssistantConversationMessageDto {
+  id: string
+  role: 'assistant' | 'user' | 'system'
+  content: string
+  createdAt: string
+}
+
+export interface WorkspaceAssistantTaskSnapshotDto {
+  id: string
+  title: string
+  status: 'todo' | 'doing' | 'ai_done' | 'done'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  linkedAgentNodeId: string | null
+  lastRunAt: string | null
+}
+
+export interface WorkspaceAssistantAgentSnapshotDto {
+  id: string
+  title: string
+  status: string | null
+  provider: string | null
+  taskId: string | null
+  prompt: string
+  lastError: string | null
+}
+
+export interface WorkspaceAssistantNoteSnapshotDto {
+  id: string
+  title: string
+  text: string
+}
+
+export interface WorkspaceAssistantProjectFileSummaryDto {
+  kind:
+    | 'readme'
+    | 'package_json'
+    | 'tsconfig'
+    | 'pnpm_workspace'
+    | 'gitignore'
+    | 'other'
+  name: string
+  path: string
+  summary: string
+}
+
+export interface WorkspaceAssistantSpaceSnapshotDto {
+  id: string
+  name: string
+  nodeCount: number
+}
+
+export interface WorkspaceAssistantWorkspaceSnapshotDto {
+  id: string
+  name: string
+  path: string
+  activeSpaceId: string | null
+  spaceCount: number
+  nodeCount: number
+  taskCount: number
+  agentCount: number
+  noteCount: number
+  terminalCount: number
+  projectSummary: string | null
+  projectFiles: WorkspaceAssistantProjectFileSummaryDto[]
+  tasks: WorkspaceAssistantTaskSnapshotDto[]
+  agents: WorkspaceAssistantAgentSnapshotDto[]
+  notes: WorkspaceAssistantNoteSnapshotDto[]
+  spaces: WorkspaceAssistantSpaceSnapshotDto[]
+}
+
+export type WorkspaceAssistantRuntimeStatus =
+  | 'disabled'
+  | 'idle'
+  | 'ready'
+  | 'listening'
+  | 'thinking'
+  | 'warning'
+  | 'error'
+
+export interface WorkspaceAssistantStateDto {
+  isEnabled: boolean
+  isDockCollapsed: boolean
+  isAutoOpenOnStartup: boolean
+  status: WorkspaceAssistantRuntimeStatus
+  lastUpdatedAt: string | null
+  unreadInsights: number
+  currentWorkspace: WorkspaceAssistantWorkspaceSnapshotDto | null
+  insights: WorkspaceAssistantInsightDto[]
+  conversation: WorkspaceAssistantConversationMessageDto[]
+  settings: WorkspaceAssistantSettingsDto
+}
+
+export interface SyncWorkspaceAssistantSettingsInput {
+  settings: WorkspaceAssistantSettingsDto
+}
+
+export interface SyncWorkspaceAssistantWorkspaceSnapshotInput {
+  snapshot: WorkspaceAssistantWorkspaceSnapshotDto | null
+}
+
+export interface WorkspaceAssistantPromptInput {
+  prompt: string
+  workspaceId: string | null
+  workspaceSnapshot?: WorkspaceAssistantWorkspaceSnapshotDto | null
+}
+
+export interface WorkspaceAssistantPromptResult {
+  reply: string
+  suggestions: string[]
+}
+
+export interface WorkspaceAssistantStopPromptResult {
+  stopped: boolean
+  reply: string | null
+}
+
+export interface WorkspaceAssistantConnectionTestResult {
+  ok: boolean
+  message: string
+}
+
 export type InputStatsHistoryMetric = 'clicks' | 'keys' | 'movement' | 'scroll'
 export type InputStatsTopKeysRange = 0 | 1 | 7 | 15 | 30
 export type InputStatsHistoryRangeDays = 7 | 30
@@ -395,6 +547,25 @@ export interface BackupOssSettingsDto {
   syncGitWorklogHistoryEnabled: boolean
 }
 
+export interface BackupWorkspaceAssistantSettingsDto {
+  enabled: boolean
+  dockCollapsed: boolean
+  autoOpenOnStartup: boolean
+  proactiveRemindersEnabled: boolean
+  proactiveReminderIntervalMinutes: number
+  modelProvider: 'local' | 'openai-compatible'
+  aiEnabled: boolean
+  apiBaseUrl: string
+  apiKey: string
+  modelName: string
+  allowProjectScan: boolean
+  allowWorkspaceSummary: boolean
+  allowTaskInsight: boolean
+  allowFollowUpQuestions: boolean
+  allowSuggestionToasts: boolean
+  assistantNotes: string
+}
+
 export interface PluginBackupSnapshotDto {
   formatVersion: number
   createdAt: string
@@ -404,6 +575,7 @@ export interface PluginBackupSnapshotDto {
     quotaMonitor?: BackupQuotaMonitorSettingsDto
     gitWorklog?: GitWorklogSettingsDto
     ossBackup?: BackupOssSettingsDto
+    workspaceAssistant?: BackupWorkspaceAssistantSettingsDto
   }
 }
 

@@ -6,16 +6,19 @@ const HEADER_WIDGET_ORDER: Record<BuiltinPluginId, number> = {
   'system-monitor': 10,
   'oss-backup': 20,
   'quota-monitor': 30,
-  'input-stats': 40,
-  'git-worklog': 50,
+  'workspace-assistant': 40,
+  'input-stats': 50,
+  'git-worklog': 60,
 }
 
 export function PluginHeaderSlot({
   enabledPluginIds,
   onOpenPluginManager,
+  onToggleWorkspaceAssistant,
 }: {
   enabledPluginIds: BuiltinPluginId[]
   onOpenPluginManager: (pageId?: BuiltinPluginId | 'general') => void
+  onToggleWorkspaceAssistant?: () => void
 }): React.JSX.Element | null {
   const widgets = useMemo(
     () =>
@@ -44,7 +47,10 @@ export function PluginHeaderSlot({
     <>
       {widgets.map(({ pluginId, Component }) => (
         <Suspense key={pluginId} fallback={null}>
-          <Component onOpenPluginManager={onOpenPluginManager} />
+          <Component
+            onOpenPluginManager={onOpenPluginManager}
+            onToggleWorkspaceAssistant={onToggleWorkspaceAssistant}
+          />
         </Suspense>
       ))}
     </>

@@ -8,6 +8,16 @@ export interface WorkspaceMinimapViewportWindowLayout {
   top: number
   width: number
   height: number
+  viewBoxX: number
+  viewBoxY: number
+  viewBoxWidth: number
+  viewBoxHeight: number
+  viewportX: number
+  viewportY: number
+  viewportWidth: number
+  viewportHeight: number
+  viewportRadiusX: number
+  viewportRadiusY: number
 }
 
 export interface WorkspaceMinimapViewportWindowInput {
@@ -29,6 +39,10 @@ export interface WorkspaceMinimapViewportWindowInput {
     width: number
     height: number
   }
+  renderSize?: {
+    width: number
+    height: number
+  }
   offsetScale?: number
 }
 
@@ -46,14 +60,27 @@ interface WorkspaceMinimapNodeComponentProps {
   strokeWidth?: number
   headerColor?: string
   selected: boolean
-  hovered?: boolean
   onClick?: (event: React.MouseEvent, id: string) => void
-  onHoverChange?: (id: string | null) => void
 }
 
 interface WorkspaceMinimapFlowPosition {
   x: number
   y: number
+}
+
+interface WorkspaceMinimapProjection {
+  viewBounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  minimapViewBox: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
 }
 
 type WorkspaceMinimapTaskState = 'todo' | 'doing' | 'done'
@@ -297,13 +324,14 @@ export function resolveWorkspaceMinimapNodeAtPosition(
   )
 }
 
-export function resolveWorkspaceMinimapViewportWindowLayout({
+export function resolveWorkspaceMinimapProjection({
   nodes,
   viewport,
   flowSize,
   minimapSize,
+  renderSize,
   offsetScale = 5,
-}: WorkspaceMinimapViewportWindowInput): WorkspaceMinimapViewportWindowLayout | null {
+}: WorkspaceMinimapViewportWindowInput): WorkspaceMinimapProjection | null {
   if (
     flowSize.width <= 0 ||
     flowSize.height <= 0 ||
@@ -351,11 +379,15 @@ export function resolveWorkspaceMinimapViewportWindowLayout({
     height: Math.max(1, maxY - minY),
   }
 
-  const scaledWidth = boundingRect.width / minimapSize.width
-  const scaledHeight = boundingRect.height / minimapSize.height
+  const effectiveRenderWidth =
+    renderSize && renderSize.width > 0 ? renderSize.width : Math.max(1, minimapSize.width)
+  const effectiveRenderHeight =
+    renderSize && renderSize.height > 0 ? renderSize.height : Math.max(1, minimapSize.height)
+  const scaledWidth = boundingRect.width / effectiveRenderWidth
+  const scaledHeight = boundingRect.height / effectiveRenderHeight
   const viewScale = Math.max(scaledWidth, scaledHeight, Number.EPSILON)
-  const viewWidth = viewScale * minimapSize.width
-  const viewHeight = viewScale * minimapSize.height
+  const viewWidth = viewScale * effectiveRenderWidth
+  const viewHeight = viewScale * effectiveRenderHeight
   const offset = offsetScale * viewScale
   const minimapViewBox = {
     x: boundingRect.x - (viewWidth - boundingRect.width) / 2 - offset,
@@ -365,10 +397,49 @@ export function resolveWorkspaceMinimapViewportWindowLayout({
   }
 
   return {
+    viewBounds,
+    minimapViewBox,
+  }
+}
+
+export function resolveWorkspaceMinimapViewportWindowLayout({
+  minimapSize,
+  ...input
+}: WorkspaceMinimapViewportWindowInput): WorkspaceMinimapViewportWindowLayout | null {
+  const projection = resolveWorkspaceMinimapProjection({
+    ...input,
+    minimapSize,
+  })
+  if (!projection) {
+    return null
+  }
+
+  const { viewBounds, minimapViewBox } = projection
+  const viewportCornerRadiusPx = 12
+  const viewportRadiusX = Math.min(
+    viewBounds.width / 2,
+    (viewportCornerRadiusPx / Math.max(1, minimapSize.width)) * minimapViewBox.width,
+  )
+  const viewportRadiusY = Math.min(
+    viewBounds.height / 2,
+    (viewportCornerRadiusPx / Math.max(1, minimapSize.height)) * minimapViewBox.height,
+  )
+
+  return {
     left: ((viewBounds.x - minimapViewBox.x) / minimapViewBox.width) * 100,
     top: ((viewBounds.y - minimapViewBox.y) / minimapViewBox.height) * 100,
     width: (viewBounds.width / minimapViewBox.width) * 100,
     height: (viewBounds.height / minimapViewBox.height) * 100,
+    viewBoxX: minimapViewBox.x,
+    viewBoxY: minimapViewBox.y,
+    viewBoxWidth: minimapViewBox.width,
+    viewBoxHeight: minimapViewBox.height,
+    viewportX: viewBounds.x,
+    viewportY: viewBounds.y,
+    viewportWidth: viewBounds.width,
+    viewportHeight: viewBounds.height,
+    viewportRadiusX,
+    viewportRadiusY,
   }
 }
 
@@ -386,19 +457,39 @@ export function WorkspaceMinimapNode({
   strokeWidth,
   headerColor,
   selected,
-  hovered = false,
   onClick,
-  onHoverChange,
 }: WorkspaceMinimapNodeComponentProps): React.JSX.Element {
   const headerHeight = Math.max(6, Math.min(18, height * 0.2))
   const bodyBorderRadius = Math.min(borderRadius, Math.max(3, Math.min(width, height) * 0.18))
+  const headerRadius = Math.min(bodyBorderRadius, headerHeight)
+  const headerPath = [
+    `M 0 ${headerHeight}`,
+    `L 0 ${headerRadius}`,
+    `Q 0 0 ${headerRadius} 0`,
+    `L ${Math.max(headerRadius, width - headerRadius)} 0`,
+    `Q ${width} 0 ${width} ${headerRadius}`,
+    `L ${width} ${headerHeight}`,
+    'Z',
+  ].join(' ')
+  const setGroupHovered = React.useCallback((target: EventTarget | null, hovered: boolean) => {
+    if (!(target instanceof SVGElement)) {
+      return
+    }
+
+    const group = target.closest('.workspace-canvas__minimap-node')
+    if (!(group instanceof SVGGElement)) {
+      return
+    }
+
+    group.classList.toggle('hovered', hovered)
+  }, [])
 
   return (
     <g
-      className={`${className}${selected ? ' selected' : ''}${hovered ? ' hovered' : ''}`}
+      className={`${className}${selected ? ' selected' : ''}`}
+      data-minimap-node-id={id}
       data-testid={`workspace-minimap-group-${id}`}
       transform={`translate(${x} ${y})`}
-      onClick={onClick ? event => onClick(event, id) : undefined}
     >
       <rect
         className="workspace-canvas__minimap-node-hitbox"
@@ -410,8 +501,34 @@ export function WorkspaceMinimapNode({
         fill="rgba(255, 255, 255, 0.001)"
         shapeRendering={shapeRendering}
         pointerEvents="all"
-        onMouseEnter={onHoverChange ? () => onHoverChange(id) : undefined}
-        onMouseLeave={onHoverChange ? () => onHoverChange(null) : undefined}
+        onPointerEnter={event => {
+          setGroupHovered(event.currentTarget, true)
+        }}
+        onPointerLeave={event => {
+          setGroupHovered(event.currentTarget, false)
+        }}
+        onPointerCancel={event => {
+          setGroupHovered(event.currentTarget, false)
+        }}
+        onPointerDown={event => {
+          // Keep node clicks from being interpreted as minimap panning gestures.
+          event.preventDefault()
+          event.stopPropagation()
+        }}
+        onPointerMove={event => {
+          event.stopPropagation()
+        }}
+        onPointerUp={event => {
+          event.stopPropagation()
+        }}
+        onClick={
+          onClick
+            ? event => {
+                event.stopPropagation()
+                onClick(event, id)
+              }
+            : undefined
+        }
       />
       <rect
         className="workspace-canvas__minimap-node-shadow"
@@ -422,20 +539,6 @@ export function WorkspaceMinimapNode({
         rx={bodyBorderRadius}
         ry={bodyBorderRadius}
         fill="var(--cove-canvas-minimap-node-shadow-fill)"
-        shapeRendering={shapeRendering}
-        pointerEvents="none"
-      />
-      <rect
-        className="workspace-canvas__minimap-node-hover-halo"
-        x={-1.5}
-        y={-1.5}
-        width={width + 3}
-        height={height + 3}
-        rx={bodyBorderRadius + 1}
-        ry={bodyBorderRadius + 1}
-        fill="none"
-        stroke="var(--cove-canvas-minimap-node-hover-halo-stroke)"
-        strokeWidth={0.9}
         shapeRendering={shapeRendering}
         pointerEvents="none"
       />
@@ -452,12 +555,9 @@ export function WorkspaceMinimapNode({
         shapeRendering={shapeRendering}
         pointerEvents="none"
       />
-      <rect
+      <path
         className="workspace-canvas__minimap-node-header"
-        width={width}
-        height={headerHeight}
-        rx={bodyBorderRadius}
-        ry={bodyBorderRadius}
+        d={headerPath}
         fill={headerColor ?? 'var(--cove-canvas-minimap-window-header)'}
         shapeRendering={shapeRendering}
         pointerEvents="none"

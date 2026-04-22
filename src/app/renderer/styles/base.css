@@ -101,10 +101,19 @@
 
   --cove-canvas-minimap-surface: rgba(9, 16, 34, 0.75);
   --cove-canvas-minimap-border: rgba(101, 148, 255, 0.32);
+  --cove-canvas-minimap-border-hover: rgba(134, 188, 255, 0.76);
+  --cove-canvas-minimap-surface-hover: rgba(11, 19, 39, 0.9);
+  --cove-canvas-minimap-shadow-hover:
+    0 18px 34px rgba(3, 9, 30, 0.5), 0 0 0 1px rgba(94, 145, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   --cove-canvas-minimap-mask: rgba(110, 170, 255, 0.84);
   --cove-canvas-minimap-mask-surface: rgba(73, 132, 255, 0.16);
   --cove-canvas-minimap-opacity-idle: 0.42;
   --cove-canvas-minimap-opacity-hover: 0.96;
+  --cove-canvas-minimap-node-hover-fill: rgba(102, 158, 128, 0.84);
+  --cove-canvas-minimap-node-hover-header: rgba(176, 210, 190, 0.26);
+  --cove-canvas-minimap-node-hover-stroke: rgba(175, 216, 194, 0.72);
+  --cove-canvas-minimap-node-hover-divider: rgba(193, 224, 207, 0.52);
   --cove-canvas-minimap-node-hover-filter: saturate(1.08) brightness(1.04);
   --cove-canvas-minimap-node-selected-filter: saturate(1.12) brightness(1.08);
   --cove-canvas-minimap-node-shadow-fill: rgba(4, 10, 24, 0.34);
@@ -320,10 +329,19 @@
 
   --cove-canvas-minimap-surface: rgba(255, 255, 255, 0.72);
   --cove-canvas-minimap-border: rgba(17, 24, 39, 0.12);
+  --cove-canvas-minimap-border-hover: rgba(64, 129, 218, 0.42);
+  --cove-canvas-minimap-surface-hover: rgba(255, 255, 255, 0.92);
+  --cove-canvas-minimap-shadow-hover:
+    0 18px 34px rgba(94, 156, 255, 0.14), 0 0 0 1px rgba(94, 156, 255, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   --cove-canvas-minimap-mask: rgba(94, 156, 255, 0.8);
   --cove-canvas-minimap-mask-surface: rgba(94, 156, 255, 0.1);
   --cove-canvas-minimap-opacity-idle: 0.55;
   --cove-canvas-minimap-opacity-hover: 0.96;
+  --cove-canvas-minimap-node-hover-fill: rgba(132, 181, 150, 0.76);
+  --cove-canvas-minimap-node-hover-header: rgba(210, 232, 218, 0.56);
+  --cove-canvas-minimap-node-hover-stroke: rgba(126, 173, 144, 0.84);
+  --cove-canvas-minimap-node-hover-divider: rgba(154, 191, 168, 0.54);
   --cove-canvas-minimap-node-hover-filter: saturate(1.06) brightness(1.02);
   --cove-canvas-minimap-node-selected-filter: saturate(1.1) brightness(1.04);
   --cove-canvas-minimap-node-shadow-fill: rgba(36, 58, 102, 0.16);

@@ -16,6 +16,12 @@ import type {
   LaunchAgentResult,
   MaterializeClipboardImageTempFileResult,
   ListInstalledAgentProvidersResult,
+  GetAgentExtensionsInput,
+  GetAgentExtensionsResult,
+  AddAgentMcpServerInput,
+  RemoveAgentMcpServerInput,
+  CreateAgentSkillInput,
+  CreateAgentSkillResult,
   ListGitBranchesInput,
   ListGitBranchesResult,
   ListGitWorktreesInput,
@@ -39,6 +45,8 @@ import type {
   OssSyncComparisonDto,
   OssBackupStateDto,
   RestorePluginBackupResultDto,
+  SyncWorkspaceAssistantSettingsInput,
+  SyncWorkspaceAssistantWorkspaceSnapshotInput,
   SyncInputStatsSettingsInput,
   SyncSystemMonitorSettingsInput,
   SyncOssBackupSettingsInput,
@@ -47,6 +55,11 @@ import type {
   SyncQuotaMonitorSettingsInput,
   SyncPluginRuntimeStateInput,
   SyncPluginRuntimeStateResult,
+  WorkspaceAssistantConnectionTestResult,
+  WorkspaceAssistantPromptInput,
+  WorkspaceAssistantPromptResult,
+  WorkspaceAssistantStopPromptResult,
+  WorkspaceAssistantStateDto,
   AppUpdateState,
   ConfigureAppUpdatesInput,
   GetCurrentReleaseNotesInput,
@@ -307,6 +320,37 @@ const freecliApi = {
         }
       },
     },
+    workspaceAssistant: {
+      syncSettings: (
+        payload: SyncWorkspaceAssistantSettingsInput,
+      ): Promise<WorkspaceAssistantStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantSyncSettings, payload),
+      syncWorkspaceSnapshot: (
+        payload: SyncWorkspaceAssistantWorkspaceSnapshotInput,
+      ): Promise<WorkspaceAssistantStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantSyncWorkspaceSnapshot, payload),
+      getState: (): Promise<WorkspaceAssistantStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantGetState),
+      testConnection: (): Promise<WorkspaceAssistantConnectionTestResult> =>
+        invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantTestConnection),
+      prompt: (
+        payload: WorkspaceAssistantPromptInput,
+      ): Promise<WorkspaceAssistantPromptResult> =>
+        invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantPrompt, payload),
+      stopPrompt: (): Promise<WorkspaceAssistantStopPromptResult> =>
+        invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantStopPrompt),
+      onState: (listener: (state: WorkspaceAssistantStateDto) => void): UnsubscribeFn => {
+        const handler = (_event: Electron.IpcRendererEvent, payload: WorkspaceAssistantStateDto) => {
+          listener(payload)
+        }
+
+        ipcRenderer.on(IPC_CHANNELS.pluginsWorkspaceAssistantState, handler)
+
+        return () => {
+          ipcRenderer.removeListener(IPC_CHANNELS.pluginsWorkspaceAssistantState, handler)
+        }
+      },
+    },
   },
   update: {
     getState: (): Promise<AppUpdateState> => invokeIpc(IPC_CHANNELS.appUpdateGetState),
@@ -411,6 +455,16 @@ const freecliApi = {
       payload: ResolveAgentResumeSessionInput,
     ): Promise<ResolveAgentResumeSessionResult> =>
       invokeIpc(IPC_CHANNELS.agentResolveResumeSession, payload),
+  },
+  agentExtensions: {
+    getState: (payload: GetAgentExtensionsInput): Promise<GetAgentExtensionsResult> =>
+      invokeIpc(IPC_CHANNELS.agentExtensionsGetState, payload),
+    addMcpServer: (payload: AddAgentMcpServerInput): Promise<void> =>
+      invokeIpc(IPC_CHANNELS.agentExtensionsAddMcpServer, payload),
+    removeMcpServer: (payload: RemoveAgentMcpServerInput): Promise<void> =>
+      invokeIpc(IPC_CHANNELS.agentExtensionsRemoveMcpServer, payload),
+    createSkill: (payload: CreateAgentSkillInput): Promise<CreateAgentSkillResult> =>
+      invokeIpc(IPC_CHANNELS.agentExtensionsCreateSkill, payload),
   },
   task: {
     suggestTitle: (payload: SuggestTaskTitleInput): Promise<SuggestTaskTitleResult> =>

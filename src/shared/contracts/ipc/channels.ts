@@ -64,6 +64,14 @@ export const IPC_CHANNELS = {
   pluginsOssBackupGetSyncComparison: 'plugins:oss-backup:get-sync-comparison',
   pluginsOssBackupNotifyPersistedSettings: 'plugins:oss-backup:notify-persisted-settings',
   pluginsOssBackupState: 'plugins:oss-backup:state',
+  pluginsWorkspaceAssistantSyncSettings: 'plugins:workspace-assistant:sync-settings',
+  pluginsWorkspaceAssistantSyncWorkspaceSnapshot:
+    'plugins:workspace-assistant:sync-workspace-snapshot',
+  pluginsWorkspaceAssistantGetState: 'plugins:workspace-assistant:get-state',
+  pluginsWorkspaceAssistantTestConnection: 'plugins:workspace-assistant:test-connection',
+  pluginsWorkspaceAssistantPrompt: 'plugins:workspace-assistant:prompt',
+  pluginsWorkspaceAssistantStopPrompt: 'plugins:workspace-assistant:stop-prompt',
+  pluginsWorkspaceAssistantState: 'plugins:workspace-assistant:state',
   windowChromeSetTheme: 'window-chrome:set-theme',
   windowMetricsGetDisplayInfo: 'window-metrics:get-display-info',
   ptySpawn: 'pty:spawn',
@@ -85,6 +93,10 @@ export const IPC_CHANNELS = {
   agentLaunch: 'agent:launch',
   agentResolveResumeSession: 'agent:resolve-resume-session',
   agentReadLastMessage: 'agent:read-last-message',
+  agentExtensionsGetState: 'agent-extensions:get-state',
+  agentExtensionsAddMcpServer: 'agent-extensions:add-mcp-server',
+  agentExtensionsRemoveMcpServer: 'agent-extensions:remove-mcp-server',
+  agentExtensionsCreateSkill: 'agent-extensions:create-skill',
   taskSuggestTitle: 'task:suggest-title',
 } as const
 

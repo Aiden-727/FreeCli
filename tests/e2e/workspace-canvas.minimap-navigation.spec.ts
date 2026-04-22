@@ -1,8 +1,25 @@
 import { expect, test } from '@playwright/test'
 import { clearAndSeedWorkspace, launchApp, readCanvasViewport } from './workspace-canvas.helpers'
 
+async function resolveCssColorToken(
+  window: Awaited<ReturnType<typeof launchApp>>['window'],
+  tokenName: string,
+): Promise<string> {
+  return await window.evaluate(token => {
+    const probe = document.createElement('div')
+    probe.style.color = `var(${token})`
+    probe.style.position = 'fixed'
+    probe.style.pointerEvents = 'none'
+    probe.style.opacity = '0'
+    document.body.appendChild(probe)
+    const value = window.getComputedStyle(probe).color
+    probe.remove()
+    return value
+  }, tokenName)
+}
+
 test.describe('Workspace Canvas - Minimap Navigation', () => {
-  test('hovering a minimap node raises it with a visible halo and shadow emphasis', async () => {
+  test('hovering the minimap brightens the dock and lightly highlights the hovered node', async () => {
     const { electronApp, window } = await launchApp()
 
     try {
@@ -40,36 +57,73 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       )
       await expect(targetNodeFrame).toBeVisible()
 
+      const minimap = window.locator('.workspace-canvas__minimap')
+      await expect(minimap).toBeVisible()
+      const toggle = window.locator('[data-testid="workspace-minimap-toggle"]')
+      const hoverFillColor = await resolveCssColorToken(
+        window,
+        '--cove-canvas-minimap-node-hover-fill',
+      )
+      const hoverHeaderColor = await resolveCssColorToken(
+        window,
+        '--cove-canvas-minimap-node-hover-header',
+      )
       const readHoverAffordanceState = async () => {
-        return await targetNodeFrame.evaluate(node => {
+        const minimapState = await minimap.evaluate(element => {
+          const style = window.getComputedStyle(element)
+          return {
+            minimapBorderColor: style.borderTopColor,
+            minimapBackgroundColor: style.backgroundColor,
+          }
+        })
+
+        const toggleState = await toggle.evaluate(element => {
+          const style = window.getComputedStyle(element)
+          return {
+            opacity: style.opacity,
+            visibility: style.visibility,
+          }
+        })
+
+        const nodeState = await targetNodeFrame.evaluate(node => {
           const group = node.closest('.workspace-canvas__minimap-node') as SVGGElement | null
           if (!group) {
             throw new Error('Minimap node group is missing')
           }
 
-          const groupStyle = window.getComputedStyle(group)
-          const shadow = group.querySelector('.workspace-canvas__minimap-node-shadow')
-          const halo = group.querySelector('.workspace-canvas__minimap-node-hover-halo')
-          if (!shadow || !halo) {
+          const header = group.querySelector('.workspace-canvas__minimap-node-header')
+          if (!header) {
             throw new Error('Minimap hover affordance elements are missing')
           }
 
-          const shadowStyle = window.getComputedStyle(shadow)
-          const haloStyle = window.getComputedStyle(halo)
+          const frameStyle = window.getComputedStyle(node as SVGElement)
+          const headerStyle = window.getComputedStyle(header)
 
           return {
-            groupTransform: groupStyle.transform,
-            shadowOpacity: shadowStyle.opacity,
-            shadowFilter: shadowStyle.filter,
-            haloOpacity: haloStyle.opacity,
+            isHovered: group.classList.contains('hovered'),
+            headerTagName: header.tagName.toLowerCase(),
+            headerPath: header instanceof SVGPathElement ? header.getAttribute('d') : null,
+            frameFill: frameStyle.fill,
+            frameStroke: frameStyle.stroke,
+            headerFill: headerStyle.fill,
+            groupTransform: group.getAttribute('transform'),
+            frameX: node.getAttribute('x'),
+            frameY: node.getAttribute('y'),
+            frameWidth: node.getAttribute('width'),
+            frameHeight: node.getAttribute('height'),
           }
         })
+
+        return {
+          ...minimapState,
+          toggleOpacity: toggleState.opacity,
+          toggleVisibility: toggleState.visibility,
+          ...nodeState,
+        }
       }
 
       const beforeHover = await readHoverAffordanceState()
 
-      const minimap = window.locator('.workspace-canvas__minimap')
-      await expect(minimap).toBeVisible()
       const minimapBox = await minimap.boundingBox()
       const flowBox = await window.locator('.workspace-canvas .react-flow').boundingBox()
       if (!minimapBox || !flowBox) {
@@ -138,15 +192,211 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       await expect
         .poll(async () => await readHoverAffordanceState())
         .toMatchObject({
-          haloOpacity: '1',
+          toggleVisibility: 'visible',
+          isHovered: true,
+          frameFill: hoverFillColor,
+          headerFill: hoverHeaderColor,
         })
 
       const afterHover = await readHoverAffordanceState()
 
-      expect(afterHover.groupTransform).not.toBe(beforeHover.groupTransform)
-      expect(Number(afterHover.shadowOpacity)).toBeGreaterThan(Number(beforeHover.shadowOpacity))
-      expect(afterHover.shadowFilter).not.toBe(beforeHover.shadowFilter)
-      expect(Number(afterHover.haloOpacity)).toBeGreaterThan(Number(beforeHover.haloOpacity))
+      expect(afterHover.minimapBorderColor).not.toBe(beforeHover.minimapBorderColor)
+      expect(afterHover.minimapBackgroundColor).not.toBe(beforeHover.minimapBackgroundColor)
+      expect(Number(afterHover.toggleOpacity)).toBeGreaterThan(Number(beforeHover.toggleOpacity))
+      expect(afterHover.headerTagName).toBe('path')
+      expect(afterHover.headerPath).toContain(`L ${hoverTargetFrame.width}`)
+      expect(afterHover.frameFill).toBe(hoverFillColor)
+      expect(afterHover.headerFill).toBe(hoverHeaderColor)
+      expect(afterHover.frameStroke).not.toBe(beforeHover.frameStroke)
+      expect(afterHover.groupTransform).toBe(beforeHover.groupTransform)
+      expect(afterHover.frameX).toBe(beforeHover.frameX)
+      expect(afterHover.frameY).toBe(beforeHover.frameY)
+      expect(afterHover.frameWidth).toBe(beforeHover.frameWidth)
+      expect(afterHover.frameHeight).toBe(beforeHover.frameHeight)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('viewport mask stays above minimap content and node hover stays stable near node center', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await clearAndSeedWorkspace(window, [
+        {
+          id: 'terminal-minimap-stability-a',
+          title: 'terminal-minimap-stability-a',
+          position: { x: 120, y: 120 },
+          width: 460,
+          height: 300,
+          kind: 'terminal',
+          status: 'running',
+        },
+        {
+          id: 'task-minimap-stability-b',
+          title: 'task-minimap-stability-b',
+          position: { x: 980, y: 780 },
+          width: 460,
+          height: 280,
+          kind: 'task',
+          task: {
+            requirement: 'Stable hover from minimap',
+            status: 'doing',
+            priority: 'medium',
+            tags: ['minimap'],
+            linkedAgentNodeId: null,
+            lastRunAt: null,
+            autoGeneratedTitle: false,
+          },
+        },
+      ])
+
+      const minimap = window.locator('.workspace-canvas__minimap')
+      const viewportMask = window.locator('.workspace-canvas__minimap-viewport-mask')
+      const taskMinimapNode = window.locator(
+        '[data-testid="workspace-minimap-group-task-minimap-stability-b"]',
+      )
+      const taskMinimapFrame = window.locator(
+        '[data-testid="workspace-minimap-node-task-minimap-stability-b"]',
+      )
+      await expect(minimap).toBeVisible()
+      await expect(viewportMask).toBeVisible()
+      await expect(taskMinimapNode).toBeVisible()
+      const hoverFillColor = await resolveCssColorToken(
+        window,
+        '--cove-canvas-minimap-node-hover-fill',
+      )
+
+      const minimapBox = await minimap.boundingBox()
+      const flowBox = await window.locator('.workspace-canvas .react-flow').boundingBox()
+      if (!minimapBox || !flowBox) {
+        throw new Error('minimap or flow bounding box unavailable')
+      }
+
+      const viewportMaskZIndex = await window
+        .locator('.workspace-canvas__minimap-viewport-overlay')
+        .evaluate(element => {
+          return window.getComputedStyle(element).zIndex
+        })
+      expect(Number(viewportMaskZIndex)).toBeGreaterThan(1)
+
+      const viewportMaskPointerEvents = await viewportMask.evaluate(element => {
+        return window.getComputedStyle(element).pointerEvents
+      })
+      expect(viewportMaskPointerEvents).toBe('none')
+
+      const viewport = await readCanvasViewport(window)
+      const targetNodeFrame = {
+        x: 980,
+        y: 780,
+        width: 460,
+        height: 280,
+      }
+      const sourceNodeFrame = {
+        x: 120,
+        y: 120,
+        width: 460,
+        height: 300,
+      }
+      const viewBounds = {
+        x: -viewport.x / viewport.zoom,
+        y: -viewport.y / viewport.zoom,
+        width: flowBox.width / viewport.zoom,
+        height: flowBox.height / viewport.zoom,
+      }
+      const boundingRect = {
+        x: Math.min(viewBounds.x, sourceNodeFrame.x, targetNodeFrame.x),
+        y: Math.min(viewBounds.y, sourceNodeFrame.y, targetNodeFrame.y),
+        width:
+          Math.max(
+            viewBounds.x + viewBounds.width,
+            sourceNodeFrame.x + sourceNodeFrame.width,
+            targetNodeFrame.x + targetNodeFrame.width,
+          ) - Math.min(viewBounds.x, sourceNodeFrame.x, targetNodeFrame.x),
+        height:
+          Math.max(
+            viewBounds.y + viewBounds.height,
+            sourceNodeFrame.y + sourceNodeFrame.height,
+            targetNodeFrame.y + targetNodeFrame.height,
+          ) - Math.min(viewBounds.y, sourceNodeFrame.y, targetNodeFrame.y),
+      }
+      const scaledWidth = boundingRect.width / minimapBox.width
+      const scaledHeight = boundingRect.height / minimapBox.height
+      const viewScale = Math.max(scaledWidth, scaledHeight, Number.EPSILON)
+      const viewWidth = viewScale * minimapBox.width
+      const viewHeight = viewScale * minimapBox.height
+      const offset = 5 * viewScale
+      const minimapViewBox = {
+        x: boundingRect.x - (viewWidth - boundingRect.width) / 2 - offset,
+        y: boundingRect.y - (viewHeight - boundingRect.height) / 2 - offset,
+        width: viewWidth + offset * 2,
+        height: viewHeight + offset * 2,
+      }
+      const targetCenter = {
+        x: targetNodeFrame.x + targetNodeFrame.width / 2,
+        y: targetNodeFrame.y + targetNodeFrame.height / 2,
+      }
+      const hoverPoint = {
+        x:
+          minimapBox.x +
+          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapBox.width,
+        y:
+          minimapBox.y +
+          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapBox.height,
+      }
+
+      await window.mouse.move(hoverPoint.x, hoverPoint.y)
+
+      await expect
+        .poll(async () => {
+          return await taskMinimapNode.evaluate(element => {
+            return {
+              hovered: element.classList.contains('hovered'),
+              fill: window.getComputedStyle(
+                document.querySelector(
+                  '[data-testid=\"workspace-minimap-node-task-minimap-stability-b\"]',
+                ) as SVGElement,
+              ).fill,
+            }
+          })
+        })
+        .toEqual({
+          hovered: true,
+          fill: hoverFillColor,
+        })
+
+      await window.mouse.move(hoverPoint.x + 1, hoverPoint.y + 1)
+      await window.mouse.move(hoverPoint.x - 1, hoverPoint.y - 1)
+      await window.mouse.move(hoverPoint.x + 4, hoverPoint.y)
+      await window.mouse.move(hoverPoint.x - 4, hoverPoint.y)
+
+      await expect
+        .poll(async () => {
+          return await taskMinimapNode.evaluate(element => {
+            return {
+              hovered: element.classList.contains('hovered'),
+              fill: window.getComputedStyle(
+                document.querySelector(
+                  '[data-testid=\"workspace-minimap-node-task-minimap-stability-b\"]',
+                ) as SVGElement,
+              ).fill,
+            }
+          })
+        })
+        .toEqual({
+          hovered: true,
+          fill: hoverFillColor,
+        })
+
+      await window.mouse.move(minimapBox.x + minimapBox.width / 2, minimapBox.y + minimapBox.height / 2)
+
+      await expect
+        .poll(async () => {
+          return await window.evaluate(() => {
+            return document.querySelector('.workspace-canvas__minimap') instanceof HTMLElement
+          })
+        })
+        .toBe(true)
     } finally {
       await electronApp.close()
     }
@@ -228,14 +478,15 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       }
 
       const viewportMaskStyle = await viewportMask.evaluate(element => {
-        const style = window.getComputedStyle(element)
         return {
-          backgroundColor: style.backgroundColor,
-          borderTopColor: style.borderTopColor,
+          fill: element.getAttribute('fill'),
+          stroke: element.getAttribute('stroke'),
+          width: element.getAttribute('width'),
+          height: element.getAttribute('height'),
         }
       })
-      expect(viewportMaskStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
-      expect(viewportMaskStyle.borderTopColor).not.toBe('rgba(0, 0, 0, 0)')
+      expect(viewportMaskStyle.width).not.toBe('0')
+      expect(viewportMaskStyle.height).not.toBe('0')
 
       const reactFlowMaskStyle = await reactFlowMask.evaluate(element => {
         const style = window.getComputedStyle(element)
@@ -246,9 +497,6 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       })
       expect(reactFlowMaskStyle.fill).toBe('rgba(0, 0, 0, 0)')
       expect(reactFlowMaskStyle.strokeWidth).toBe('0px')
-
-      const minimapHeader = window.locator('.workspace-canvas__minimap-viewport-window-header')
-      await expect(minimapHeader).toHaveCount(0)
 
       const viewport = await readCanvasViewport(window)
       const targetNodeFrame = {
@@ -328,6 +576,69 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
           return delta.dy
         })
         .toBeLessThan(150)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('clicking a minimap terminal node repeatedly keeps focus navigation stable', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await clearAndSeedWorkspace(window, [
+        {
+          id: 'terminal-minimap-repeat-a',
+          title: 'terminal-minimap-repeat-a',
+          position: { x: 120, y: 120 },
+          width: 460,
+          height: 300,
+          kind: 'terminal',
+        },
+        {
+          id: 'terminal-minimap-repeat-b',
+          title: 'terminal-minimap-repeat-b',
+          position: { x: 1520, y: 980 },
+          width: 460,
+          height: 300,
+          kind: 'terminal',
+        },
+      ])
+
+      const minimapTerminal = window.locator(
+        '[data-testid="workspace-minimap-hitbox-terminal-minimap-repeat-b"]',
+      )
+      const terminalNode = window.locator('.terminal-node').filter({
+        hasText: 'terminal-minimap-repeat-b',
+      })
+      await expect(minimapTerminal).toBeVisible()
+      await expect(terminalNode).toBeVisible()
+
+      const readCenterDelta = async (): Promise<{ dx: number; dy: number }> => {
+        const canvasBox = await window.locator('.workspace-canvas .react-flow').boundingBox()
+        const nodeBox = await terminalNode.boundingBox()
+
+        if (!canvasBox || !nodeBox) {
+          return {
+            dx: Number.POSITIVE_INFINITY,
+            dy: Number.POSITIVE_INFINITY,
+          }
+        }
+
+        return {
+          dx: Math.abs(canvasBox.x + canvasBox.width / 2 - (nodeBox.x + nodeBox.width / 2)),
+          dy: Math.abs(canvasBox.y + canvasBox.height / 2 - (nodeBox.y + nodeBox.height / 2)),
+        }
+      }
+
+      for (let index = 0; index < 3; index += 1) {
+        await minimapTerminal.click()
+        await expect
+          .poll(async () => {
+            const delta = await readCenterDelta()
+            return delta.dx < 40 && delta.dy < 40
+          })
+          .toBe(true)
+      }
     } finally {
       await electronApp.close()
     }

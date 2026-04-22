@@ -281,6 +281,65 @@ test.describe('Workspace Canvas - Sidebar Workspaces', () => {
     }
   })
 
+  test('keeps restoring terminals in active status until runtime state arrives', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace-project-restoring',
+        workspaces: [
+          {
+            id: 'workspace-project-restoring',
+            name: 'workspace-project-restoring',
+            path: testWorkspacePath,
+            nodes: [
+              {
+                id: 'terminal-restoring',
+                title: 'terminal-restoring',
+                position: { x: 120, y: 120 },
+                width: 460,
+                height: 300,
+                kind: 'terminal',
+                status: 'restoring',
+                startedAt: '2026-02-09T08:00:00.000Z',
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+                hostedAgent: {
+                  provider: 'codex',
+                  state: 'active',
+                  promptHint: null,
+                  lastError: null,
+                  restoreIntent: true,
+                  model: null,
+                },
+              },
+            ],
+          },
+        ],
+      })
+
+      const statusDot = window.locator(
+        '[data-testid="workspace-status-dot-workspace-project-restoring"]',
+      )
+      const popover = window.locator(
+        '[data-testid="workspace-status-popover-workspace-project-restoring"]',
+      )
+
+      await expect(statusDot).toBeVisible()
+      await expect(statusDot).toHaveClass(/workspace-item__status-dot--active/)
+      await expect(statusDot).toHaveClass(/workspace-item__status-dot--pulse/)
+
+      await window
+        .locator('[data-testid="workspace-status-trigger-workspace-project-restoring"]')
+        .hover()
+      await expect(popover).toBeVisible()
+      await expect(popover).toContainText(/恢复中|Restoring/)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
   test('shows error terminal status dot when any terminal fails', async () => {
     const { electronApp, window } = await launchApp()
 

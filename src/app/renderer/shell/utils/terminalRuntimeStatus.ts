@@ -10,29 +10,7 @@ export function resolveRuntimeStatusFromSessionState(
   return state === 'standby' ? 'standby' : 'running'
 }
 
-export function shouldPromoteRestoringToStandby(
-  status: TerminalNodeData['status'],
-  options?: {
-    hasHostedAgent?: boolean
-    restoreIntent?: boolean
-  },
-): boolean {
-  return (
-    status === 'restoring' && options?.hasHostedAgent === true && options?.restoreIntent === true
-  )
-}
-
 export function resolveTerminalRuntimeStatus(data: TerminalNodeData): TerminalNodeData['status'] {
-  if (
-    data.status === 'restoring' &&
-    shouldPromoteRestoringToStandby(data.status, {
-      hasHostedAgent: Boolean(data.hostedAgent),
-      restoreIntent: data.hostedAgent?.restoreIntent,
-    })
-  ) {
-    return 'standby'
-  }
-
   if (data.status !== null) {
     return data.status
   }

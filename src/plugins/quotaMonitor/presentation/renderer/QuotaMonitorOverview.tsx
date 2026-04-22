@@ -153,6 +153,17 @@ function formatQuotaLabel(value: number): string {
   return Number.isFinite(value) ? Math.max(0, value).toFixed(0) : '--'
 }
 
+function formatAverageQuotaLabel(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '--'
+  }
+
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
+}
+
 function formatTokenCompact(value: number): string {
   if (!Number.isFinite(value) || value <= 0) {
     return '--'
@@ -450,6 +461,52 @@ function formatRemainingDaysLabel(
   })
 }
 
+function resolveRemainingDaysLabel(
+  snapshot: QuotaMonitorProfileStateDto | null,
+  t: QuotaMonitorTranslator,
+): string {
+  if (!snapshot || isPendingSnapshot(snapshot)) {
+    return '--'
+  }
+
+  if (
+    typeof snapshot.remainingDaysLabel === 'string' &&
+    snapshot.remainingDaysLabel.trim().length > 0
+  ) {
+    return snapshot.remainingDaysLabel.trim()
+  }
+
+  return formatRemainingDaysLabel(snapshot.expiredTimeFormatted, t)
+}
+
+function formatEstimatedWorkHoursLabel(
+  snapshot: QuotaMonitorProfileStateDto | null,
+  t: QuotaMonitorTranslator,
+): string {
+  const hoursLabel = formatHoursDurationLabel(snapshot?.estimatedRemainingHours ?? null, t)
+  return hoursLabel !== '--' ? hoursLabel : '--'
+}
+
+function resolveAverageQuotaPerCall(snapshot: QuotaMonitorProfileStateDto | null): number | null {
+  if (!snapshot || isPendingSnapshot(snapshot)) {
+    return null
+  }
+
+  if (Number.isFinite(snapshot.averageQuotaPerCall) && snapshot.averageQuotaPerCall > 0) {
+    return snapshot.averageQuotaPerCall
+  }
+
+  if (
+    snapshot.todayUsageCount > 0 &&
+    Number.isFinite(snapshot.todayUsedQuota) &&
+    snapshot.todayUsedQuota > 0
+  ) {
+    return snapshot.todayUsedQuota / snapshot.todayUsageCount
+  }
+
+  return null
+}
+
 function QuotaRing({ ratio }: { ratio: number }): React.JSX.Element {
   const clampedRatio = Math.max(0, Math.min(1, ratio))
   const radius = 48
@@ -494,6 +551,7 @@ function QuotaHeroCard({
 }): React.JSX.Element {
   const { t } = useTranslation()
   const hasError = snapshot?.error && !isPendingSnapshot(snapshot)
+  const remainingDaysLabel = resolveRemainingDaysLabel(snapshot, t)
 
   return (
     <article
@@ -503,9 +561,14 @@ function QuotaHeroCard({
         <div>
           <span className="quota-monitor-overview__hero-kicker">{profile.label}</span>
           <h5>{snapshot?.tokenName ?? profile.label}</h5>
-          <p>
-            {snapshot?.statusText ?? t('pluginManager.plugins.quotaMonitor.profileState.pending')}
-          </p>
+          <div className="quota-monitor-overview__hero-status-line">
+            <p>
+              {snapshot?.statusText ?? t('pluginManager.plugins.quotaMonitor.profileState.pending')}
+            </p>
+            {remainingDaysLabel !== '--' ? (
+              <span className="quota-monitor-overview__hero-status-meta">{remainingDaysLabel}</span>
+            ) : null}
+          </div>
         </div>
         <span className="quota-monitor-overview__hero-type" style={{ borderColor: accent }}>
           {profile.type === 'capped'
@@ -518,13 +581,21 @@ function QuotaHeroCard({
         <QuotaRing ratio={snapshot?.remainRatio ?? 0} />
 
         <div className="quota-monitor-overview__hero-primary">
-          <strong>{resolveRemainQuotaDisplay(snapshot)}</strong>
           <div className="quota-monitor-overview__hero-primary-meta">
-            <span>{t('pluginManager.plugins.quotaMonitor.metrics.remainQuota')}</span>
-            <div className="quota-monitor-overview__hero-primary-stats">
-              <p>{formatRemainingDaysLabel(snapshot?.expiredTimeFormatted, t)}</p>
-              <p>{formatHoursDurationLabel(snapshot?.estimatedRemainingHours ?? null, t)}</p>
-            </div>
+            <span className="quota-monitor-overview__hero-primary-label">
+              {t('pluginManager.plugins.quotaMonitor.metrics.remainQuota')}
+            </span>
+            <strong>{resolveRemainQuotaDisplay(snapshot)}</strong>
+          </div>
+          <div className="quota-monitor-overview__hero-primary-stats">
+            <p className="quota-monitor-overview__hero-primary-stat">
+              <span className="quota-monitor-overview__hero-primary-stat-label">
+                {t('pluginManager.plugins.quotaMonitor.metrics.estimatedWorkHours')}
+              </span>
+              <span className="quota-monitor-overview__hero-primary-stat-value">
+                {formatEstimatedWorkHoursLabel(snapshot, t)}
+              </span>
+            </p>
           </div>
         </div>
       </div>
@@ -1166,6 +1237,10 @@ function UsageSummaryGrid({
     {
       label: t('pluginManager.plugins.quotaMonitor.metrics.usageCount'),
       value: snapshot ? formatCountLabel(snapshot.todayUsageCount, t) : '--',
+    },
+    {
+      label: t('pluginManager.plugins.quotaMonitor.metrics.avgQuota'),
+      value: formatAverageQuotaLabel(resolveAverageQuotaPerCall(snapshot) ?? Number.NaN),
     },
     {
       label: t('pluginManager.plugins.quotaMonitor.metrics.todayTokens'),

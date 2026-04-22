@@ -31,6 +31,11 @@ import {
   normalizeOssBackupSettings,
 } from '@contexts/plugins/domain/ossBackupSettings'
 import {
+  DEFAULT_WORKSPACE_ASSISTANT_SETTINGS,
+  normalizeWorkspaceAssistantSettings,
+  type WorkspaceAssistantSettingsDto,
+} from '@contexts/plugins/domain/workspaceAssistantSettings'
+import {
   EMPTY_TERMINAL_CREDENTIAL_DEFAULTS,
   normalizeTerminalCredentialsSettings,
   type TerminalCredentialsSettings,
@@ -135,6 +140,7 @@ export interface PluginSettings {
   quotaMonitor: QuotaMonitorSettingsDto
   gitWorklog: GitWorklogSettingsDto
   ossBackup: OssBackupSettingsDto
+  workspaceAssistant: WorkspaceAssistantSettingsDto
 }
 
 export type { TaskPromptTemplate, TaskPromptTemplatesByWorkspaceId } from './taskPromptTemplates'
@@ -236,6 +242,7 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
     quotaMonitor: DEFAULT_QUOTA_MONITOR_SETTINGS,
     gitWorklog: DEFAULT_GIT_WORKLOG_SETTINGS,
     ossBackup: DEFAULT_OSS_BACKUP_SETTINGS,
+    workspaceAssistant: DEFAULT_WORKSPACE_ASSISTANT_SETTINGS,
   },
   updatePolicy: 'prompt',
   updateChannel: 'stable',
@@ -518,6 +525,7 @@ export function normalizeAgentSettings(value: unknown): AgentSettings {
     quotaMonitor: normalizeQuotaMonitorSettings(pluginSource.quotaMonitor),
     gitWorklog: normalizeGitWorklogSettings(pluginSource.gitWorklog),
     ossBackup: normalizeOssBackupSettings(pluginSource.ossBackup),
+    workspaceAssistant: normalizeWorkspaceAssistantSettings(pluginSource.workspaceAssistant),
   }
   const updateChannel = isValidUpdateChannel(value.updateChannel)
     ? value.updateChannel

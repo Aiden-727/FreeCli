@@ -13,6 +13,7 @@ import type {
   ResolveGitWorklogRepositoryResult,
   SystemMonitorStateDto,
   SyncInputStatsSettingsInput,
+  SyncWorkspaceAssistantWorkspaceSnapshotInput,
   SyncSystemMonitorSettingsInput,
   SyncGitWorklogSettingsInput,
   SyncGitWorklogWorkspacesInput,
@@ -30,6 +31,7 @@ import { GitWorklogScanner } from '../../../../plugins/gitWorklog/presentation/m
 import { GitWorklogHistoryStore } from '../../../../plugins/gitWorklog/infrastructure/main/GitWorklogHistoryStore'
 import { OssBackupPluginController } from '../../../../plugins/ossBackup/presentation/main/OssBackupPluginController'
 import { SystemMonitorPluginController } from '../../../../plugins/systemMonitor/presentation/main/SystemMonitorPluginController'
+import { WorkspaceAssistantPluginController } from '../../../../plugins/workspaceAssistant/presentation/main/WorkspaceAssistantPluginController'
 import { createAppError } from '../../../../shared/errors/appError'
 import {
   normalizeNotifyOssBackupPersistedSettingsPayload,
@@ -41,6 +43,9 @@ import {
   normalizeSyncPluginRuntimeStatePayload,
   normalizeSyncQuotaMonitorSettingsPayload,
   normalizeSyncSystemMonitorSettingsPayload,
+  normalizeSyncWorkspaceAssistantSettingsPayload,
+  normalizeSyncWorkspaceAssistantWorkspaceSnapshotPayload,
+  normalizeWorkspaceAssistantPromptPayload,
 } from './validate'
 import type { ApprovedWorkspaceStore } from '../../../workspace/infrastructure/approval/ApprovedWorkspaceStore'
 import type { PersistenceStore } from '../../../../platform/persistence/sqlite/PersistenceStore'
@@ -78,6 +83,7 @@ export function registerPluginIpcHandlers(
     userDataPath,
     gitWorklogHistoryStore,
   })
+  const workspaceAssistantController = new WorkspaceAssistantPluginController()
   const pluginRuntimeHost = new MainPluginRuntimeHost({
     ...getBuiltinPluginRuntimeFactories(),
     'input-stats': inputStatsController.createRuntimeFactory(),
@@ -85,6 +91,7 @@ export function registerPluginIpcHandlers(
     'quota-monitor': quotaMonitorController.createRuntimeFactory(),
     'git-worklog': gitWorklogController.createRuntimeFactory(),
     'oss-backup': ossBackupController.createRuntimeFactory(),
+    'workspace-assistant': workspaceAssistantController.createRuntimeFactory(),
   })
 
   registerHandledIpc<SyncPluginRuntimeStateResult, SyncPluginRuntimeStateInput>(
@@ -256,6 +263,51 @@ export function registerPluginIpcHandlers(
     { defaultErrorCode: 'common.unexpected' },
   )
 
+  registerHandledIpc(
+    IPC_CHANNELS.pluginsWorkspaceAssistantSyncSettings,
+    async (_event, payload) => {
+      const normalized = normalizeSyncWorkspaceAssistantSettingsPayload(payload)
+      return workspaceAssistantController.syncSettings(normalized.settings)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc(
+    IPC_CHANNELS.pluginsWorkspaceAssistantSyncWorkspaceSnapshot,
+    async (_event, payload: SyncWorkspaceAssistantWorkspaceSnapshotInput) => {
+      const normalized = normalizeSyncWorkspaceAssistantWorkspaceSnapshotPayload(payload)
+      return workspaceAssistantController.syncWorkspaceSnapshot(normalized.snapshot)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc(
+    IPC_CHANNELS.pluginsWorkspaceAssistantGetState,
+    () => workspaceAssistantController.getState(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc(
+    IPC_CHANNELS.pluginsWorkspaceAssistantTestConnection,
+    async () => await workspaceAssistantController.testConnection(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc(
+    IPC_CHANNELS.pluginsWorkspaceAssistantPrompt,
+    async (_event, payload) => {
+      const normalized = normalizeWorkspaceAssistantPromptPayload(payload)
+      return workspaceAssistantController.prompt(normalized)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc(
+    IPC_CHANNELS.pluginsWorkspaceAssistantStopPrompt,
+    () => workspaceAssistantController.stopPrompt(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
   return {
     dispose: async () => {
       ipcMain.removeHandler(IPC_CHANNELS.pluginsSyncRuntimeState)
@@ -280,12 +332,19 @@ export function registerPluginIpcHandlers(
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupGetSyncComparison)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupRestore)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupNotifyPersistedSettings)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantSyncSettings)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantSyncWorkspaceSnapshot)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantGetState)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantTestConnection)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantPrompt)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantStopPrompt)
       await pluginRuntimeHost.dispose()
       await inputStatsController.dispose()
       await systemMonitorController.dispose()
       await quotaMonitorController.dispose()
       await gitWorklogController.dispose()
       await ossBackupController.dispose()
+      await workspaceAssistantController.dispose()
       await gitWorklogHistoryStore.dispose()
     },
   }

@@ -36,6 +36,7 @@ import { useWhatsNew } from './hooks/useWhatsNew'
 import { PluginControlCenterSlot } from '@contexts/plugins/presentation/renderer/PluginControlCenterSlot'
 import { PluginHeaderSlot } from '@contexts/plugins/presentation/renderer/PluginHeaderSlot'
 import { PluginManagerPanel } from '@contexts/plugins/presentation/renderer/PluginManagerPanel'
+import { PluginWorkspaceOverlaySlot } from '@contexts/plugins/presentation/renderer/PluginWorkspaceOverlaySlot'
 import type { BuiltinPluginId } from '@contexts/plugins/domain/pluginManifest'
 import type {
   PluginHostDiagnosticCode,
@@ -45,6 +46,7 @@ import {
   buildPluginHostSyncTasks,
   resolvePersistedPluginChangeIds,
 } from '@contexts/plugins/presentation/renderer/pluginHostSyncRegistry'
+import { buildWorkspaceAssistantSnapshot } from '../../../plugins/workspaceAssistant/presentation/renderer/workspaceAssistantContext'
 import type { ProjectContextMenuState } from './types'
 import { useAppStore } from './store/useAppStore'
 import { reorderWorkspaces } from './utils/reorderWorkspaces'
@@ -147,6 +149,10 @@ export default function App(): React.JSX.Element {
     () => workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? null,
     [activeWorkspaceId, workspaces],
   )
+  const workspaceAssistantSnapshot = useMemo(
+    () => buildWorkspaceAssistantSnapshot(activeWorkspace),
+    [activeWorkspace],
+  )
 
   const activeWorkspaceName = activeWorkspace?.name ?? null
 
@@ -186,9 +192,10 @@ export default function App(): React.JSX.Element {
       buildPluginHostSyncTasks({
         settings: agentSettings,
         workspaces: workspacePluginSyncItems,
+        workspaceAssistantSnapshot,
         api: window.freecliApi,
       }),
-    [agentSettings, workspacePluginSyncItems],
+    [agentSettings, workspaceAssistantSnapshot, workspacePluginSyncItems],
   )
 
   const toggleCommandCenter = useCallback((): void => {
@@ -257,6 +264,25 @@ export default function App(): React.JSX.Element {
   const closePluginManager = useCallback((): void => {
     setIsPluginManagerOpen(false)
   }, [])
+
+  const toggleWorkspaceAssistant = useCallback((): void => {
+    setAgentSettings(prev => {
+      if (!prev.plugins.enabledIds.includes('workspace-assistant')) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        plugins: {
+          ...prev.plugins,
+          workspaceAssistant: {
+            ...prev.plugins.workspaceAssistant,
+            dockCollapsed: !prev.plugins.workspaceAssistant.dockCollapsed,
+          },
+        },
+      }
+    })
+  }, [setAgentSettings])
 
   const openSettingsPage = useCallback(
     (pageId: 'general' | 'integrations'): void => {
@@ -681,6 +707,7 @@ export default function App(): React.JSX.Element {
                 onOpenPluginManager={pageId => {
                   openPluginManager(pageId ?? 'general')
                 }}
+                onToggleWorkspaceAssistant={toggleWorkspaceAssistant}
               />
             ) : null
           }
@@ -778,6 +805,18 @@ export default function App(): React.JSX.Element {
               onOpenPluginManager={pageId => {
                 openPluginManager(pageId ?? 'general')
               }}
+            />
+          ) : null
+        }
+        pluginWorkspaceOverlays={
+          agentSettings.plugins.enabledIds.length > 0 ? (
+            <PluginWorkspaceOverlaySlot
+              enabledPluginIds={agentSettings.plugins.enabledIds}
+              activeWorkspaceId={activeWorkspaceId}
+              onOpenPluginManager={pageId => {
+                openPluginManager(pageId ?? 'general')
+              }}
+              onShowMessage={handleShowMessage}
             />
           ) : null
         }

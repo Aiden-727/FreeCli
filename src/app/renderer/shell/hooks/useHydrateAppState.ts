@@ -14,6 +14,7 @@ import type {
   WorkspaceState,
 } from '@contexts/workspace/presentation/renderer/types'
 import { toErrorMessage } from '@app/renderer/shell/utils/format'
+import { useAppStore } from '@app/renderer/shell/store/useAppStore'
 import { useScrollbackStore } from '@contexts/workspace/presentation/renderer/store/useScrollbackStore'
 import { readPersistedStateWithMeta } from '@contexts/workspace/presentation/renderer/utils/persistence'
 import { getPersistencePort } from '@contexts/workspace/presentation/renderer/utils/persistence/port'
@@ -157,6 +158,37 @@ function mergeHydratedNode(
       task: hydratedNode.data.task ?? currentNode.data.task,
       note: hydratedNode.data.note ?? currentNode.data.note,
     },
+  }
+}
+
+function mergeHydratedNodesIntoWorkspace(
+  workspace: WorkspaceState,
+  hydratedNodes: Array<Node<TerminalNodeData>>,
+): WorkspaceState {
+  if (hydratedNodes.length === 0 || workspace.nodes.length === 0) {
+    return workspace
+  }
+
+  const hydratedNodeById = new Map(hydratedNodes.map(node => [node.id, node]))
+  let didChange = false
+
+  const nextNodes = workspace.nodes.map(node => {
+    const hydratedNode = hydratedNodeById.get(node.id)
+    if (!hydratedNode) {
+      return node
+    }
+
+    didChange = true
+    return mergeHydratedNode(node, hydratedNode)
+  })
+
+  if (!didChange) {
+    return workspace
+  }
+
+  return {
+    ...workspace,
+    nodes: nextNodes,
   }
 }
 
@@ -501,9 +533,13 @@ export function useHydrateAppState({
     }))
   }, [])
 
-  const applyHydratedNode = useCallback(
-    (workspaceId: string, hydratedNode: Node<TerminalNodeData>): void => {
+  const applyHydratedNodes = useCallback(
+    (workspaceId: string, hydratedNodes: Array<Node<TerminalNodeData>>): void => {
       if (isCancelledRef.current) {
+        return
+      }
+
+      if (hydratedNodes.length === 0) {
         return
       }
 
@@ -513,12 +549,7 @@ export function useHydrateAppState({
             return workspace
           }
 
-          return {
-            ...workspace,
-            nodes: workspace.nodes.map(node =>
-              node.id === hydratedNode.id ? mergeHydratedNode(node, hydratedNode) : node,
-            ),
-          }
+          return mergeHydratedNodesIntoWorkspace(workspace, hydratedNodes)
         }),
       )
     },
@@ -639,17 +670,19 @@ export function useHydrateAppState({
       }
 
       const hydrationPromise = Promise.allSettled(
-        runtimeNodes.map(async node => {
-          const hydratedNode = await hydrateRuntimeNode({
+        runtimeNodes.map(node =>
+          hydrateRuntimeNode({
             node,
             workspacePath: persistedWorkspace.path,
             agentSettings: agentSettingsRef.current,
-          })
-
-          applyHydratedNode(workspaceId, hydratedNode)
-        }),
+          }),
+        ),
       )
-        .then(() => {
+        .then(results => {
+          const hydratedNodes = results.flatMap(result =>
+            result.status === 'fulfilled' ? [result.value] : [],
+          )
+          applyHydratedNodes(workspaceId, hydratedNodes)
           hydratedWorkspaceIdsRef.current.add(workspaceId)
         })
         .finally(() => {
@@ -660,7 +693,7 @@ export function useHydrateAppState({
       hydratingWorkspacePromisesRef.current.set(workspaceId, hydrationPromise)
       await hydrationPromise
     },
-    [applyHydratedNode, loadWorkspaceScrollbacks, markInitialHydrationComplete],
+    [applyHydratedNodes, loadWorkspaceScrollbacks, markInitialHydrationComplete],
   )
 
   useEffect(() => {

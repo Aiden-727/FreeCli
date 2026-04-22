@@ -20,6 +20,12 @@ import type {
   ListAgentModelsInput,
   ListAgentModelsResult,
   ListInstalledAgentProvidersResult,
+  GetAgentExtensionsInput,
+  GetAgentExtensionsResult,
+  AddAgentMcpServerInput,
+  RemoveAgentMcpServerInput,
+  CreateAgentSkillInput,
+  CreateAgentSkillResult,
   ListTerminalProfilesResult,
   ReadAgentLastMessageInput,
   ReadAgentLastMessageResult,
@@ -37,6 +43,8 @@ import type {
   OssSyncComparisonDto,
   OssBackupStateDto,
   RestorePluginBackupResultDto,
+  SyncWorkspaceAssistantSettingsInput,
+  SyncWorkspaceAssistantWorkspaceSnapshotInput,
   SyncInputStatsSettingsInput,
   SyncSystemMonitorSettingsInput,
   SyncOssBackupSettingsInput,
@@ -45,6 +53,11 @@ import type {
   SyncQuotaMonitorSettingsInput,
   SyncPluginRuntimeStateInput,
   SyncPluginRuntimeStateResult,
+  WorkspaceAssistantConnectionTestResult,
+  WorkspaceAssistantPromptInput,
+  WorkspaceAssistantPromptResult,
+  WorkspaceAssistantStopPromptResult,
+  WorkspaceAssistantStateDto,
   AppUpdateState,
   ConfigureAppUpdatesInput,
   GetCurrentReleaseNotesInput,
@@ -200,6 +213,19 @@ export interface FreeCliApi {
       ) => Promise<OssBackupStateDto>
       onState: (listener: (state: OssBackupStateDto) => void) => UnsubscribeFn
     }
+    workspaceAssistant: {
+      syncSettings: (
+        payload: SyncWorkspaceAssistantSettingsInput,
+      ) => Promise<WorkspaceAssistantStateDto>
+      syncWorkspaceSnapshot: (
+        payload: SyncWorkspaceAssistantWorkspaceSnapshotInput,
+      ) => Promise<WorkspaceAssistantStateDto>
+      getState: () => Promise<WorkspaceAssistantStateDto>
+      testConnection: () => Promise<WorkspaceAssistantConnectionTestResult>
+      prompt: (payload: WorkspaceAssistantPromptInput) => Promise<WorkspaceAssistantPromptResult>
+      stopPrompt: () => Promise<WorkspaceAssistantStopPromptResult>
+      onState: (listener: (state: WorkspaceAssistantStateDto) => void) => UnsubscribeFn
+    }
   }
   update: {
     getState: () => Promise<AppUpdateState>
@@ -236,6 +262,12 @@ export interface FreeCliApi {
     resolveResumeSessionId: (
       payload: ResolveAgentResumeSessionInput,
     ) => Promise<ResolveAgentResumeSessionResult>
+  }
+  agentExtensions: {
+    getState: (payload: GetAgentExtensionsInput) => Promise<GetAgentExtensionsResult>
+    addMcpServer: (payload: AddAgentMcpServerInput) => Promise<void>
+    removeMcpServer: (payload: RemoveAgentMcpServerInput) => Promise<void>
+    createSkill: (payload: CreateAgentSkillInput) => Promise<CreateAgentSkillResult>
   }
   task: {
     suggestTitle: (payload: SuggestTaskTitleInput) => Promise<SuggestTaskTitleResult>

@@ -10,7 +10,9 @@ import {
   scheduleNodeScrollbackWrite,
 } from '../../../utils/persistence/scrollbackSchedule'
 import { toAgentNodeTitle } from '@app/renderer/shell/utils/format'
-import { parseHostedTerminalAgentCommand } from '@contexts/terminal/domain/hostedAgent'
+import {
+  parseHostedTerminalAgentCommand,
+} from '@contexts/terminal/domain/hostedAgent'
 import { TERMINAL_LAYOUT_SYNC_EVENT } from '../../terminalNode/constants'
 import { centerNodeInViewport } from '../helpers'
 import { syncWorkspaceCanvasTestState } from '../testHarness'

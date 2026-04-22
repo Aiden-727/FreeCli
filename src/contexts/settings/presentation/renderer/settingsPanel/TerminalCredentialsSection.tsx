@@ -90,14 +90,12 @@ export function TerminalCredentialsSection({
 
   return (
     <div className="settings-panel__section" id="settings-section-terminal-credentials">
-      <h3 className="settings-panel__section-title">
-        {t('settingsPanel.agent.terminalCredentials.title')}
-      </h3>
+      <h3 className="settings-panel__section-title">{t('settingsPanel.ai.title')}</h3>
 
       <div className="settings-panel__subsection">
         <div className="settings-panel__subsection-header">
-          <strong>{t('settingsPanel.agent.terminalCredentials.summaryTitle')}</strong>
-          <span>{t('settingsPanel.agent.terminalCredentials.summaryHelp')}</span>
+          <strong>{t('settingsPanel.ai.terminalCredentials.summaryTitle')}</strong>
+          <span>{t('settingsPanel.ai.terminalCredentials.summaryHelp')}</span>
         </div>
       </div>
 
@@ -116,12 +114,12 @@ export function TerminalCredentialsSection({
           <div className="settings-panel__subsection" key={provider}>
             <div className="settings-panel__subsection-header">
               <strong>
-                {t('settingsPanel.agent.terminalCredentials.providerTitle', {
+                {t('settingsPanel.ai.terminalCredentials.providerTitle', {
                   provider: label,
                 })}
               </strong>
               <span>
-                {t('settingsPanel.agent.terminalCredentials.providerHelp', {
+                {t('settingsPanel.ai.terminalCredentials.providerHelp', {
                   provider: label,
                 })}
               </span>
@@ -129,8 +127,8 @@ export function TerminalCredentialsSection({
 
             <div className="settings-panel__row">
               <div className="settings-panel__row-label">
-                <strong>{t('settingsPanel.agent.terminalCredentials.defaultProfileLabel')}</strong>
-                <span>{t('settingsPanel.agent.terminalCredentials.defaultProfileHelp')}</span>
+                <strong>{t('settingsPanel.ai.terminalCredentials.defaultProfileLabel')}</strong>
+                <span>{t('settingsPanel.ai.terminalCredentials.defaultProfileHelp')}</span>
               </div>
               <div className="settings-panel__control">
                 <CoveSelect
@@ -140,14 +138,14 @@ export function TerminalCredentialsSection({
                   options={[
                     {
                       value: '',
-                      label: t('settingsPanel.agent.terminalCredentials.useFirstEnabled'),
+                      label: t('settingsPanel.ai.terminalCredentials.useFirstEnabled'),
                     },
                     ...providerProfiles.map(profile => ({
                       value: profile.id,
                       label:
                         profile.label.trim().length > 0
                           ? profile.label.trim()
-                          : t('settingsPanel.agent.terminalCredentials.unnamedProfile'),
+                          : t('settingsPanel.ai.terminalCredentials.unnamedProfile'),
                     })),
                   ]}
                   onChange={nextValue => {
@@ -172,16 +170,16 @@ export function TerminalCredentialsSection({
                   <div className="settings-list-item__left settings-list-item__left--stack">
                     <div className="settings-panel__subsection-header">
                       <strong>
-                        {t('settingsPanel.agent.terminalCredentials.profileTitle', {
+                        {t('settingsPanel.ai.terminalCredentials.profileTitle', {
                           index: index + 1,
                         })}
                       </strong>
-                      <span>{t('settingsPanel.agent.terminalCredentials.profileHelp')}</span>
+                      <span>{t('settingsPanel.ai.terminalCredentials.profileHelp')}</span>
                     </div>
 
                     <div className="settings-panel__terminal-credentials-grid">
                       <label className="settings-panel__terminal-credentials-field">
-                        <span>{t('settingsPanel.agent.terminalCredentials.profileLabel')}</span>
+                        <span>{t('settingsPanel.ai.terminalCredentials.profileLabel')}</span>
                         <input
                           data-testid={`settings-terminal-credentials-label-${profile.id}`}
                           value={profile.label}
@@ -195,7 +193,7 @@ export function TerminalCredentialsSection({
                       </label>
 
                       <label className="settings-panel__terminal-credentials-field">
-                        <span>{t('settingsPanel.agent.terminalCredentials.apiKeyLabel')}</span>
+                        <span>{t('settingsPanel.ai.terminalCredentials.apiKeyLabel')}</span>
                         <input
                           data-testid={`settings-terminal-credentials-api-key-${profile.id}`}
                           type="password"
@@ -211,7 +209,7 @@ export function TerminalCredentialsSection({
                       </label>
 
                       <label className="settings-panel__terminal-credentials-field">
-                        <span>{t('settingsPanel.agent.terminalCredentials.baseUrlLabel')}</span>
+                        <span>{t('settingsPanel.ai.terminalCredentials.baseUrlLabel')}</span>
                         <input
                           data-testid={`settings-terminal-credentials-base-url-${profile.id}`}
                           autoComplete="off"
@@ -248,7 +246,7 @@ export function TerminalCredentialsSection({
                       data-testid={`settings-terminal-credentials-remove-${profile.id}`}
                       onClick={() => removeProfile(profile.id)}
                     >
-                      {t('settingsPanel.agent.terminalCredentials.removeProfile')}
+                      {t('settingsPanel.ai.terminalCredentials.removeProfile')}
                     </button>
                   </div>
                 </div>
@@ -261,7 +259,7 @@ export function TerminalCredentialsSection({
               data-testid={`settings-terminal-credentials-add-${provider}`}
               onClick={() => addProfile(credentialProvider)}
             >
-              {t('settingsPanel.agent.terminalCredentials.addProfile', { provider: label })}
+              {t('settingsPanel.ai.terminalCredentials.addProfile', { provider: label })}
             </button>
           </div>
         )

@@ -21,7 +21,9 @@
 @import './styles/settings-panel.preview.css';
 @import './styles/settings-panel.lists.css';
 @import './styles/settings-panel.buttons.css';
+@import './styles/agent-extensions.css';
 @import './styles/plugin-manager.css';
+@import './styles/workspace-assistant.css';
 @import './styles/cove-window.css';
 @import './styles/app-message.css';
 @import './styles/app-notifications.css';

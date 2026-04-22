@@ -4,6 +4,52 @@ import type { NormalizedPersistedAppState } from './normalize'
 import { normalizeScrollback } from './normalize'
 import { safeJsonStringify } from './utils'
 
+function buildSqlitePlaceholders(count: number): string {
+  return Array.from({ length: count }, () => '?').join(', ')
+}
+
+function deleteRowsMissingIds(
+  db: Database.Database,
+  tableName: string,
+  columnName: string,
+  ids: string[],
+): void {
+  if (ids.length === 0) {
+    db.prepare(`DELETE FROM ${tableName}`).run()
+    return
+  }
+
+  db.prepare(
+    `DELETE FROM ${tableName} WHERE ${columnName} NOT IN (${buildSqlitePlaceholders(ids.length)})`,
+  ).run(...ids)
+}
+
+function deleteScopedRowsMissingIds(
+  db: Database.Database,
+  options: {
+    tableName: string
+    scopeColumnName: string
+    scopeValue: string
+    idColumnName: string
+    ids: string[]
+  },
+): void {
+  const { tableName, scopeColumnName, scopeValue, idColumnName, ids } = options
+
+  if (ids.length === 0) {
+    db.prepare(`DELETE FROM ${tableName} WHERE ${scopeColumnName} = ?`).run(scopeValue)
+    return
+  }
+
+  db.prepare(
+    `
+      DELETE FROM ${tableName}
+      WHERE ${scopeColumnName} = ?
+        AND ${idColumnName} NOT IN (${buildSqlitePlaceholders(ids.length)})
+    `,
+  ).run(scopeValue, ...ids)
+}
+
 export function writeNormalizedAppState(
   db: Database.Database,
   state: NormalizedPersistedAppState,
@@ -31,6 +77,17 @@ export function writeNormalizedAppState(
         is_minimap_visible, active_space_id
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        path = excluded.path,
+        worktrees_root = excluded.worktrees_root,
+        pull_request_base_branch_options_json = excluded.pull_request_base_branch_options_json,
+        space_archive_records_json = excluded.space_archive_records_json,
+        viewport_x = excluded.viewport_x,
+        viewport_y = excluded.viewport_y,
+        viewport_zoom = excluded.viewport_zoom,
+        is_minimap_visible = excluded.is_minimap_visible,
+        active_space_id = excluded.active_space_id
     `,
   )
 
@@ -44,6 +101,26 @@ export function writeNormalizedAppState(
         execution_directory, expected_directory, agent_json, hosted_agent_json, task_json
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        workspace_id = excluded.workspace_id,
+        title = excluded.title,
+        title_pinned_by_user = excluded.title_pinned_by_user,
+        position_x = excluded.position_x,
+        position_y = excluded.position_y,
+        width = excluded.width,
+        height = excluded.height,
+        kind = excluded.kind,
+        label_color_override = excluded.label_color_override,
+        status = excluded.status,
+        started_at = excluded.started_at,
+        ended_at = excluded.ended_at,
+        exit_code = excluded.exit_code,
+        last_error = excluded.last_error,
+        execution_directory = excluded.execution_directory,
+        expected_directory = excluded.expected_directory,
+        agent_json = excluded.agent_json,
+        hosted_agent_json = excluded.hosted_agent_json,
+        task_json = excluded.task_json
     `,
   )
 
@@ -54,6 +131,15 @@ export function writeNormalizedAppState(
         rect_x, rect_y, rect_width, rect_height
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        workspace_id = excluded.workspace_id,
+        name = excluded.name,
+        directory_path = excluded.directory_path,
+        label_color = excluded.label_color,
+        rect_x = excluded.rect_x,
+        rect_y = excluded.rect_y,
+        rect_width = excluded.rect_width,
+        rect_height = excluded.rect_height
     `,
   )
 
@@ -61,21 +147,20 @@ export function writeNormalizedAppState(
     `
       INSERT INTO workspace_space_nodes (space_id, node_id, sort_order)
       VALUES (?, ?, ?)
+      ON CONFLICT(space_id, node_id) DO UPDATE SET
+        sort_order = excluded.sort_order
     `,
   )
 
   const writeTx = db.transaction(() => {
-    db.exec(`
-      DELETE FROM workspace_space_nodes;
-      DELETE FROM workspace_spaces;
-      DELETE FROM nodes;
-      DELETE FROM workspaces;
-    `)
-
     upsertMeta.run('format_version' satisfies DbAppMetaKey, String(state.formatVersion))
     upsertMeta.run('active_workspace_id' satisfies DbAppMetaKey, state.activeWorkspaceId ?? '')
 
     upsertSettings.run(safeJsonStringify(state.settings ?? {}))
+
+    const workspaceIds = state.workspaces.map(workspace => workspace.id)
+    const nodeIds: string[] = []
+    const spaceIds: string[] = []
 
     for (const workspace of state.workspaces) {
       insertWorkspace.run(
@@ -93,6 +178,7 @@ export function writeNormalizedAppState(
       )
 
       for (const node of workspace.nodes) {
+        nodeIds.push(node.id)
         insertNode.run(
           node.id,
           workspace.id,
@@ -118,6 +204,7 @@ export function writeNormalizedAppState(
       }
 
       for (const space of workspace.spaces) {
+        spaceIds.push(space.id)
         insertSpace.run(
           space.id,
           workspace.id,
@@ -133,8 +220,22 @@ export function writeNormalizedAppState(
         space.nodeIds.forEach((nodeId, index) => {
           insertSpaceNode.run(space.id, nodeId, index)
         })
+
+        // Space membership is scoped to each space; remove only links missing from that space.
+        deleteScopedRowsMissingIds(db, {
+          tableName: 'workspace_space_nodes',
+          scopeColumnName: 'space_id',
+          scopeValue: space.id,
+          idColumnName: 'node_id',
+          ids: space.nodeIds,
+        })
       }
     }
+
+    deleteRowsMissingIds(db, 'workspaces', 'id', workspaceIds)
+    deleteRowsMissingIds(db, 'nodes', 'id', nodeIds)
+    deleteRowsMissingIds(db, 'workspace_spaces', 'id', spaceIds)
+    deleteRowsMissingIds(db, 'workspace_space_nodes', 'space_id', spaceIds)
 
     // Keep scrollback only for still-present nodes.
     db.exec('DELETE FROM node_scrollback WHERE node_id NOT IN (SELECT id FROM nodes)')
@@ -154,13 +255,14 @@ export function writeNormalizedScrollbacks(
       ON CONFLICT(node_id) DO UPDATE SET
         scrollback = excluded.scrollback,
         updated_at = excluded.updated_at
+      WHERE node_scrollback.scrollback <> excluded.scrollback
     `,
   )
 
   const now = new Date().toISOString()
 
   const writeTx = db.transaction(() => {
-    db.exec('DELETE FROM node_scrollback;')
+    const scrollbackNodeIds: string[] = []
 
     for (const workspace of state.workspaces) {
       for (const node of workspace.nodes) {
@@ -169,9 +271,12 @@ export function writeNormalizedScrollbacks(
           continue
         }
 
+        scrollbackNodeIds.push(node.id)
         insertScrollback.run(node.id, scrollback, now)
       }
     }
+
+    deleteRowsMissingIds(db, 'node_scrollback', 'node_id', scrollbackNodeIds)
   })
 
   writeTx()

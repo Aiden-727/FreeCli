@@ -1,4 +1,5 @@
 import type { AgentSettings, PluginSettings } from '@contexts/settings/domain/agentSettings'
+import type { WorkspaceAssistantWorkspaceSnapshotDto } from '@shared/contracts/dto'
 import type { BuiltinPluginId } from '../../domain/pluginManifest'
 import { listBuiltinPluginManifestsWithSettings } from '../../domain/pluginManifest'
 import type { PluginHostDiagnosticCode } from './types'
@@ -18,6 +19,7 @@ export interface PluginHostSyncTask {
 export function buildPluginHostSyncTasks(options: {
   settings: AgentSettings
   workspaces: PluginHostWorkspaceSyncItem[]
+  workspaceAssistantSnapshot: WorkspaceAssistantWorkspaceSnapshotDto | null
   api: typeof window.freecliApi | undefined
 }): PluginHostSyncTask[] {
   const tasks: PluginHostSyncTask[] = []
@@ -44,7 +46,7 @@ export function buildPluginHostSyncTasks(options: {
       run: async () =>
         await pluginsApi.inputStats.syncSettings({
           settings: options.settings.plugins.inputStats,
-      }),
+        }),
     })
   }
 
@@ -88,6 +90,28 @@ export function buildPluginHostSyncTasks(options: {
       run: async () =>
         await pluginsApi.ossBackup.syncSettings({
           settings: options.settings.plugins.ossBackup,
+        }),
+    })
+  }
+
+  if (typeof pluginsApi.workspaceAssistant?.syncSettings === 'function') {
+    tasks.push({
+      code: 'workspace_assistant_sync',
+      signature: JSON.stringify(options.settings.plugins.workspaceAssistant),
+      run: async () =>
+        await pluginsApi.workspaceAssistant.syncSettings({
+          settings: options.settings.plugins.workspaceAssistant,
+        }),
+    })
+  }
+
+  if (typeof pluginsApi.workspaceAssistant?.syncWorkspaceSnapshot === 'function') {
+    tasks.push({
+      code: 'workspace_assistant_workspace_sync',
+      signature: JSON.stringify(options.workspaceAssistantSnapshot),
+      run: async () =>
+        await pluginsApi.workspaceAssistant.syncWorkspaceSnapshot({
+          snapshot: options.workspaceAssistantSnapshot,
         }),
     })
   }

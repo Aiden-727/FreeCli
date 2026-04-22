@@ -23,6 +23,20 @@ type WorkspaceDropPlacement = 'before' | 'after'
 
 type AggregatedTerminalStatusKind = 'error' | 'active' | 'done' | 'standby' | 'mixed' | 'idle'
 
+type WorkspaceGraphNode = WorkspaceState['nodes'][number]
+
+type SidebarTerminalItem = {
+  id: string
+  title: string
+  status: AgentRuntimeStatus | null
+  statusLabelKey: string
+}
+
+type SidebarDerivedAgentItem = {
+  node: WorkspaceGraphNode
+  linkedTaskTitle: string | null
+}
+
 const WORKSPACE_DRAG_START_DISTANCE_PX = 8
 
 function resolveSidebarAgentStatus(runtimeStatus: TerminalNodeData['status']): SidebarAgentStatus {
@@ -121,6 +135,88 @@ function resolveWorkspaceTerminalAggregate(terminalStatuses: Array<AgentRuntimeS
   }
 }
 
+function getWorkspaceNodeStartedAt(node: WorkspaceGraphNode): number {
+  return node.data.startedAt ? Date.parse(node.data.startedAt) : 0
+}
+
+function deriveWorkspaceSidebarData(workspace: WorkspaceState): {
+  agentCount: number
+  taskCount: number
+  terminalCount: number
+  workspaceAgents: SidebarDerivedAgentItem[]
+  workspaceTerminalItems: SidebarTerminalItem[]
+} {
+  let agentCount = 0
+  let taskCount = 0
+  let terminalCount = 0
+  const agentNodes: WorkspaceGraphNode[] = []
+  const terminalNodes: WorkspaceGraphNode[] = []
+  const taskNodeById = new Map<string, WorkspaceGraphNode>()
+  const taskTitleByLinkedAgentId = new Map<string, string>()
+
+  for (const node of workspace.nodes) {
+    if (node.data.kind === 'agent') {
+      agentCount += 1
+      agentNodes.push(node)
+      continue
+    }
+
+    if (node.data.kind === 'terminal') {
+      terminalCount += 1
+      terminalNodes.push(node)
+      continue
+    }
+
+    if (node.data.kind === 'task') {
+      taskCount += 1
+      if (node.data.task) {
+        taskNodeById.set(node.id, node)
+
+        const linkedAgentNodeId = node.data.task.linkedAgentNodeId
+        if (linkedAgentNodeId) {
+          taskTitleByLinkedAgentId.set(linkedAgentNodeId, node.data.title)
+        }
+      }
+    }
+  }
+
+  const workspaceAgents = [...agentNodes]
+    .sort((left, right) => getWorkspaceNodeStartedAt(right) - getWorkspaceNodeStartedAt(left))
+    .map(node => {
+      const linkedTaskNode =
+        (node.data.agent?.taskId ? taskNodeById.get(node.data.agent.taskId) ?? null : null) ??
+        (taskTitleByLinkedAgentId.has(node.id) ? taskTitleByLinkedAgentId.get(node.id) ?? null : null)
+
+      return {
+        node,
+        linkedTaskTitle:
+          linkedTaskNode && typeof linkedTaskNode !== 'string'
+            ? linkedTaskNode.data.title
+            : linkedTaskNode,
+      }
+    })
+
+  const workspaceTerminalItems = [...terminalNodes]
+    .sort((left, right) => getWorkspaceNodeStartedAt(right) - getWorkspaceNodeStartedAt(left))
+    .map(node => {
+      const runtimeStatus = resolveTerminalRuntimeStatus(node.data)
+      return {
+        id: node.id,
+        title: node.data.title,
+        status: runtimeStatus,
+        statusLabelKey: resolveTerminalStatusLabelKey(runtimeStatus),
+      }
+    })
+
+  return {
+    agentCount,
+    taskCount,
+    terminalCount,
+    workspaceAgents,
+    workspaceTerminalItems,
+  }
+}
+
 function WorkspaceSidebarItem({
   workspace,
   isActive,
@@ -150,32 +246,8 @@ function WorkspaceSidebarItem({
 }): React.JSX.Element {
   const { t } = useTranslation()
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = React.useState(false)
-  const workspaceAgents = workspace.nodes
-    .filter(node => node.data.kind === 'agent')
-    .sort((left, right) => {
-      const leftTime = left.data.startedAt ? Date.parse(left.data.startedAt) : 0
-      const rightTime = right.data.startedAt ? Date.parse(right.data.startedAt) : 0
-      return rightTime - leftTime
-    })
-  const workspaceTerminals = workspace.nodes
-    .filter(node => node.data.kind === 'terminal')
-    .sort((left, right) => {
-      const leftTime = left.data.startedAt ? Date.parse(left.data.startedAt) : 0
-      const rightTime = right.data.startedAt ? Date.parse(right.data.startedAt) : 0
-      return rightTime - leftTime
-    })
-  const workspaceTerminalItems = workspaceTerminals.map(node => {
-    const runtimeStatus = resolveTerminalRuntimeStatus(node.data)
-    return {
-      id: node.id,
-      title: node.data.title,
-      status: runtimeStatus,
-      statusLabelKey: resolveTerminalStatusLabelKey(runtimeStatus),
-    }
-  })
-  const terminalCount = workspace.nodes.filter(node => node.data.kind === 'terminal').length
-  const agentCount = workspace.nodes.filter(node => node.data.kind === 'agent').length
-  const taskCount = workspace.nodes.filter(node => node.data.kind === 'task').length
+  const { workspaceAgents, workspaceTerminalItems, terminalCount, agentCount, taskCount } =
+    React.useMemo(() => deriveWorkspaceSidebarData(workspace), [workspace])
   const workspaceProjectStatus = resolveWorkspaceTerminalAggregate(
     workspaceTerminalItems.map(item => item.status),
   )
@@ -315,26 +387,11 @@ function WorkspaceSidebarItem({
 
       {workspaceAgents.length > 0 ? (
         <div className="workspace-item__agents">
-          {workspaceAgents.map(node => {
+          {workspaceAgents.map(({ node, linkedTaskTitle }) => {
             const provider = node.data.agent?.provider
             const providerText = provider
               ? AGENT_PROVIDER_LABEL[provider]
               : t('sidebar.fallbackAgentLabel')
-            const linkedTaskNode =
-              (node.data.agent?.taskId
-                ? (workspace.nodes.find(
-                    candidate =>
-                      candidate.id === node.data.agent?.taskId &&
-                      candidate.data.kind === 'task' &&
-                      candidate.data.task,
-                  ) ?? null)
-                : null) ??
-              workspace.nodes.find(
-                candidate =>
-                  candidate.data.kind === 'task' &&
-                  candidate.data.task?.linkedAgentNodeId === node.id,
-              ) ??
-              null
             const sidebarAgentStatus = resolveSidebarAgentStatus(node.data.status)
             const sidebarAgentStatusTone: SidebarStatusTone =
               sidebarAgentStatus === 'working' ? 'working' : 'standby'
@@ -343,10 +400,6 @@ function WorkspaceSidebarItem({
               sidebarAgentStatus === 'working'
                 ? t('sidebar.status.working')
                 : t('sidebar.status.standby')
-            const taskTitle =
-              linkedTaskNode && linkedTaskNode.data.kind === 'task'
-                ? linkedTaskNode.data.title
-                : null
 
             return (
               <button
@@ -374,9 +427,9 @@ function WorkspaceSidebarItem({
                     {sidebarAgentStatusText}
                   </span>
                 </span>
-                {taskTitle ? (
-                  <span className="workspace-agent-item__task" title={taskTitle}>
-                    <span className="workspace-agent-item__task-text">{taskTitle}</span>
+                {linkedTaskTitle ? (
+                  <span className="workspace-agent-item__task" title={linkedTaskTitle}>
+                    <span className="workspace-agent-item__task-text">{linkedTaskTitle}</span>
                   </span>
                 ) : null}
               </button>

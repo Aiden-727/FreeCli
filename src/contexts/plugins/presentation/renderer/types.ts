@@ -9,6 +9,8 @@ export type PluginHostDiagnosticCode =
   | 'git_worklog_sync'
   | 'oss_backup_sync'
   | 'git_worklog_workspaces_sync'
+  | 'workspace_assistant_workspace_sync'
+  | 'workspace_assistant_sync'
 
 export interface PluginHostDiagnosticItem {
   code: PluginHostDiagnosticCode
@@ -21,6 +23,13 @@ export interface ControlCenterPluginWidgetProps {
 
 export interface HeaderPluginWidgetProps {
   onOpenPluginManager: (pageId?: BuiltinPluginId | 'general') => void
+  onToggleWorkspaceAssistant?: () => void
+}
+
+export interface WorkspaceOverlayPluginWidgetProps {
+  onOpenPluginManager: (pageId?: BuiltinPluginId | 'general') => void
+  onShowMessage: (message: string, tone?: 'info' | 'warning' | 'error') => void
+  activeWorkspaceId: string | null
 }
 
 export interface SettingsPluginSectionProps {
