@@ -7,6 +7,26 @@ import type {
   TerminalNodeData,
 } from '../types'
 
+function normalizeRuntimeNodeTitle(value: unknown, kind: TerminalNodeData['kind']): string {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  switch (kind) {
+    case 'task':
+      return '未命名任务'
+    case 'note':
+      return '未命名笔记'
+    case 'agent':
+      return '未命名 Agent'
+    case 'image':
+      return '未命名图片'
+    case 'terminal':
+    default:
+      return 'terminal'
+  }
+}
+
 function isTaskNodeData(
   value: TaskNodeData | NoteNodeData | ImageNodeData | null,
 ): value is TaskNodeData {
@@ -64,7 +84,7 @@ export function toRuntimeNodes(workspace: PersistedWorkspaceState): Node<Termina
         activeCredentialProfileId: node.activeCredentialProfileId ?? null,
         runtimeKind: node.runtimeKind,
         labelColorOverride: node.labelColorOverride ?? null,
-        title: node.title,
+        title: normalizeRuntimeNodeTitle(node.title, node.kind),
         titlePinnedByUser: node.titlePinnedByUser === true,
         width: node.width,
         height: node.height,

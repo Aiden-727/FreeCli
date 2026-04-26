@@ -42,6 +42,8 @@ import type {
   NotifyOssBackupPersistedSettingsInput,
   OssSyncComparisonDto,
   OssBackupStateDto,
+  RepairGitWorklogRepositoriesInput,
+  RepairGitWorklogRepositoriesResultDto,
   RestorePluginBackupResultDto,
   SyncWorkspaceAssistantSettingsInput,
   SyncWorkspaceAssistantWorkspaceSnapshotInput,
@@ -53,6 +55,8 @@ import type {
   SyncQuotaMonitorSettingsInput,
   SyncPluginRuntimeStateInput,
   SyncPluginRuntimeStateResult,
+  UndoGitWorklogRepositoriesRepairInput,
+  UndoGitWorklogRepositoriesRepairResultDto,
   WorkspaceAssistantConnectionTestResult,
   WorkspaceAssistantPromptInput,
   WorkspaceAssistantPromptResult,
@@ -84,6 +88,7 @@ import type {
   SuggestWorktreeNamesInput,
   SuggestWorktreeNamesResult,
   SetWindowChromeThemeInput,
+  WriteDiagnosticLogInput,
   TerminalDataEvent,
   TerminalExitEvent,
   TerminalSessionMetadataEvent,
@@ -115,6 +120,7 @@ export interface FreeCliApi {
   }
   appLifecycle: {
     restart: () => Promise<void>
+    writeDiagnosticLog: (payload: WriteDiagnosticLogInput) => Promise<void>
   }
   windowChrome: {
     setTheme: (payload: SetWindowChromeThemeInput) => Promise<void>
@@ -199,6 +205,22 @@ export interface FreeCliApi {
         payload: ResolveGitWorklogRepositoryInput,
       ) => Promise<ResolveGitWorklogRepositoryResult>
       refresh: () => Promise<GitWorklogStateDto>
+      refreshWorkspace: (payload: RefreshGitWorklogWorkspaceInput) => Promise<GitWorklogStateDto>
+      repairRepositories: (
+        payload: RepairGitWorklogRepositoriesInput,
+      ) => Promise<RepairGitWorklogRepositoriesResultDto>
+      undoRepositoryRepair: (
+        payload: UndoGitWorklogRepositoriesRepairInput,
+      ) => Promise<UndoGitWorklogRepositoriesRepairResultDto>
+      acceptPendingImport: (
+        payload: AcceptGitWorklogPendingImportInput,
+      ) => Promise<GitWorklogStateDto>
+      dismissPendingImport: (
+        payload: DismissGitWorklogPendingImportInput,
+      ) => Promise<GitWorklogStateDto>
+      restoreDismissedImport: (
+        payload: RestoreGitWorklogDismissedImportInput,
+      ) => Promise<GitWorklogStateDto>
       onState: (listener: (state: GitWorklogStateDto) => void) => UnsubscribeFn
     }
     ossBackup: {

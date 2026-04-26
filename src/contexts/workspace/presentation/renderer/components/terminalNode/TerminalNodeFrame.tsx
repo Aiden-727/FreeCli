@@ -1,5 +1,6 @@
 import React, { type JSX } from 'react'
 import { Handle, Position } from '@xyflow/react'
+import type { NodeLabelColorOverride } from '@shared/types/labelColor'
 import { TerminalNodeHeader } from './TerminalNodeHeader'
 import { TerminalNodeFindBar } from './TerminalNodeFindBar'
 import { NodeResizeHandles } from '../shared/NodeResizeHandles'
@@ -18,6 +19,7 @@ interface TerminalNodeFrameProps {
   kind: WorkspaceNodeKind
   isAgentLike?: boolean
   labelColor?: LabelColor | null
+  labelColorOverride?: NodeLabelColorOverride
   terminalThemeMode: TerminalThemeMode
   credentialProfileId?: string | null
   activeCredentialProfileId?: string | null
@@ -48,6 +50,7 @@ interface TerminalNodeFrameProps {
   consumeIgnoredTerminalBodyClick: (target: EventTarget | null) => boolean
   onInteractionStart?: (options?: TerminalNodeInteractionOptions) => void
   onTitleCommit?: (title: string) => void
+  onLabelColorChange?: (labelColorOverride: NodeLabelColorOverride) => void
   onCredentialProfileChange?: (credentialProfileId: string | null) => void
   onPersistenceModeChange?: (mode: TerminalPersistenceMode) => void
   onClose: () => void
@@ -71,6 +74,7 @@ export function TerminalNodeFrame({
   kind,
   isAgentLike = false,
   labelColor,
+  labelColorOverride,
   terminalThemeMode,
   credentialProfileId,
   activeCredentialProfileId,
@@ -97,6 +101,7 @@ export function TerminalNodeFrame({
   consumeIgnoredTerminalBodyClick,
   onInteractionStart,
   onTitleCommit,
+  onLabelColorChange,
   onCredentialProfileChange,
   onPersistenceModeChange,
   onClose,
@@ -116,6 +121,7 @@ export function TerminalNodeFrame({
   return (
     <div
       className={`terminal-node nowheel ${hasSelectedDragSurface ? 'terminal-node--selected-surface' : ''}`.trim()}
+      data-cove-label-color={labelColor ?? undefined}
       data-cove-terminal-node-theme={resolvedTerminalUiTheme}
       style={sizeStyle}
       onPointerDownCapture={handleTerminalBodyPointerDownCapture}
@@ -180,7 +186,9 @@ export function TerminalNodeFrame({
         isAgentLike={showAgentChrome}
         status={status}
         labelColor={labelColor ?? null}
+        labelColorOverride={labelColorOverride ?? null}
         directoryMismatch={directoryMismatch}
+        onLabelColorChange={onLabelColorChange}
         credentialProfileId={credentialProfileId}
         activeCredentialProfileId={activeCredentialProfileId}
         terminalCredentialProfiles={terminalCredentialProfiles}

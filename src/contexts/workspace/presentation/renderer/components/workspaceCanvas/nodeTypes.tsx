@@ -3,6 +3,7 @@ import { useStore, type Node } from '@xyflow/react'
 import { translate } from '@app/renderer/i18n'
 import { buildHostedTerminalDisplayModelLabel } from '@contexts/terminal/domain/hostedAgent'
 import type { AgentSettings } from '@contexts/settings/domain/agentSettings'
+import type { NodeLabelColorOverride } from '@shared/types/labelColor'
 import { NoteNode } from '../NoteNode'
 import { TaskNode } from '../TaskNode'
 import { TerminalNode } from '../TerminalNode'
@@ -98,6 +99,7 @@ function TerminalNodeType({
   normalizeViewportForTerminalInteractionRef,
   updateTerminalTitleRef,
   renameTerminalTitleRef,
+  setTerminalLabelColorOverrideRef,
   setTerminalCredentialProfileRef,
   setTerminalPersistenceModeRef,
   trackTerminalHostedAgentRef,
@@ -118,6 +120,9 @@ function TerminalNodeType({
   normalizeViewportForTerminalInteractionRef: MutableRefObject<(nodeId: string) => void>
   updateTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
   renameTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalLabelColorOverrideRef: MutableRefObject<
+    (nodeId: string, labelColorOverride: NodeLabelColorOverride) => void
+  >
   setTerminalCredentialProfileRef: MutableRefObject<
     (nodeId: string, credentialProfileId: string | null) => void
   >
@@ -163,6 +168,7 @@ function TerminalNodeType({
       kind={data.kind}
       isAgentLike={data.kind === 'agent' || isHostedAgentTerminal}
       labelColor={labelColor}
+      labelColorOverride={data.labelColorOverride ?? null}
       terminalThemeMode={
         data.kind === 'agent' && data.agent?.provider === 'opencode' ? 'dark' : 'sync-with-ui'
       }
@@ -231,6 +237,13 @@ function TerminalNodeType({
         data.kind === 'terminal' || data.kind === 'agent'
           ? nextTitle => {
               renameTerminalTitleRef.current(id, nextTitle)
+            }
+          : undefined
+      }
+      onLabelColorChange={
+        data.kind === 'terminal' || data.kind === 'agent'
+          ? nextLabelColorOverride => {
+              setTerminalLabelColorOverrideRef.current(id, nextLabelColorOverride)
             }
           : undefined
       }
@@ -362,6 +375,9 @@ interface WorkspaceCanvasNodeTypesParams {
   updateTaskStatusRef: MutableRefObject<UpdateTaskStatus>
   updateTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
   renameTerminalTitleRef: MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalLabelColorOverrideRef: MutableRefObject<
+    (nodeId: string, labelColorOverride: NodeLabelColorOverride) => void
+  >
   setTerminalCredentialProfileRef: MutableRefObject<
     (nodeId: string, credentialProfileId: string | null) => void
   >
@@ -396,6 +412,7 @@ export function useWorkspaceCanvasNodeTypes({
   updateTaskStatusRef,
   updateTerminalTitleRef,
   renameTerminalTitleRef,
+  setTerminalLabelColorOverrideRef,
   setTerminalCredentialProfileRef,
   setTerminalPersistenceModeRef,
   trackTerminalHostedAgentRef,
@@ -560,6 +577,7 @@ export function useWorkspaceCanvasNodeTypes({
             normalizeViewportForTerminalInteractionRef={normalizeViewportForTerminalInteractionRef}
             updateTerminalTitleRef={updateTerminalTitleRef}
             renameTerminalTitleRef={renameTerminalTitleRef}
+            setTerminalLabelColorOverrideRef={setTerminalLabelColorOverrideRef}
             setTerminalCredentialProfileRef={setTerminalCredentialProfileRef}
             setTerminalPersistenceModeRef={setTerminalPersistenceModeRef}
             trackTerminalHostedAgentRef={trackTerminalHostedAgentRef}
@@ -609,6 +627,7 @@ export function useWorkspaceCanvasNodeTypes({
     updateTaskStatusRef,
     updateTerminalTitleRef,
     renameTerminalTitleRef,
+    setTerminalLabelColorOverrideRef,
     setTerminalCredentialProfileRef,
     setTerminalPersistenceModeRef,
     trackTerminalHostedAgentRef,

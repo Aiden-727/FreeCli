@@ -18,7 +18,9 @@ describe('ProjectContextMenu', () => {
           { id: 'android-studio', label: 'Android Studio' },
         ]}
         isLoadingOpeners={false}
+        isArchived={false}
         onOpenPath={() => undefined}
+        onToggleArchive={() => undefined}
         onRequestRemove={() => undefined}
       />,
     )
@@ -35,6 +37,7 @@ describe('ProjectContextMenu', () => {
 
   it('opens the selected opener and keeps remove action available', async () => {
     const onOpenPath = vi.fn(() => Promise.resolve())
+    const onToggleArchive = vi.fn()
     const onRequestRemove = vi.fn()
 
     render(
@@ -44,7 +47,9 @@ describe('ProjectContextMenu', () => {
         y={80}
         availableOpeners={[{ id: 'vscode', label: 'VS Code' }]}
         isLoadingOpeners={false}
+        isArchived={false}
         onOpenPath={onOpenPath}
+        onToggleArchive={onToggleArchive}
         onRequestRemove={onRequestRemove}
       />,
     )
@@ -54,8 +59,34 @@ describe('ProjectContextMenu', () => {
 
     expect(onOpenPath).toHaveBeenCalledWith('workspace-1', 'vscode')
 
+    fireEvent.click(screen.getByTestId('workspace-project-archive-workspace-1'))
+
+    expect(onToggleArchive).toHaveBeenCalledWith('workspace-1')
+
     fireEvent.click(screen.getByTestId('workspace-project-remove-workspace-1'))
 
     expect(onRequestRemove).toHaveBeenCalledWith('workspace-1')
+  })
+
+  it('renders enable action for archived projects', () => {
+    const onToggleArchive = vi.fn()
+
+    render(
+      <ProjectContextMenu
+        workspaceId="workspace-1"
+        x={120}
+        y={80}
+        availableOpeners={[]}
+        isLoadingOpeners={false}
+        isArchived={true}
+        onOpenPath={() => undefined}
+        onToggleArchive={onToggleArchive}
+        onRequestRemove={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('workspace-project-enable-workspace-1'))
+
+    expect(onToggleArchive).toHaveBeenCalledWith('workspace-1')
   })
 })

@@ -6,6 +6,7 @@ import type { TerminalNodeData } from '../../../types'
 import { focusNodeInViewport } from '../helpers'
 import {
   resolveWorkspaceMinimapNodeHeaderColor,
+  resolveWorkspaceMinimapNodeLabelColor,
   resolveWorkspaceMinimapNodeAtPosition,
   resolveWorkspaceMinimapViewportWindowLayout,
   WorkspaceMinimapNode,
@@ -142,6 +143,7 @@ export function WorkspaceMinimapDock({
                   headerColor={
                     sourceNode ? resolveWorkspaceMinimapNodeHeaderColor(sourceNode) : undefined
                   }
+                  labelColor={sourceNode ? resolveWorkspaceMinimapNodeLabelColor(sourceNode) : null}
                 />
               )
             }}

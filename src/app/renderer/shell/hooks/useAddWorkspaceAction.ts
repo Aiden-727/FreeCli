@@ -14,7 +14,17 @@ export function useAddWorkspaceAction(): () => Promise<void> {
     const store = useAppStore.getState()
     const existing = store.workspaces.find(workspace => workspace.path === selected.path)
     if (existing) {
+      if (existing.lifecycleState === 'archived') {
+        store.setWorkspaces(previous =>
+          previous.map(workspace =>
+            workspace.id === existing.id
+              ? { ...workspace, lifecycleState: 'active', archivedAt: null }
+              : workspace,
+          ),
+        )
+      }
       store.setActiveWorkspaceId(existing.id)
+      store.setFocusRequest(null)
       return
     }
 
@@ -22,6 +32,9 @@ export function useAddWorkspaceAction(): () => Promise<void> {
       ...selected,
       nodes: [],
       worktreesRoot: '',
+      lifecycleState: 'active',
+      archivedAt: null,
+      pullRequestBaseBranchOptions: [],
       viewport: createDefaultWorkspaceViewport(),
       isMinimapVisible: DEFAULT_WORKSPACE_MINIMAP_VISIBLE,
       spaces: [],

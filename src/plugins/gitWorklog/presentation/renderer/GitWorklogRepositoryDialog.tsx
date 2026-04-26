@@ -2,6 +2,7 @@ import React from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
 import type { GitWorklogRepositoryDto, GitWorklogWorkspaceDto } from '@shared/contracts/dto'
+import { GIT_WORKLOG_EXTERNAL_WORKSPACE_ID } from './gitWorklogOrdering'
 
 export function GitWorklogRepositoryDialog({
   repository,
@@ -163,10 +164,19 @@ export function GitWorklogRepositoryDialog({
             data-testid={`git-worklog-repository-workspace-${repository.id}`}
             value={repository.assignedWorkspaceId ?? ''}
             onChange={event => {
-              onChangeAssignedWorkspaceId(event.target.value || null)
+              onChangeAssignedWorkspaceId(
+                event.target.value === ''
+                  ? null
+                  : event.target.value === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+                    ? GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+                    : event.target.value,
+              )
             }}
           >
-            <option value="">{t('pluginManager.plugins.gitWorklog.externalWorkspaceGroupTitle')}</option>
+            <option value="">{t('pluginManager.plugins.gitWorklog.workspaceGroupAutoOption')}</option>
+            <option value={GIT_WORKLOG_EXTERNAL_WORKSPACE_ID}>
+              {t('pluginManager.plugins.gitWorklog.externalWorkspaceGroupTitle')}
+            </option>
             {availableWorkspaces.map(workspace => (
               <option key={workspace.id} value={workspace.id}>
                 {workspace.name}

@@ -13,8 +13,10 @@ import type {
 } from '@shared/contracts/dto'
 import {
   buildGitWorklogCodeCacheKey,
+  buildGitWorklogHeatmapCacheKey,
   buildGitWorklogRangeCacheKey,
   type GitWorklogCodeCacheValidation,
+  type GitWorklogHeatmapCacheValidation,
   type GitWorklogHistoryStore,
   type GitWorklogRangeCacheValidation,
 } from '../../infrastructure/main/GitWorklogHistoryStore'
@@ -135,6 +137,10 @@ export interface RepoRangeStats {
 export interface RepoCodeStats {
   totalCodeFiles: number
   totalCodeLines: number
+}
+
+export interface RepoHeatmapStats {
+  dailyPoints: GitWorklogDailyPointDto[]
 }
 
 interface ResolvedRange {
@@ -328,6 +334,7 @@ function createEmptyRepoState(
     totalCodeFiles: 0,
     totalCodeLines: 0,
     dailyPoints: [],
+    heatmapDailyPoints: [],
     lastScannedAt: scannedAt,
     error,
   }
@@ -440,9 +447,10 @@ export class GitWorklogScanner {
       return createEmptyRepoState(repo, scannedAt, createError('not_git_repo', '不是有效的 Git 仓库'))
     }
 
-    const [rangeStats, codeStats] = await Promise.all([
+    const [rangeStats, codeStats, heatmapStats] = await Promise.all([
       this.scanRangeStats(repoPath, settings.authorFilter, range),
       this.scanCodeStats(repoPath),
+      this.scanHeatmapStats(repoPath, settings.authorFilter),
     ])
 
     if ('error' in rangeStats) {
@@ -465,6 +473,8 @@ export class GitWorklogScanner {
       error: null,
       ...rangeStats,
       ...codeStats,
+      heatmapDailyPoints:
+        'error' in heatmapStats ? rangeStats.dailyPoints : heatmapStats.dailyPoints,
     }
   }
 
@@ -702,6 +712,135 @@ export class GitWorklogScanner {
     return computed
   }
 
+  private async scanHeatmapStats(
+    repoPath: string,
+    authorFilter: string,
+  ): Promise<RepoHeatmapStats | { error: GitWorklogErrorDto }> {
+    const heatmapValidation = await this.buildHeatmapCacheValidation(repoPath, authorFilter)
+    if (heatmapValidation && this.historyStore) {
+      const key = buildGitWorklogHeatmapCacheKey(heatmapValidation)
+      const cached = await this.historyStore.getHeatmapStats(repoPath, key)
+      if (cached) {
+        return cached
+      }
+    }
+
+    const args = [
+      '-C',
+      repoPath,
+      'log',
+      '--all',
+      '--no-merges',
+      '--date=iso-strict',
+      `--pretty=format:${COMMIT_PREFIX}%H%x09%ad`,
+      '--numstat',
+    ]
+
+    if (authorFilter.trim().length > 0) {
+      args.push(`--author=${authorFilter.trim()}`)
+    }
+
+    const result = await this.runGitCommand(args, '读取 Git 热力图历史失败')
+    if (!result.ok) {
+      return { error: result.error }
+    }
+
+    const dayBuckets = new Map<string, MutableAggregate>()
+    let commitTime: Date | null = null
+    let commitAdditions = 0
+    let commitDeletions = 0
+    let commitFiles = new Set<string>()
+
+    const flushCommit = (): void => {
+      if (!commitTime) {
+        return
+      }
+
+      const commitDayKey = dayKey(commitTime)
+      const bucket =
+        dayBuckets.get(commitDayKey) ??
+        ({
+          commitCount: 0,
+          additions: 0,
+          deletions: 0,
+          files: new Set<string>(),
+        } satisfies MutableAggregate)
+
+      bucket.commitCount += 1
+      bucket.additions += commitAdditions
+      bucket.deletions += commitDeletions
+      commitFiles.forEach(file => {
+        bucket.files.add(file)
+      })
+      dayBuckets.set(commitDayKey, bucket)
+    }
+
+    for (const rawLine of result.stdout.split(/\r?\n/)) {
+      const line = rawLine.trimEnd()
+      if (line.length === 0) {
+        continue
+      }
+
+      if (line.startsWith(COMMIT_PREFIX)) {
+        flushCommit()
+        commitTime = this.parseCommitTime(line)
+        commitAdditions = 0
+        commitDeletions = 0
+        commitFiles = new Set<string>()
+        continue
+      }
+
+      if (!commitTime) {
+        continue
+      }
+
+      const parts = line.split('\t')
+      if (parts.length < 3) {
+        continue
+      }
+
+      const filePath = parts.slice(2).join('\t').trim()
+      if (filePath.length === 0) {
+        continue
+      }
+
+      if (!isTrackableGitWorklogFilePath(filePath)) {
+        continue
+      }
+
+      commitAdditions += parseNumstatValue(parts[0] ?? '')
+      commitDeletions += parseNumstatValue(parts[1] ?? '')
+      commitFiles.add(filePath)
+    }
+
+    flushCommit()
+
+    const computed: RepoHeatmapStats = {
+      dailyPoints: [...dayBuckets.entries()]
+        .sort((left, right) => left[0].localeCompare(right[0]))
+        .map(([day, bucket]) => ({
+          day,
+          label: formatDayLabel(day),
+          commitCount: bucket.commitCount,
+          filesChanged: bucket.files.size,
+          additions: bucket.additions,
+          deletions: bucket.deletions,
+          changedLines: bucket.additions + bucket.deletions,
+        })),
+    }
+
+    if (heatmapValidation && this.historyStore) {
+      await this.historyStore.saveHeatmapStats({
+        repoPath,
+        key: buildGitWorklogHeatmapCacheKey(heatmapValidation),
+        validation: heatmapValidation,
+        stats: computed,
+      })
+    }
+
+    return computed
+  }
+
   private async buildRangeCacheValidation(
     repoPath: string,
     authorFilter: string,
@@ -734,6 +873,21 @@ export class GitWorklogScanner {
 
     return {
       fileFingerprint: this.hashContent(`${trackedFilesSnapshot}\n---\n${status.stdout}`),
+    }
+  }
+
+  private async buildHeatmapCacheValidation(
+    repoPath: string,
+    authorFilter: string,
+  ): Promise<GitWorklogHeatmapCacheValidation | null> {
+    const refs = await this.runGitCommand(['-C', repoPath, 'show-ref'], '读取仓库引用失败')
+    if (!refs.ok) {
+      return null
+    }
+
+    return {
+      authorFilter: authorFilter.trim(),
+      refsFingerprint: this.hashContent(refs.stdout),
     }
   }
 

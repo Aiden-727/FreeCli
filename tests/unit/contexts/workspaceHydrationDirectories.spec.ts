@@ -103,7 +103,11 @@ describe('workspace hydration directories', () => {
     const hydrated = await hydrateRuntimeNode({
       node,
       workspacePath: '/repo',
-      agentFullAccess: false,
+      agentSettings: {
+        agentFullAccess: false,
+        defaultTerminalProfileId: null,
+        terminalCredentials: [],
+      },
     })
 
     expect(spawn).toHaveBeenCalledWith({

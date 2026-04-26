@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 import type { WorkspaceState } from '../../../src/contexts/workspace/presentation/renderer/types'
@@ -100,6 +100,8 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
           spawn,
           write,
           trackHostedAgent,
+          onData: vi.fn(() => () => undefined),
+          onExit: vi.fn(() => () => undefined),
         },
         agent: {
           launch,
@@ -190,5 +192,188 @@ describe('useHydrateAppState hosted Codex/Claude terminal restore', () => {
       'resolved-codex-session',
     )
     expect(screen.getByTestId('hosted-restore-intent')).toHaveTextContent('true')
+  })
+
+  it('does not re-resume a hosted terminal when its live session survives workspace switching', async () => {
+    const storage = installMockStorage()
+
+    storage.setItem(
+      'freecli:m0:workspace-state',
+      JSON.stringify({
+        activeWorkspaceId: 'workspace-1',
+        workspaces: [
+          {
+            id: 'workspace-1',
+            name: 'Workspace 1',
+            path: '/tmp/workspace-1',
+            viewport: { x: 0, y: 0, zoom: 1 },
+            isMinimapVisible: false,
+            spaces: [],
+            activeSpaceId: null,
+            nodes: [
+              {
+                id: 'terminal-node-1',
+                title: 'codex',
+                position: { x: 0, y: 0 },
+                width: 520,
+                height: 360,
+                kind: 'terminal',
+                status: 'running',
+                startedAt: '2026-03-31T10:00:00.000Z',
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+                scrollback: null,
+                persistenceMode: 'persistent',
+                executionDirectory: '/tmp/workspace-1',
+                expectedDirectory: '/tmp/workspace-1',
+                agent: null,
+                hostedAgent: {
+                  provider: 'codex',
+                  launchMode: 'resume',
+                  resumeSessionId: 'resolved-codex-session',
+                  resumeSessionIdVerified: true,
+                  cwd: '/tmp/workspace-1',
+                  command: 'codex resume resolved-codex-session',
+                  startedAt: '2026-03-31T10:00:00.000Z',
+                  restoreIntent: true,
+                  state: 'active',
+                },
+                task: null,
+              },
+            ],
+          },
+          {
+            id: 'workspace-2',
+            name: 'Workspace 2',
+            path: '/tmp/workspace-2',
+            viewport: { x: 0, y: 0, zoom: 1 },
+            isMinimapVisible: false,
+            spaces: [],
+            activeSpaceId: null,
+            nodes: [],
+          },
+        ],
+        settings: {
+          defaultTerminalProfileId: 'powershell',
+          terminalCredentials: {
+            profiles: [
+              {
+                id: 'codex-default',
+                label: 'Codex Main',
+                provider: 'codex',
+                apiKey: 'sk-test-codex',
+                baseUrl: 'https://api.openai.example',
+                enabled: true,
+              },
+            ],
+            defaultProfileIdByProvider: {
+              codex: 'codex-default',
+              'claude-code': null,
+            },
+          },
+        },
+      }),
+    )
+
+    const spawn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        sessionId: 'terminal-session-1',
+        profileId: 'powershell',
+        runtimeKind: 'windows' as const,
+      })
+      .mockResolvedValueOnce({
+        sessionId: 'terminal-session-2',
+        profileId: 'powershell',
+        runtimeKind: 'windows' as const,
+      })
+    const write = vi.fn(async () => undefined)
+    const trackHostedAgent = vi.fn(async () => undefined)
+    const launch = vi.fn()
+    const resolveResumeSessionId = vi.fn(async () => ({
+      resumeSessionId: 'resolved-codex-session',
+    }))
+
+    Object.defineProperty(window, 'freecliApi', {
+      configurable: true,
+      writable: true,
+      value: {
+        pty: {
+          spawn,
+          write,
+          trackHostedAgent,
+          onData: vi.fn(() => () => undefined),
+          onExit: vi.fn(() => () => undefined),
+        },
+        agent: {
+          launch,
+          resolveResumeSessionId,
+        },
+      },
+    })
+
+    const { useHydrateAppState } =
+      await import('../../../src/app/renderer/shell/hooks/useHydrateAppState')
+
+    function Harness() {
+      const [_agentSettings, setAgentSettings] = useState(DEFAULT_AGENT_SETTINGS)
+      const [workspaces, setWorkspaces] = useState<WorkspaceState[]>([])
+      const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
+
+      const { isHydrated } = useHydrateAppState({
+        agentSettings: _agentSettings,
+        workspaces,
+        activeWorkspaceId,
+        setAgentSettings,
+        setWorkspaces,
+        setActiveWorkspaceId,
+      })
+
+      const workspace1 =
+        workspaces.find(workspace => workspace.id === 'workspace-1')?.nodes[0] ?? null
+
+      return (
+        <div>
+          <div data-testid="hydrated">{String(isHydrated)}</div>
+          <div data-testid="active-workspace">{activeWorkspaceId ?? 'none'}</div>
+          <div data-testid="workspace-1-session">{workspace1?.data.sessionId ?? 'none'}</div>
+          <div data-testid="workspace-1-status">{workspace1?.data.status ?? 'none'}</div>
+          <button type="button" onClick={() => setActiveWorkspaceId('workspace-1')}>
+            Select workspace 1
+          </button>
+          <button type="button" onClick={() => setActiveWorkspaceId('workspace-2')}>
+            Select workspace 2
+          </button>
+        </div>
+      )
+    }
+
+    render(<Harness />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hydrated')).toHaveTextContent('true')
+    })
+    expect(screen.getByTestId('workspace-1-session')).toHaveTextContent('terminal-session-1')
+    expect(screen.getByTestId('workspace-1-status')).toHaveTextContent('restoring')
+    expect(write).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select workspace 2' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('active-workspace')).toHaveTextContent('workspace-2')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select workspace 1' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('active-workspace')).toHaveTextContent('workspace-1')
+    })
+
+    expect(screen.getByTestId('workspace-1-session')).toHaveTextContent('terminal-session-1')
+    expect(screen.getByTestId('workspace-1-status')).toHaveTextContent('restoring')
+    expect(spawn).toHaveBeenCalledTimes(1)
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(trackHostedAgent).toHaveBeenCalledTimes(1)
+    expect(resolveResumeSessionId).not.toHaveBeenCalled()
+    expect(launch).not.toHaveBeenCalled()
   })
 })

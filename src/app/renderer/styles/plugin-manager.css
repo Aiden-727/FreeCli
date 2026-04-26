@@ -1076,19 +1076,75 @@
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
 }
 
-.git-worklog-config__board,
-.git-worklog-config__status-grid {
-  display: grid;
+.git-worklog-config__workspace {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.git-worklog-config__board {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+.git-worklog-config__workbench {
+  gap: 18px;
 }
 
-.git-worklog-config__status-grid {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+.git-worklog-config__workbench-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.git-worklog-config__workbench-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.git-worklog-config__refresh-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.git-worklog-config__refresh-action:disabled {
+  cursor: progress;
+}
+
+.git-worklog-config__action-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.git-worklog-config__action-icon--spinning {
+  animation: git-worklog-config-spin 0.8s linear infinite;
+}
+
+.git-worklog-config__toolbar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.git-worklog-config__toolbar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--cove-git-worklog-subcard-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-git-worklog-subcard-surface) 97%, white 3%) 0%,
+    var(--cove-git-worklog-subcard-surface) 100%
+  );
+  box-shadow:
+    0 16px 28px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 28%, transparent),
+    0 4px 12px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
 }
 
 .git-worklog-config__panel {
@@ -1116,6 +1172,13 @@
 }
 
 .git-worklog-config__panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.git-worklog-config__panel-head > div:first-child {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1183,6 +1246,49 @@
 .git-worklog-config__state-count {
   font-size: calc(12px * var(--cove-ui-font-scale));
   color: var(--cove-text-faint);
+}
+
+.git-worklog-config__exception-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.git-worklog-config__exception-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--cove-git-worklog-subcard-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-git-worklog-subcard-surface) 97%, white 3%) 0%,
+    var(--cove-git-worklog-subcard-surface) 100%
+  );
+  box-shadow:
+    0 14px 28px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 24%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
+}
+
+.git-worklog-config__exception-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.git-worklog-config__exception-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.git-worklog-config__exception-meta strong {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  color: var(--cove-text);
 }
 
 .git-worklog-config__repo-layout {
@@ -1970,7 +2076,7 @@
 .git-worklog-mini-trend {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--cove-git-worklog-subcard-border);
@@ -1994,31 +2100,118 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  flex-wrap: wrap;
+}
+
+.git-worklog-mini-trend__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .git-worklog-mini-trend__header span,
 .git-worklog-mini-trend__footer span,
-.git-worklog-mini-trend__header strong {
+.git-worklog-mini-trend__copy strong {
   font-size: calc(11px * var(--cove-ui-font-scale));
   color: var(--cove-text-muted);
 }
 
-.git-worklog-mini-trend__svg {
-  width: 100%;
-  height: 60px;
+.git-worklog-mini-trend__copy strong {
+  color: var(--cove-text);
 }
 
-.git-worklog-mini-trend__baseline {
+.git-worklog-mini-trend__range-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.git-worklog-mini-trend__range-button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--cove-git-worklog-pill-border);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-git-worklog-pill-surface) 94%, white 6%) 0%,
+    var(--cove-git-worklog-pill-surface) 100%
+  );
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  color: var(--cove-git-worklog-pill-text);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.git-worklog-mini-trend__range-button--active {
+  border-color: color-mix(in srgb, #22c55e 42%, var(--cove-git-worklog-pill-border));
+  background: color-mix(in srgb, #22c55e 10%, var(--cove-git-worklog-pill-surface));
+  color: color-mix(in srgb, #22c55e 74%, var(--cove-text));
+}
+
+.git-worklog-mini-trend__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.git-worklog-mini-trend__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--cove-git-worklog-pill-border);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-git-worklog-pill-surface) 94%, white 6%) 0%,
+    var(--cove-git-worklog-pill-surface) 100%
+  );
+  font-size: calc(10px * var(--cove-ui-font-scale));
+  color: var(--cove-text-muted);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.git-worklog-mini-trend__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.git-worklog-mini-trend__legend-dot--additions {
+  background: #22c55e;
+}
+
+.git-worklog-mini-trend__legend-dot--deletions {
+  background: #ef4444;
+}
+
+.git-worklog-mini-trend__svg {
+  width: 100%;
+  height: 112px;
+}
+
+.git-worklog-mini-trend__grid-line {
   stroke: color-mix(in srgb, var(--cove-border) 82%, transparent);
   stroke-width: 1;
 }
 
 .git-worklog-mini-trend__path {
   fill: none;
-  stroke: color-mix(in srgb, var(--cove-accent) 72%, #22c55e);
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.git-worklog-mini-trend__path--additions {
+  stroke: #22c55e;
+}
+
+.git-worklog-mini-trend__path--deletions {
+  stroke: #ef4444;
 }
 
 .git-worklog-overview__repo-list {
@@ -2039,6 +2232,7 @@
 }
 
 .git-worklog-overview__workspace-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2062,15 +2256,43 @@
     box-shadow 140ms ease;
 }
 
+.git-worklog-overview__workspace-card--external {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--cove-accent) 22%, var(--cove-git-worklog-card-border));
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--cove-accent) 10%, transparent) 0%,
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cove-git-worklog-card-surface-alt) 92%, white 8%) 0%,
+      var(--cove-git-worklog-card-surface) 100%
+    );
+}
+
 .git-worklog-overview__workspace-card--dragging {
   z-index: 2;
-  opacity: 0.88;
+  opacity: 0.96;
   transform: translate3d(
       var(--git-worklog-drag-offset-x, 0),
       var(--git-worklog-drag-offset-y, 0),
       0
     )
     scale(0.995);
+}
+
+.git-worklog-overview__workspace-card--dragging::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--cove-git-worklog-card-surface) 34%, transparent);
+  backdrop-filter: blur(10px) saturate(122%);
+  -webkit-backdrop-filter: blur(10px) saturate(122%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  pointer-events: none;
 }
 
 .git-worklog-overview__workspace-card--drop-target {
@@ -2101,6 +2323,46 @@
 
 .git-worklog-overview__workspace-card--drop-target::after {
   bottom: -7px;
+}
+
+.git-worklog-overview__workspace-card--repo-drop-target {
+  position: relative;
+  border-color: color-mix(in srgb, var(--cove-accent) 38%, var(--cove-git-worklog-card-border));
+  box-shadow:
+    0 28px 52px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 52%, transparent),
+    0 12px 28px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 26%, transparent),
+    0 3px 8px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 12%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--cove-accent) 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+}
+
+.git-worklog-overview__workspace-card--repo-drop-target::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 18px;
+  border: 1px dashed color-mix(in srgb, var(--cove-accent) 34%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-accent) 10%, transparent) 0%,
+    color-mix(in srgb, var(--cove-accent) 4%, transparent) 100%
+  );
+  pointer-events: none;
+}
+
+.git-worklog-overview__workspace-card--repo-drop-target[data-group-kind='external']::before {
+  border-width: 2px;
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--cove-accent) 18%, transparent) 0%,
+      transparent 48%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cove-accent) 12%, transparent) 0%,
+      color-mix(in srgb, var(--cove-accent) 5%, transparent) 100%
+    );
 }
 
 .git-worklog-overview__workspace-head {
@@ -2193,13 +2455,38 @@
 
 .git-worklog-overview__repo-row--dragging {
   z-index: 2;
-  opacity: 0.88;
+  opacity: 0.96;
   transform: translate3d(
       var(--git-worklog-drag-offset-x, 0),
       var(--git-worklog-drag-offset-y, 0),
       0
     )
     scale(0.992);
+}
+
+.git-worklog-overview__repo-row--dragging::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, white 10%, transparent) 0%,
+      color-mix(in srgb, var(--cove-git-worklog-card-surface) 18%, transparent) 100%
+    );
+  backdrop-filter: blur(10px) saturate(126%);
+  -webkit-backdrop-filter: blur(10px) saturate(126%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, white 6%, transparent);
+  pointer-events: none;
+}
+
+.git-worklog-overview__workspace-card--dragging > *,
+.git-worklog-overview__repo-row--dragging > * {
+  position: relative;
+  z-index: 1;
 }
 
 .git-worklog-overview__repo-row--drop-target {
@@ -2359,6 +2646,40 @@
   border-radius: 18px;
 }
 
+.git-worklog-overview__repo-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-height: 132px;
+  padding: 18px 16px;
+  border: 1px dashed color-mix(in srgb, var(--cove-accent) 28%, var(--cove-git-worklog-card-border));
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--cove-accent) 10%, transparent) 0%,
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cove-git-worklog-subcard-surface) 94%, white 6%) 0%,
+      var(--cove-git-worklog-subcard-surface) 100%
+    );
+  text-align: center;
+}
+
+.git-worklog-overview__repo-placeholder strong {
+  font-size: calc(14px * var(--cove-ui-font-scale));
+  color: var(--cove-text);
+}
+
+.git-worklog-overview__repo-placeholder span {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.6;
+  color: var(--cove-text-muted);
+}
+
 .git-worklog-overview__repo-body {
   display: flex;
   flex-direction: column;
@@ -2368,9 +2689,9 @@
 
 .git-worklog-overview__repo-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  width: min(100%, 248px);
+  width: 100%;
 }
 
 .git-worklog-overview__repo-stat {
@@ -4558,10 +4879,10 @@
 }
 
 .quota-monitor-overview__summary-card strong {
-  font-size: calc(28px * var(--cove-ui-font-scale));
+  font-size: calc(22px * var(--cove-ui-font-scale));
   line-height: 1.1;
   color: var(--cove-text);
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 .quota-monitor-overview__panel {
@@ -5011,28 +5332,244 @@
   max-width: 560px;
 }
 
-.git-worklog-config__ignored-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.git-worklog-config__scan-table-shell {
+  overflow: auto;
+  border: 1px solid var(--cove-git-worklog-subcard-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--cove-git-worklog-card-surface) 98%, white 2%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
 }
 
-.git-worklog-config__ignored-item {
+.git-worklog-config__scan-grid {
+  width: 100%;
+  min-width: 1220px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.git-worklog-config__scan-grid-col--scope {
+  width: 20%;
+}
+
+.git-worklog-config__scan-grid-col--path {
+  width: 31%;
+}
+
+.git-worklog-config__scan-grid-col--status {
+  width: 11%;
+}
+
+.git-worklog-config__scan-grid-col--summary {
+  width: 18%;
+}
+
+.git-worklog-config__scan-grid-col--actions {
+  width: 20%;
+}
+
+.git-worklog-config__scan-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--cove-git-worklog-subcard-border);
+  background: color-mix(in srgb, var(--cove-git-worklog-card-surface) 96%, white 4%);
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--cove-text-faint);
+}
+
+.git-worklog-config__scan-grid tbody td,
+.git-worklog-config__scan-grid tbody th {
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--cove-git-worklog-subcard-border) 82%, transparent);
+  vertical-align: middle;
+}
+
+.git-worklog-config__scan-grid tbody tr:last-child td,
+.git-worklog-config__scan-grid tbody tr:last-child th {
+  border-bottom: none;
+}
+
+.git-worklog-config__scan-grid-row--workspace {
+  background: color-mix(in srgb, var(--cove-git-worklog-card-surface) 94%, white 6%);
+}
+
+.git-worklog-config__scan-grid-row--workspace th,
+.git-worklog-config__scan-grid-row--workspace td {
+  background: color-mix(in srgb, var(--cove-git-worklog-card-surface) 94%, white 6%);
+}
+
+.git-worklog-config__scan-grid-row--repository th,
+.git-worklog-config__scan-grid-row--repository td {
+  background: color-mix(in srgb, var(--cove-git-worklog-subcard-surface) 74%, transparent);
+}
+
+.git-worklog-config__scan-grid-cell {
+  min-width: 0;
+}
+
+.git-worklog-config__scan-grid-scope {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.git-worklog-config__scan-grid tbody th.git-worklog-config__scan-grid-cell {
+  font-weight: 600;
+  text-align: left;
+}
+
+.git-worklog-config__scan-grid-scope strong {
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  line-height: 1.35;
+  color: var(--cove-text);
+  word-break: break-word;
+}
+
+.git-worklog-config__scan-grid-scope--repository {
+  padding-left: 26px;
+}
+
+.git-worklog-config__scan-grid-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--cove-git-worklog-subcard-border);
-  border-radius: 12px;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.git-worklog-config__panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.git-worklog-config__scan-grid-note {
+  display: block;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.git-worklog-config__scope-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: calc(10px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+}
+
+.git-worklog-config__scope-badge--workspace {
+  border: 1px solid color-mix(in srgb, var(--cove-accent) 22%, var(--cove-git-worklog-pill-border));
+  background: color-mix(in srgb, var(--cove-accent) 8%, var(--cove-git-worklog-pill-surface));
+  color: color-mix(in srgb, var(--cove-accent) 74%, var(--cove-text));
+}
+
+.git-worklog-config__scope-badge--repository {
+  border: 1px solid color-mix(in srgb, var(--cove-text-muted) 18%, var(--cove-git-worklog-pill-border));
+  background: color-mix(in srgb, var(--cove-git-worklog-pill-surface) 94%, white 6%);
+  color: var(--cove-text-muted);
+}
+
+.git-worklog-config__scope-branch {
+  position: absolute;
+  top: 12px;
+  left: 6px;
+  width: 12px;
+  height: calc(100% - 20px);
+  border-left: 1px solid color-mix(in srgb, var(--cove-border) 72%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--cove-border) 72%, transparent);
+  border-bottom-left-radius: 10px;
+  pointer-events: none;
+}
+
+.git-worklog-config__table-action.cove-window__action--ghost {
+  min-width: 74px;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  white-space: nowrap;
+}
+
+@keyframes git-worklog-config-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.git-worklog-config__scan-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--cove-git-worklog-pill-border);
+  border-radius: 999px;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--cove-git-worklog-subcard-surface) 96%, white 4%) 0%,
-    var(--cove-git-worklog-subcard-surface) 100%
+    color-mix(in srgb, var(--cove-git-worklog-pill-surface) 94%, white 6%) 0%,
+    var(--cove-git-worklog-pill-surface) 100%
   );
-  box-shadow:
-    0 12px 24px color-mix(in srgb, var(--cove-git-worklog-card-shadow) 28%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  color: var(--cove-git-worklog-pill-text);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.git-worklog-config__scan-status--pending {
+  border-color: color-mix(in srgb, #f59e0b 28%, var(--cove-git-worklog-pill-border));
+  background: color-mix(in srgb, #f59e0b 10%, var(--cove-git-worklog-pill-surface));
+  color: color-mix(in srgb, #b45309 78%, var(--cove-text));
+}
+
+.git-worklog-config__scan-status--dismissed {
+  border-color: color-mix(in srgb, #ef4444 22%, var(--cove-git-worklog-pill-border));
+  background: color-mix(in srgb, #ef4444 8%, var(--cove-git-worklog-pill-surface));
+  color: color-mix(in srgb, #b91c1c 78%, var(--cove-text));
+}
+
+.git-worklog-config__scan-status--managed {
+  border-color: color-mix(in srgb, #22c55e 24%, var(--cove-git-worklog-pill-border));
+  background: color-mix(in srgb, #22c55e 10%, var(--cove-git-worklog-pill-surface));
+  color: color-mix(in srgb, #15803d 78%, var(--cove-text));
+}
+
+.git-worklog-config__scan-repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.git-worklog-config__scan-repo-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--cove-git-worklog-subcard-border) 82%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cove-git-worklog-subcard-surface) 92%, transparent);
+}
+
+.git-worklog-config__scan-repo-row strong {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  color: var(--cove-text);
 }
 
 .git-worklog-config__ignored-path {
@@ -5054,8 +5591,8 @@
 }
 
 .git-worklog-config__settings-dialog.cove-window {
-  width: min(980px, calc(100vw - 40px));
-  max-height: min(820px, calc(100vh - 40px));
+  width: min(1320px, calc(100vw - 24px));
+  max-height: min(900px, calc(100vh - 28px));
   gap: 16px;
   padding: 20px;
 }
@@ -5792,6 +6329,23 @@
   color: var(--cove-overlay-danger-status-text);
 }
 
+.plugin-manager-panel__hint--info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--cove-overlay-info-status-border, rgba(84, 145, 255, 0.28));
+  border-radius: 14px;
+  background: var(--cove-overlay-info-status-surface, rgba(84, 145, 255, 0.1));
+  color: var(--cove-overlay-info-status-text, var(--cove-text));
+}
+
+.plugin-manager-panel__hint--info span {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.5;
+  color: var(--cove-overlay-info-status-text, var(--cove-text));
+}
+
 .plugin-manager-panel .cove-field {
   width: 100%;
 }
@@ -5891,7 +6445,7 @@
     grid-template-columns: 1fr;
   }
 
-  .git-worklog-config__board {
+  .git-worklog-config__toolbar-grid {
     grid-template-columns: 1fr;
   }
 
@@ -6085,13 +6639,10 @@
     grid-template-columns: 1fr;
   }
 
-  .git-worklog-config__imported-header {
+  .git-worklog-config__workbench-head,
+  .git-worklog-config__exception-item {
     flex-direction: column;
-    align-items: stretch;
-  }
-
-  .git-worklog-config__status-grid {
-    grid-template-columns: 1fr;
+    align-items: flex-start;
   }
 
   .git-worklog-config__repo-layout {
@@ -6167,9 +6718,12 @@
     width: 100%;
   }
 
-  .git-worklog-config__ignored-item {
-    flex-direction: column;
-    align-items: stretch;
+  .git-worklog-config__scan-table-shell {
+    overflow-x: auto;
+  }
+
+  .git-worklog-config__scan-grid {
+    min-width: 960px;
   }
 
   .git-worklog-overview__toolbar {

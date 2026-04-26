@@ -23,6 +23,7 @@ import { toRuntimeNodes } from '@contexts/workspace/presentation/renderer/utils/
 import { resolveCanvasCanonicalBucketFromViewport } from '@contexts/workspace/presentation/renderer/utils/workspaceNodeSizing'
 import { sanitizeWorkspaceSpaces } from '@contexts/workspace/presentation/renderer/utils/workspaceSpaces'
 import { hydrateAgentNode } from '@contexts/agent/presentation/renderer/hydrateAgentNode'
+import { isWorkspaceArchived } from '@app/renderer/shell/utils/workspaceArchive'
 
 function toShellWorkspaceState(workspace: PersistedWorkspaceState): WorkspaceState {
   const nodes = toRuntimeNodes(workspace)
@@ -42,6 +43,8 @@ function toShellWorkspaceState(workspace: PersistedWorkspaceState): WorkspaceSta
     name: workspace.name,
     path: workspace.path,
     worktreesRoot: workspace.worktreesRoot,
+    lifecycleState: workspace.lifecycleState,
+    archivedAt: workspace.archivedAt,
     pullRequestBaseBranchOptions: workspace.pullRequestBaseBranchOptions ?? [],
     nodes,
     viewport: {
@@ -58,6 +61,18 @@ function toShellWorkspaceState(workspace: PersistedWorkspaceState): WorkspaceSta
 
 function requiresRuntimeHydration(node: Node<TerminalNodeData>): boolean {
   return node.data.kind === 'terminal' || node.data.kind === 'agent'
+}
+
+function hasSessionId(node: Node<TerminalNodeData>): boolean {
+  return node.data.sessionId.trim().length > 0
+}
+
+function shouldHydrateRuntimeNode(node: Node<TerminalNodeData>): boolean {
+  if (!requiresRuntimeHydration(node)) {
+    return false
+  }
+
+  return !hasSessionId(node)
 }
 
 function mergeHydratedAgentData(
@@ -235,12 +250,13 @@ export async function hydrateRuntimeNode({
 }: {
   node: Node<TerminalNodeData>
   workspacePath: string
-  agentSettings: Pick<
+  agentSettings?: Pick<
     AgentSettings,
     'agentFullAccess' | 'defaultTerminalProfileId' | 'terminalCredentials'
   >
 }): Promise<Node<TerminalNodeData>> {
-  const { agentFullAccess, defaultTerminalProfileId } = agentSettings
+  const resolvedAgentSettings = agentSettings ?? DEFAULT_AGENT_SETTINGS
+  const { agentFullAccess, defaultTerminalProfileId } = resolvedAgentSettings
 
   if (node.data.kind === 'agent' && node.data.agent) {
     return hydrateAgentNode({
@@ -259,7 +275,7 @@ export async function hydrateRuntimeNode({
       cwd: resolveTerminalHydrationCwd(node, workspacePath),
       profileId: node.data.profileId ?? defaultTerminalProfileId ?? undefined,
       credential: resolveTerminalCredentialSpawnInput({
-        settings: agentSettings,
+        settings: resolvedAgentSettings,
         credentialProfileId: node.data.credentialProfileId,
       }),
       cols: 80,
@@ -585,9 +601,8 @@ export function useHydrateAppState({
         const sessionId = node.data.sessionId.trim()
         if (
           node.data.kind !== 'terminal' ||
-          node.data.hostedAgent ||
           sessionId.length === 0 ||
-          node.data.persistenceMode === 'ephemeral'
+          (node.data.persistenceMode ?? 'persistent') !== 'ephemeral'
         ) {
           return node
         }
@@ -617,7 +632,6 @@ export function useHydrateAppState({
       }
 
       persistedWorkspaceByIdRef.current.set(workspaceId, toPersistedWorkspaceState(nextWorkspace))
-      hydratedWorkspaceIdsRef.current.delete(workspaceId)
       workspacesRef.current = workspacesRef.current.map(candidate =>
         candidate.id === workspaceId ? nextWorkspace : candidate,
       )
@@ -642,13 +656,16 @@ export function useHydrateAppState({
       }
 
       const persistedWorkspace = persistedWorkspaceByIdRef.current.get(workspaceId)
-      if (!persistedWorkspace) {
+      const currentWorkspace = workspacesRef.current.find(workspace => workspace.id === workspaceId) ?? null
+      const runtimeNodes = currentWorkspace?.nodes ?? (persistedWorkspace ? toRuntimeNodes(persistedWorkspace) : null)
+
+      if (!persistedWorkspace && !currentWorkspace) {
         markInitialHydrationComplete(workspaceId)
         return
       }
 
-      if (hydratedWorkspaceIdsRef.current.has(workspaceId)) {
-        void loadWorkspaceScrollbacks(persistedWorkspace)
+      if ((currentWorkspace?.lifecycleState ?? persistedWorkspace?.lifecycleState) === 'archived') {
+        hydratedWorkspaceIdsRef.current.delete(workspaceId)
         markInitialHydrationComplete(workspaceId)
         return
       }
@@ -660,20 +677,22 @@ export function useHydrateAppState({
         return
       }
 
-      void loadWorkspaceScrollbacks(persistedWorkspace)
+      if (persistedWorkspace) {
+        void loadWorkspaceScrollbacks(persistedWorkspace)
+      }
 
-      const runtimeNodes = toRuntimeNodes(persistedWorkspace).filter(requiresRuntimeHydration)
-      if (runtimeNodes.length === 0) {
+      const nodesNeedingHydration = (runtimeNodes ?? []).filter(shouldHydrateRuntimeNode)
+      if (nodesNeedingHydration.length === 0) {
         hydratedWorkspaceIdsRef.current.add(workspaceId)
         markInitialHydrationComplete(workspaceId)
         return
       }
 
       const hydrationPromise = Promise.allSettled(
-        runtimeNodes.map(node =>
+        nodesNeedingHydration.map(node =>
           hydrateRuntimeNode({
             node,
-            workspacePath: persistedWorkspace.path,
+            workspacePath: currentWorkspace?.path ?? persistedWorkspace?.path ?? '',
             agentSettings: agentSettingsRef.current,
           }),
         ),
@@ -764,12 +783,15 @@ export function useHydrateAppState({
         return
       }
 
-      const hasActiveWorkspace = persisted.workspaces.some(
+      const availableWorkspaces = persisted.workspaces.filter(
+        workspace => !isWorkspaceArchived(workspace),
+      )
+      const hasActiveWorkspace = availableWorkspaces.some(
         workspace => workspace.id === persisted.activeWorkspaceId,
       )
       const resolvedActiveWorkspaceId = hasActiveWorkspace
         ? persisted.activeWorkspaceId
-        : (persisted.workspaces[0]?.id ?? null)
+        : (availableWorkspaces[0]?.id ?? null)
 
       persistedWorkspaceByIdRef.current = new Map(
         persisted.workspaces.map(workspace => [workspace.id, workspace]),
@@ -815,6 +837,11 @@ export function useHydrateAppState({
       }
 
       if (isCancelled) {
+        return
+      }
+
+      const activeWorkspace = persistedWorkspaceByIdRef.current.get(activeWorkspaceId)
+      if (activeWorkspace?.lifecycleState === 'archived') {
         return
       }
 

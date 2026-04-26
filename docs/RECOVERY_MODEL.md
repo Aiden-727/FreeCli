@@ -240,14 +240,31 @@ TaskAgentLink {
 ### Workspace 切换下的 Terminal Dehydrate
 
 允许：
-- workspace 从 active 切到 inactive 时，释放普通 terminal 的 runtime 占用
+- workspace 从 active 切到 inactive 时，只释放 `ephemeral` terminal 的 runtime 占用
+- `persistent` plain terminal 与 hosted terminal 在 workspace 切换时保留 live PTY / sessionId，只做 renderer detach
 - 释放前保留 node layout、workspace durable state 与 node scrollback
-- 重新切回 workspace 时，按最新 durable workspace 视图重新 hydrate 普通 terminal
+- 重新切回 workspace 时，优先复用当前 workspace 内存里的 live session；只有没有 sessionId 的节点才重新 hydrate
 
 不允许：
 - 因 workspace 切换直接篡改 agent / hosted agent 的恢复语义
+- 因 workspace 切换把仍然存活的 persistent terminal 主动 kill 后再当作恢复会话重建
 - 继续使用启动时快照作为唯一 hydration 源，导致后续用户编辑和 dehydrate 结果丢失
 - 让 inactive workspace 保留旧 sessionId 并继续接收 PTY runtime observation
+
+### Workspace Archive
+
+允许：
+- 用户显式把 workspace 标记为 `archived`
+- 归档时关闭该 workspace 下全部 runtime session
+- 保留 workspace 的 durable layout / task / agent binding / scrollback
+- archived workspace 继续保留在项目列表与持久化状态中
+- 用户显式重新启用后，workspace 才重新获得 hydrate 资格
+
+不允许：
+- 把 archive 退化成普通 dehydrate；archived workspace 不得自动恢复
+- watcher / PTY late event 把 archived workspace 重新点亮成 active runtime
+- 归档时清空 task / agent 的 durable binding truth
+- 在 archived 状态下继续把该 workspace 当作 active project 入口
 
 ### Close
 

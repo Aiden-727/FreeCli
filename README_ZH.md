@@ -91,6 +91,69 @@ pnpm build:linux
 - 测试版内部继续沿用 `nightly` tag 后缀与更新元数据，以兼容现有发布链路
 - 推送 `v*` tag 后会自动触发 GitHub Release 工作流
 
+## 应用更新与发版摘要
+
+- 自动更新依赖 `electron-builder` 生成并上传到 GitHub Releases 的更新元数据，例如 `latest.yml`、`nightly.yml`
+- 应用内 `What's New` 说明来自 `release-manifest.json` 与 `build/release-notes/*`，它只负责展示更新内容，不负责判断是否有新版本
+- 桌面端支持 `off / prompt / auto` 三种更新策略，以及 `stable / beta` 两种更新通道；界面里的“测试版”内部仍映射到 `nightly`
+
+### Fork 后先改什么
+
+如果你是从自己的 fork 发版，至少先检查这些字段：
+
+- `package.json -> build.publish[0].owner`
+- `package.json -> build.publish[0].repo`
+- `package.json -> homepage / bugs.url / repository.url`
+- 建议同步更新：`appId / productName / executableName / publisher`
+
+### 稳定版发版
+
+当版本已经可以作为公开推荐安装的正式基线时，使用稳定版：
+
+```bash
+pnpm release:patch
+git add .
+git commit -m "chore: release 0.0.2"
+git tag v0.0.2
+git push origin main --tags
+```
+
+发 tag 前至少确认：
+
+- `package.json.version` 已是目标版本
+- `CHANGELOG.md` 已更新
+- `build/release-notes/stable/v<version>.json` 已存在
+- 本地至少验证过一个目标平台打包
+
+### 测试版发版
+
+当你要验证自动更新链路，或者先给测试用户体验时，使用测试版：
+
+先生成下一个可用的 nightly tag：
+
+```bash
+pnpm release:nightly:tag
+```
+
+```bash
+git tag v0.0.2-nightly.20260418.1
+git push origin v0.0.2-nightly.20260418.1
+```
+
+- 测试版通常不需要修改 `package.json.version`
+- 测试版通常不需要更新 `CHANGELOG.md`
+- 当前 nightly 工作流只保留手动触发路径；需要测试版时，手动 push nightly tag 或在 GitHub Actions 页面手动触发
+- 如果当前工作区很脏，记住测试版永远是基于“某个已提交并已推送的 commit”构建，不会直接打包未提交文件
+
+### 如何验证自动更新
+
+推荐按下面的顺序验证：
+
+1. 先安装一个已发布的旧版本。
+2. 再发布一个更高版本的稳定版或测试版。
+3. 在旧版本里手动执行“检查更新”。
+4. 确认能正确检测、下载并提示安装。
+
 ## 技术栈
 
 - Electron

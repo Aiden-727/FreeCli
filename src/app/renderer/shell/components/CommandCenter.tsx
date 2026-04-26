@@ -13,6 +13,7 @@ import type {
   WorkspaceSpaceState,
   WorkspaceState,
 } from '@contexts/workspace/presentation/renderer/types'
+import { isWorkspaceArchived } from '../utils/workspaceArchive'
 
 type CommandCenterItem = {
   id: string
@@ -188,15 +189,17 @@ export function CommandCenter({
       },
     ]
 
-    const projectItems: CommandCenterItem[] = workspaces.map(workspace => ({
-      id: `workspace:${workspace.id}`,
-      title: workspace.name,
-      subtitle: workspace.path,
-      icon: <Folder aria-hidden="true" size={16} />,
-      onSelect: () => {
-        onSelectWorkspace(workspace.id)
-      },
-    }))
+    const projectItems: CommandCenterItem[] = workspaces
+      .filter(workspace => !isWorkspaceArchived(workspace))
+      .map(workspace => ({
+        id: `workspace:${workspace.id}`,
+        title: workspace.name,
+        subtitle: workspace.path,
+        icon: <Folder aria-hidden="true" size={16} />,
+        onSelect: () => {
+          onSelectWorkspace(workspace.id)
+        },
+      }))
 
     const spaceItems: CommandCenterItem[] =
       activeWorkspace?.spaces.map(space => ({

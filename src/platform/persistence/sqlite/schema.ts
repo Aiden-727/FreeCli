@@ -14,9 +14,12 @@ export const appSettings = sqliteTable('app_settings', {
 
 export const workspaces = sqliteTable('workspaces', {
   id: text('id').primaryKey(),
+  sortOrder: integer('sort_order').notNull(),
   name: text('name').notNull(),
   path: text('path').notNull(),
   worktreesRoot: text('worktrees_root').notNull(),
+  lifecycleState: text('lifecycle_state').notNull(),
+  archivedAt: text('archived_at'),
   pullRequestBaseBranchOptionsJson: text('pull_request_base_branch_options_json').notNull(),
   spaceArchiveRecordsJson: text('space_archive_records_json').notNull(),
   viewportX: real('viewport_x').notNull(),

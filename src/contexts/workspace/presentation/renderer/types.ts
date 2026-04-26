@@ -120,6 +120,8 @@ export interface WorkspaceState {
   name: string
   path: string
   worktreesRoot: string
+  lifecycleState: WorkspaceLifecycleState
+  archivedAt: string | null
   pullRequestBaseBranchOptions?: string[]
   nodes: Node<TerminalNodeData>[]
   viewport: WorkspaceViewport
@@ -134,6 +136,8 @@ export interface PersistedWorkspaceState {
   name: string
   path: string
   worktreesRoot: string
+  lifecycleState: WorkspaceLifecycleState
+  archivedAt: string | null
   pullRequestBaseBranchOptions?: string[]
   nodes: PersistedTerminalNode[]
   viewport: WorkspaceViewport
@@ -149,6 +153,8 @@ export interface WorkspaceSpaceRect {
   width: number
   height: number
 }
+
+export type WorkspaceLifecycleState = 'active' | 'archived'
 
 export interface WorkspaceSpaceState {
   id: string

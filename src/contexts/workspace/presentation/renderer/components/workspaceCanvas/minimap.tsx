@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Node } from '@xyflow/react'
 import { resolveTerminalRuntimeStatus } from '@app/renderer/shell/utils/terminalRuntimeStatus'
+import type { LabelColor } from '@shared/types/labelColor'
 import type { TerminalNodeData } from '../../types'
 
 export interface WorkspaceMinimapViewportWindowLayout {
@@ -59,6 +60,7 @@ interface WorkspaceMinimapNodeComponentProps {
   strokeColor?: string
   strokeWidth?: number
   headerColor?: string
+  labelColor?: LabelColor | null
   selected: boolean
   onClick?: (event: React.MouseEvent, id: string) => void
 }
@@ -288,6 +290,13 @@ export function resolveWorkspaceMinimapNodeStrokeColor(node: Node<TerminalNodeDa
   }
 }
 
+export function resolveWorkspaceMinimapNodeLabelColor(node: Node<TerminalNodeData>): LabelColor | null {
+  const effectiveLabelColor = (node.data as TerminalNodeData & {
+    effectiveLabelColor?: LabelColor | null
+  }).effectiveLabelColor
+  return effectiveLabelColor ?? null
+}
+
 export function resolveWorkspaceMinimapNodeClassName(node: Node<TerminalNodeData>): string {
   if (node.data.kind === 'task') {
     return `workspace-canvas__minimap-node workspace-canvas__minimap-node--task workspace-canvas__minimap-node--task-${resolveWorkspaceMinimapTaskState(node)}`
@@ -456,12 +465,20 @@ export function WorkspaceMinimapNode({
   strokeColor,
   strokeWidth,
   headerColor,
+  labelColor,
   selected,
   onClick,
 }: WorkspaceMinimapNodeComponentProps): React.JSX.Element {
   const headerHeight = Math.max(6, Math.min(18, height * 0.2))
   const bodyBorderRadius = Math.min(borderRadius, Math.max(3, Math.min(width, height) * 0.18))
   const headerRadius = Math.min(bodyBorderRadius, headerHeight)
+  const labelAccentRadius = Math.max(2.6, Math.min(5.2, headerHeight * 0.26))
+  const labelAccentInset = Math.max(4, Math.min(8, width * 0.08))
+  const labelAccentCenterX = Math.min(
+    Math.max(headerRadius + labelAccentRadius, width - headerRadius - labelAccentRadius),
+    width - labelAccentInset,
+  )
+  const labelAccentCenterY = Math.max(headerRadius, headerHeight / 2)
   const headerPath = [
     `M 0 ${headerHeight}`,
     `L 0 ${headerRadius}`,
@@ -573,6 +590,21 @@ export function WorkspaceMinimapNode({
         shapeRendering={shapeRendering}
         pointerEvents="none"
       />
+      {labelColor ? (
+        <circle
+          className="workspace-canvas__minimap-node-label-accent"
+          data-cove-label-color={labelColor}
+          data-testid={`workspace-minimap-label-accent-${id}`}
+          cx={labelAccentCenterX}
+          cy={labelAccentCenterY}
+          r={labelAccentRadius}
+          fill="var(--cove-label-color)"
+          stroke="rgba(255, 255, 255, 0.72)"
+          strokeWidth={Math.max(0.8, (strokeWidth ?? 1) * 0.9)}
+          shapeRendering={shapeRendering}
+          pointerEvents="none"
+        />
+      ) : null}
     </g>
   )
 }

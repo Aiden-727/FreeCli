@@ -1,5 +1,12 @@
 import React from 'react'
-import { ChevronRight, FolderOpen, FolderX, LoaderCircle } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronRight,
+  FolderOpen,
+  FolderX,
+  LoaderCircle,
+} from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
 import type { WorkspacePathOpener, WorkspacePathOpenerId } from '@shared/contracts/dto'
 
@@ -39,7 +46,9 @@ export function ProjectContextMenu({
   y,
   availableOpeners,
   isLoadingOpeners,
+  isArchived,
   onOpenPath,
+  onToggleArchive,
   onRequestRemove,
 }: {
   workspaceId: string
@@ -47,7 +56,9 @@ export function ProjectContextMenu({
   y: number
   availableOpeners: WorkspacePathOpener[]
   isLoadingOpeners: boolean
+  isArchived: boolean
   onOpenPath: (workspaceId: string, openerId: WorkspacePathOpenerId) => void | Promise<void>
+  onToggleArchive: (workspaceId: string) => void | Promise<void>
   onRequestRemove: (workspaceId: string) => void
 }): React.JSX.Element {
   const { t } = useTranslation()
@@ -153,6 +164,27 @@ export function ProjectContextMenu({
         ) : null}
 
         {shouldShowOpenButton ? <div className="workspace-context-menu__separator" /> : null}
+
+        <button
+          type="button"
+          data-testid={`workspace-project-${isArchived ? 'enable' : 'archive'}-${workspaceId}`}
+          onClick={() => {
+            void onToggleArchive(workspaceId)
+          }}
+        >
+          {isArchived ? (
+            <ArchiveRestore className="workspace-context-menu__icon" aria-hidden="true" />
+          ) : (
+            <Archive className="workspace-context-menu__icon" aria-hidden="true" />
+          )}
+          <span className="workspace-context-menu__label">
+            {isArchived
+              ? t('projectContextMenu.enableProject')
+              : t('projectContextMenu.archiveProject')}
+          </span>
+        </button>
+
+        <div className="workspace-context-menu__separator" />
 
         <button
           type="button"

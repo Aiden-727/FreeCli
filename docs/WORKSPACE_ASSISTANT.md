@@ -67,6 +67,7 @@
 - `pluginHostSyncRegistry`
   - 将当前活动 workspace 的派生快照纳入插件宿主同步链
   - 统一走宿主诊断与错误收口，而不是额外散落独立 effect
+  - 2026-04-25 起，只有在插件宿主 `enabledIds` 已启用 `workspace-assistant` 时，才允许构造活动 workspace 快照并注册对应同步任务；未启用时该链路必须完全旁路
 - `useWorkspaceAssistantProjectContext`
   - 只对当前活动项目做受控文件摘要读取
   - 目前只扫描少量关键文件，不做全量目录索引

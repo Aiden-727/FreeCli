@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { clearAndSeedWorkspace, launchApp, testWorkspacePath } from './workspace-canvas.helpers'
+import {
+  clearAndSeedWorkspace,
+  createTestUserDataDir,
+  launchApp,
+  removePathWithRetry,
+  testWorkspacePath,
+} from './workspace-canvas.helpers'
 
 test.describe('Workspace Canvas - Label Colors', () => {
   test('keeps the selection label color submenu attached to the context menu near viewport edges', async () => {
@@ -233,6 +239,113 @@ test.describe('Workspace Canvas - Label Colors', () => {
       )
     } finally {
       await electronApp.close()
+    }
+  })
+
+  test('keeps terminal identity color after full app relaunch', async () => {
+    const userDataDir = await createTestUserDataDir()
+    let firstApp: Awaited<ReturnType<typeof launchApp>> | null = null
+    let secondApp: Awaited<ReturnType<typeof launchApp>> | null = null
+
+    try {
+      firstApp = await launchApp({ userDataDir, cleanupUserDataDir: false })
+
+      await clearAndSeedWorkspace(
+        firstApp.window,
+        [
+          {
+            id: 'node-label-relaunch',
+            title: 'terminal-label-relaunch',
+            position: { x: 220, y: 180 },
+            width: 460,
+            height: 300,
+          },
+        ],
+        {
+          spaces: [
+            {
+              id: 'space-label-relaunch',
+              name: 'Relaunch Space',
+              directoryPath: testWorkspacePath,
+              labelColor: 'blue',
+              nodeIds: ['node-label-relaunch'],
+              rect: { x: 180, y: 140, width: 540, height: 380 },
+            },
+          ],
+          activeSpaceId: null,
+        },
+      )
+
+      const terminalNode = firstApp.window.locator('.terminal-node').first()
+      const header = terminalNode.locator('.terminal-node__header')
+
+      await expect(terminalNode).toBeVisible()
+      await expect(header.locator('.cove-label-dot')).toHaveAttribute(
+        'data-cove-label-color',
+        'blue',
+      )
+
+      await header.click({ position: { x: 40, y: 20 } })
+      await firstApp.window.locator('[data-testid="terminal-node-label-button"]').click()
+      await expect(firstApp.window.locator('[data-testid="terminal-node-label-menu"]')).toBeVisible()
+      await firstApp.window.locator('[data-testid="terminal-node-label-option-red"]').click()
+
+      await expect(header.locator('.cove-label-dot')).toHaveAttribute(
+        'data-cove-label-color',
+        'red',
+      )
+      await expect(firstApp.window.locator('.terminal-node').first()).toHaveAttribute(
+        'data-cove-label-color',
+        'red',
+      )
+
+      await expect
+        .poll(async () => {
+          return await firstApp.window.evaluate(async nodeId => {
+            const raw = await window.freecliApi.persistence.readWorkspaceStateRaw()
+            if (!raw) {
+              return null
+            }
+
+            const parsed = JSON.parse(raw) as {
+              workspaces?: Array<{
+                nodes?: Array<{
+                  id?: string
+                  labelColorOverride?: unknown
+                }>
+              }>
+            }
+
+            const node = parsed.workspaces?.[0]?.nodes?.find(item => item.id === nodeId) ?? null
+            return typeof node?.labelColorOverride === 'string' ? node.labelColorOverride : null
+          }, 'node-label-relaunch')
+        })
+        .toBe('red')
+
+      await firstApp.electronApp.close()
+      firstApp = null
+
+      secondApp = await launchApp({
+        userDataDir,
+        cleanupUserDataDir: false,
+      })
+
+      const restartedTerminalNode = secondApp.window.locator('.terminal-node').first()
+      const restartedHeader = restartedTerminalNode.locator('.terminal-node__header')
+      await expect(restartedTerminalNode).toBeVisible()
+      await expect(restartedHeader.locator('.cove-label-dot')).toHaveAttribute(
+        'data-cove-label-color',
+        'red',
+      )
+      await expect(restartedTerminalNode).toHaveAttribute('data-cove-label-color', 'red')
+    } finally {
+      if (firstApp) {
+        await firstApp.electronApp.close()
+      }
+      if (secondApp) {
+        await secondApp.electronApp.close()
+      }
+      await removePathWithRetry(userDataDir)
     }
   })
 

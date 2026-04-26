@@ -30,9 +30,12 @@ function createTables(db: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS workspaces (
       id TEXT PRIMARY KEY,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       name TEXT NOT NULL,
       path TEXT NOT NULL,
       worktrees_root TEXT NOT NULL,
+      lifecycle_state TEXT NOT NULL DEFAULT 'active',
+      archived_at TEXT,
       pull_request_base_branch_options_json TEXT NOT NULL DEFAULT '[]',
       space_archive_records_json TEXT NOT NULL DEFAULT '[]',
       viewport_x REAL NOT NULL,
@@ -199,10 +202,54 @@ function ensureTableColumn(
 function ensureCurrentSchema(db: Database.Database): void {
   createTables(db)
 
+  const hadWorkspaceSortOrder = hasTableColumn(db, 'workspaces', 'sort_order')
+
+  ensureTableColumn(db, {
+    tableName: 'workspaces',
+    columnName: 'sort_order',
+    definitionSql: 'INTEGER NOT NULL DEFAULT 0',
+  })
+
+  if (!hadWorkspaceSortOrder) {
+    db.exec(`
+      WITH ordered_workspaces AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (
+            ORDER BY
+              CASE WHEN lifecycle_state = 'archived' THEN 1 ELSE 0 END,
+              COALESCE(archived_at, ''),
+              name,
+              id
+          ) - 1 AS next_sort_order
+        FROM workspaces
+      )
+      UPDATE workspaces
+      SET sort_order = (
+        SELECT ordered_workspaces.next_sort_order
+        FROM ordered_workspaces
+        WHERE ordered_workspaces.id = workspaces.id
+      )
+      WHERE id IN (SELECT id FROM ordered_workspaces)
+    `)
+  }
+
   ensureTableColumn(db, {
     tableName: 'workspaces',
     columnName: 'pull_request_base_branch_options_json',
     definitionSql: `TEXT NOT NULL DEFAULT '[]'`,
+  })
+
+  ensureTableColumn(db, {
+    tableName: 'workspaces',
+    columnName: 'lifecycle_state',
+    definitionSql: `TEXT NOT NULL DEFAULT 'active'`,
+  })
+
+  ensureTableColumn(db, {
+    tableName: 'workspaces',
+    columnName: 'archived_at',
+    definitionSql: 'TEXT',
   })
 
   ensureTableColumn(db, {

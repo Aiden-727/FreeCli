@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from '@app/renderer/i18n'
 import { SettingsPanel } from '@contexts/settings/presentation/renderer/SettingsPanel'
 import {
-  AGENT_PROVIDER_LABEL,
   DEFAULT_AGENT_SETTINGS,
-  resolveAgentModel,
   type GraphicsMode,
 } from '@contexts/settings/domain/agentSettings'
 import { toPersistedState } from '@contexts/workspace/presentation/renderer/utils/persistence'
@@ -47,13 +45,20 @@ import {
   resolvePersistedPluginChangeIds,
 } from '@contexts/plugins/presentation/renderer/pluginHostSyncRegistry'
 import { buildWorkspaceAssistantSnapshot } from '../../../plugins/workspaceAssistant/presentation/renderer/workspaceAssistantContext'
-import type { ProjectContextMenuState } from './types'
+import type { ProjectContextMenuState, WorkspaceMoveIntent } from './types'
 import { useAppStore } from './store/useAppStore'
-import { reorderWorkspaces } from './utils/reorderWorkspaces'
 import { toErrorMessage } from './utils/format'
 import { removeWorkspace } from './utils/removeWorkspace'
 import { WhatsNewDialog } from './components/WhatsNewDialog'
 import { formatKeyChord, resolveCommandKeybinding } from '@contexts/settings/domain/keybindings'
+import {
+  buildArchivedWorkspaceSnapshot,
+  buildEnabledWorkspaceSnapshot,
+  findNextActiveWorkspaceId,
+  isWorkspaceArchived,
+  moveWorkspaceIntoLifecycleGroup,
+  shutdownWorkspaceRuntime,
+} from './utils/workspaceArchive'
 
 export default function App(): React.JSX.Element {
   const { t } = useTranslation()
@@ -146,13 +151,28 @@ export default function App(): React.JSX.Element {
   usePtyWorkspaceRuntimeSync({ requestPersistFlush })
 
   const activeWorkspace = useMemo(
-    () => workspaces.find(workspace => workspace.id === activeWorkspaceId) ?? null,
+    () =>
+      workspaces.find(
+        workspace => workspace.id === activeWorkspaceId && !isWorkspaceArchived(workspace),
+      ) ?? null,
     [activeWorkspaceId, workspaces],
   )
-  const workspaceAssistantSnapshot = useMemo(
-    () => buildWorkspaceAssistantSnapshot(activeWorkspace),
-    [activeWorkspace],
+  const isWorkspaceAssistantEnabled = useMemo(
+    () => agentSettings.plugins.enabledIds.includes('workspace-assistant'),
+    [agentSettings.plugins.enabledIds],
   )
+  const workspaceAssistantSnapshot = useMemo(() => {
+    if (!isWorkspaceAssistantEnabled) {
+      return null
+    }
+
+    try {
+      return buildWorkspaceAssistantSnapshot(activeWorkspace)
+    } catch (error) {
+      console.error('[workspace-assistant] failed to build workspace snapshot', error)
+      return null
+    }
+  }, [activeWorkspace, isWorkspaceAssistantEnabled])
 
   const activeWorkspaceName = activeWorkspace?.name ?? null
 
@@ -449,9 +469,6 @@ export default function App(): React.JSX.Element {
     onChangeSettings: setAgentSettings,
   })
 
-  const activeProviderLabel = AGENT_PROVIDER_LABEL[agentSettings.defaultProvider]
-  const activeProviderModel =
-    resolveAgentModel(agentSettings, agentSettings.defaultProvider) ?? t('common.defaultFollowCli')
   const handleAddWorkspace = useAddWorkspaceAction()
 
   const {
@@ -550,30 +567,74 @@ export default function App(): React.JSX.Element {
 
   const handleSelectWorkspace = useCallback((workspaceId: string): void => {
     const store = useAppStore.getState()
+    const targetWorkspace = store.workspaces.find(workspace => workspace.id === workspaceId)
+    if (!targetWorkspace || isWorkspaceArchived(targetWorkspace)) {
+      return
+    }
+
     store.setActiveWorkspaceId(workspaceId)
     store.setFocusRequest(null)
   }, [])
 
-  const handleReorderWorkspaces = useCallback(
-    (draggedWorkspaceId: string, targetWorkspaceId: string): void => {
+  const handleMoveWorkspace = useCallback(
+    async ({
+      workspaceId,
+      targetList,
+      anchorWorkspaceId,
+      placement,
+    }: WorkspaceMoveIntent): Promise<void> => {
       const store = useAppStore.getState()
-      const nextWorkspaces = reorderWorkspaces(
-        store.workspaces,
-        draggedWorkspaceId,
-        targetWorkspaceId,
-      )
+      const targetWorkspace = store.workspaces.find(workspace => workspace.id === workspaceId)
+      if (!targetWorkspace) {
+        return
+      }
+
+      const targetLifecycleState = targetList === 'archived' ? 'archived' : 'active'
+      const isMovingAcrossLifecycle =
+        (isWorkspaceArchived(targetWorkspace) ? 'archived' : 'active') !== targetLifecycleState
+
+      const nextWorkspaces = moveWorkspaceIntoLifecycleGroup({
+        workspaces: store.workspaces,
+        workspaceId,
+        targetLifecycleState,
+        anchorWorkspaceId,
+        placement,
+        transformWorkspace:
+          targetLifecycleState === 'archived'
+            ? buildArchivedWorkspaceSnapshot
+            : buildEnabledWorkspaceSnapshot,
+      })
+
       if (nextWorkspaces === store.workspaces) {
         return
       }
 
+      const nextActiveWorkspaceId =
+        targetLifecycleState === 'archived' && store.activeWorkspaceId === workspaceId
+          ? findNextActiveWorkspaceId(nextWorkspaces, workspaceId)
+          : store.activeWorkspaceId
+
       store.setWorkspaces(nextWorkspaces)
+      store.setActiveWorkspaceId(nextActiveWorkspaceId)
+      if (nextActiveWorkspaceId !== store.activeWorkspaceId) {
+        store.setFocusRequest(null)
+      }
       requestPersistFlush()
+
+      if (isMovingAcrossLifecycle && targetLifecycleState === 'archived') {
+        await shutdownWorkspaceRuntime(targetWorkspace)
+      }
     },
     [requestPersistFlush],
   )
 
   const handleSelectAgentNode = useCallback((workspaceId: string, nodeId: string): void => {
     const store = useAppStore.getState()
+    const targetWorkspace = store.workspaces.find(workspace => workspace.id === workspaceId)
+    if (!targetWorkspace || isWorkspaceArchived(targetWorkspace)) {
+      return
+    }
+
     store.setActiveWorkspaceId(workspaceId)
     store.setFocusRequest(prev => ({
       workspaceId,
@@ -581,6 +642,37 @@ export default function App(): React.JSX.Element {
       sequence: (prev?.sequence ?? 0) + 1,
     }))
   }, [])
+
+  const handleToggleWorkspaceArchive = useCallback(
+    async (workspaceId: string): Promise<void> => {
+      const store = useAppStore.getState()
+      const targetWorkspace = store.workspaces.find(workspace => workspace.id === workspaceId)
+      if (!targetWorkspace) {
+        store.setProjectContextMenu(null)
+        return
+      }
+
+      if (isWorkspaceArchived(targetWorkspace)) {
+        store.setProjectContextMenu(null)
+        await handleMoveWorkspace({
+          workspaceId,
+          targetList: 'active',
+          anchorWorkspaceId: null,
+          placement: 'after',
+        })
+        return
+      }
+
+      store.setProjectContextMenu(null)
+      await handleMoveWorkspace({
+        workspaceId,
+        targetList: 'archived',
+        anchorWorkspaceId: null,
+        placement: 'after',
+      })
+    },
+    [handleMoveWorkspace],
+  )
 
   const handleRequestRemoveProject = useCallback((workspaceId: string): void => {
     const store = useAppStore.getState()
@@ -717,8 +809,6 @@ export default function App(): React.JSX.Element {
           <Sidebar
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
-            activeProviderLabel={activeProviderLabel}
-            activeProviderModel={activeProviderModel}
             persistNotice={persistNotice}
             onAddWorkspace={() => {
               void handleAddWorkspace()
@@ -726,8 +816,8 @@ export default function App(): React.JSX.Element {
             onSelectWorkspace={workspaceId => {
               handleSelectWorkspace(workspaceId)
             }}
-            onReorderWorkspaces={(draggedWorkspaceId, targetWorkspaceId) => {
-              handleReorderWorkspaces(draggedWorkspaceId, targetWorkspaceId)
+            onMoveWorkspace={intent => {
+              void handleMoveWorkspace(intent)
             }}
             onOpenProjectContextMenu={(state: ProjectContextMenuState) => {
               setProjectContextMenu(state)
@@ -868,8 +958,15 @@ export default function App(): React.JSX.Element {
           y={projectContextMenu.y}
           availableOpeners={projectPathOpeners}
           isLoadingOpeners={isProjectPathOpenersLoading}
+          isArchived={
+            workspaces.find(workspace => workspace.id === projectContextMenu.workspaceId)
+              ?.lifecycleState === 'archived'
+          }
           onOpenPath={(workspaceId, openerId) => {
             void handleOpenProjectPath(workspaceId, openerId)
+          }}
+          onToggleArchive={workspaceId => {
+            void handleToggleWorkspaceArchive(workspaceId)
           }}
           onRequestRemove={workspaceId => {
             handleRequestRemoveProject(workspaceId)

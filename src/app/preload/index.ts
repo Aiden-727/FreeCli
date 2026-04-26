@@ -2,9 +2,11 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../../shared/contracts/ipc'
 import type {
   AttachTerminalInput,
+  AcceptGitWorklogPendingImportInput,
   CopyWorkspacePathInput,
   CreateGitWorktreeInput,
   CreateGitWorktreeResult,
+  DismissGitWorklogPendingImportInput,
   DetachTerminalInput,
   EnsureDirectoryInput,
   GetGitDefaultBranchInput,
@@ -40,11 +42,15 @@ import type {
   InputStatsStateDto,
   SystemMonitorStateDto,
   QuotaMonitorStateDto,
+  RefreshGitWorklogWorkspaceInput,
   GitWorklogStateDto,
   NotifyOssBackupPersistedSettingsInput,
   OssSyncComparisonDto,
   OssBackupStateDto,
+  RepairGitWorklogRepositoriesInput,
+  RepairGitWorklogRepositoriesResultDto,
   RestorePluginBackupResultDto,
+  RestoreGitWorklogDismissedImportInput,
   SyncWorkspaceAssistantSettingsInput,
   SyncWorkspaceAssistantWorkspaceSnapshotInput,
   SyncInputStatsSettingsInput,
@@ -55,6 +61,8 @@ import type {
   SyncQuotaMonitorSettingsInput,
   SyncPluginRuntimeStateInput,
   SyncPluginRuntimeStateResult,
+  UndoGitWorklogRepositoriesRepairInput,
+  UndoGitWorklogRepositoriesRepairResultDto,
   WorkspaceAssistantConnectionTestResult,
   WorkspaceAssistantPromptInput,
   WorkspaceAssistantPromptResult,
@@ -86,6 +94,7 @@ import type {
   SuggestWorktreeNamesInput,
   SuggestWorktreeNamesResult,
   SetWindowChromeThemeInput,
+  WriteDiagnosticLogInput,
   TerminalDataEvent,
   TerminalExitEvent,
   TerminalSessionMetadataEvent,
@@ -119,6 +128,8 @@ const freecliApi = {
   },
   appLifecycle: {
     restart: (): Promise<void> => invokeIpc(IPC_CHANNELS.appLifecycleRestart),
+    writeDiagnosticLog: (payload: WriteDiagnosticLogInput): Promise<void> =>
+      invokeIpc(IPC_CHANNELS.appLifecycleWriteDiagnosticLog, payload),
   },
   windowChrome: {
     setTheme: (payload: SetWindowChromeThemeInput): Promise<void> =>
@@ -281,6 +292,30 @@ const freecliApi = {
       ): Promise<ResolveGitWorklogRepositoryResult> =>
         invokeIpc(IPC_CHANNELS.pluginsGitWorklogResolveRepository, payload),
       refresh: (): Promise<GitWorklogStateDto> => invokeIpc(IPC_CHANNELS.pluginsGitWorklogRefresh),
+      refreshWorkspace: (
+        payload: RefreshGitWorklogWorkspaceInput,
+      ): Promise<GitWorklogStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogRefreshWorkspace, payload),
+      repairRepositories: (
+        payload: RepairGitWorklogRepositoriesInput,
+      ): Promise<RepairGitWorklogRepositoriesResultDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogRepairRepositories, payload),
+      undoRepositoryRepair: (
+        payload: UndoGitWorklogRepositoriesRepairInput,
+      ): Promise<UndoGitWorklogRepositoriesRepairResultDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogUndoRepositoryRepair, payload),
+      acceptPendingImport: (
+        payload: AcceptGitWorklogPendingImportInput,
+      ): Promise<GitWorklogStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogAcceptPendingImport, payload),
+      dismissPendingImport: (
+        payload: DismissGitWorklogPendingImportInput,
+      ): Promise<GitWorklogStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogDismissPendingImport, payload),
+      restoreDismissedImport: (
+        payload: RestoreGitWorklogDismissedImportInput,
+      ): Promise<GitWorklogStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsGitWorklogRestoreDismissedImport, payload),
       onState: (listener: (state: GitWorklogStateDto) => void): UnsubscribeFn => {
         const handler = (_event: Electron.IpcRendererEvent, payload: GitWorklogStateDto) => {
           listener(payload)

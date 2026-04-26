@@ -11,6 +11,7 @@ import { GitWorklogMiniTrend } from './GitWorklogMiniTrend'
 import { GitWorklogSummaryTrend } from './GitWorklogSummaryTrend'
 import { formatGitWorklogCount } from './gitWorklogFormatting'
 import {
+  GIT_WORKLOG_EXTERNAL_WORKSPACE_ID,
   normalizeRepoPathForCompare,
   reconcileGitWorklogSettingsOrdering,
   reorderRepositoriesWithinOrder,
@@ -43,6 +44,32 @@ function getRelativeRepoPath(repoPath: string, workspacePath: string | null): st
   const displayWorkspacePath = formatDisplayPath(workspacePath)
   const relativePath = displayRepoPath.slice(displayWorkspacePath.length).replace(/^\/+/, '')
   return relativePath.length > 0 ? relativePath : null
+}
+
+function inferPresentationWorkspace(
+  repoPath: string,
+  availableWorkspaces: GitWorklogWorkspaceDto[],
+): GitWorklogWorkspaceDto | null {
+  const normalizedRepoPath = normalizeRepoPathForCompare(repoPath)
+  let bestMatch: GitWorklogWorkspaceDto | null = null
+  let bestLength = -1
+
+  for (const workspace of availableWorkspaces) {
+    const normalizedWorkspacePath = normalizeRepoPathForCompare(workspace.path)
+    if (
+      normalizedRepoPath !== normalizedWorkspacePath &&
+      !normalizedRepoPath.startsWith(`${normalizedWorkspacePath}/`)
+    ) {
+      continue
+    }
+
+    if (normalizedWorkspacePath.length > bestLength) {
+      bestMatch = workspace
+      bestLength = normalizedWorkspacePath.length
+    }
+  }
+
+  return bestMatch
 }
 
 function formatLastUpdated(value: string | null): string {
@@ -148,6 +175,302 @@ type DragTarget =
       groupId: string
     }
 
+type RectLike = {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+type RepoDragGroupSnapshot = {
+  id: string
+  workspaceRect: RectLike | null
+  bodyRect: RectLike | null
+  repos: Array<{
+    id: string
+    rect: RectLike | null
+  }>
+}
+
+function isPointWithinRect(rect: RectLike, clientX: number, clientY: number): boolean {
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  )
+}
+
+export function buildGitWorklogOverviewGroups(options: {
+  configuredRepositories: GitWorklogRepositoryDto[]
+  runtimeRepos: GitWorklogStateDto['repos']
+  availableWorkspaces: GitWorklogWorkspaceDto[]
+  effectiveRepositoryOrder: string[]
+  effectiveWorkspaceOrder: string[]
+  externalWorkspaceGroupTitle: string
+}): DisplayGroup[] {
+  const {
+    configuredRepositories,
+    runtimeRepos,
+    availableWorkspaces,
+    effectiveRepositoryOrder,
+    effectiveWorkspaceOrder,
+    externalWorkspaceGroupTitle,
+  } = options
+  const runtimeRepoByPath = new Map(
+    runtimeRepos.map(repo => [normalizeRepoPathForCompare(repo.path), repo] as const),
+  )
+  const workspaceById = new Map(
+    availableWorkspaces.map(workspace => [workspace.id, workspace] as const),
+  )
+  const mergedRepos: DisplayRepo[] = configuredRepositories.map(repository => {
+    const normalizedPath = normalizeRepoPathForCompare(repository.path)
+    const runtimeRepo = runtimeRepoByPath.get(normalizedPath)
+    const label = repository.label.trim().length > 0 ? repository.label : repository.id
+    const explicitlyExternal =
+      repository.assignedWorkspaceId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+    const assignedWorkspace =
+      !explicitlyExternal &&
+      repository.assignedWorkspaceId &&
+      workspaceById.has(repository.assignedWorkspaceId)
+        ? workspaceById.get(repository.assignedWorkspaceId) ?? null
+        : null
+    const presentationWorkspace =
+      explicitlyExternal
+        ? null
+        : assignedWorkspace ?? inferPresentationWorkspace(repository.path, availableWorkspaces)
+
+    return {
+      ...(runtimeRepo ?? {
+        repoId: repository.id,
+        label,
+        path: repository.path,
+        origin: 'manual' as const,
+        parentWorkspaceId: null,
+        parentWorkspaceName: null,
+        parentWorkspacePath: null,
+        commitCountToday: 0,
+        filesChangedToday: 0,
+        additionsToday: 0,
+        deletionsToday: 0,
+        changedLinesToday: 0,
+        netLinesToday: 0,
+        commitCountInRange: 0,
+        filesChangedInRange: 0,
+        additionsInRange: 0,
+        deletionsInRange: 0,
+        changedLinesInRange: 0,
+        totalCodeFiles: 0,
+        totalCodeLines: 0,
+        dailyPoints: [],
+        heatmapDailyPoints: [],
+        lastScannedAt: null,
+        error: null,
+      }),
+      repoId: repository.id,
+      label,
+      path: repository.path,
+      parentWorkspaceId: presentationWorkspace?.id ?? null,
+      parentWorkspaceName: presentationWorkspace?.name ?? null,
+      parentWorkspacePath: presentationWorkspace?.path ?? null,
+      configuredRepositoryId: repository.id,
+      isConfiguredEnabled: repository.enabled,
+      hasRuntimeData: runtimeRepo !== undefined,
+      isWorkspaceRootRepo: false,
+      relativeWorkspacePath: null,
+      workspaceDepth: 0,
+    }
+  })
+
+  const groups = new Map<string, DisplayGroup>()
+  for (const repo of mergedRepos) {
+    const key = repo.parentWorkspaceId ?? GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+    const current = groups.get(key)
+    if (current) {
+      current.repos.push(repo)
+      continue
+    }
+
+    groups.set(key, {
+      id: key,
+      name: repo.parentWorkspaceName ?? externalWorkspaceGroupTitle,
+      path: repo.parentWorkspacePath,
+      repos: [repo],
+    })
+  }
+
+  if (!groups.has(GIT_WORKLOG_EXTERNAL_WORKSPACE_ID)) {
+    groups.set(GIT_WORKLOG_EXTERNAL_WORKSPACE_ID, {
+      id: GIT_WORKLOG_EXTERNAL_WORKSPACE_ID,
+      name: externalWorkspaceGroupTitle,
+      path: null,
+      repos: [],
+    })
+  }
+
+  const groupRepositoryOrder = new Map<string, string[]>()
+  for (const group of groups.values()) {
+    groupRepositoryOrder.set(
+      group.id,
+      effectiveRepositoryOrder.filter(repoId => group.repos.some(repo => repo.repoId === repoId)),
+    )
+  }
+
+  const normalizedGroups = [...groups.values()].map(group => {
+    const preparedRepos = group.repos.map(repo => {
+      const relativeWorkspacePath = getRelativeRepoPath(repo.path, group.path)
+      const workspaceDepth =
+        relativeWorkspacePath?.split('/').filter(segment => segment.length > 0).length ?? 0
+
+      return {
+        ...repo,
+        relativeWorkspacePath,
+        workspaceDepth,
+        isWorkspaceRootRepo: group.path
+          ? normalizeRepoPathForCompare(repo.path) === normalizeRepoPathForCompare(group.path)
+          : false,
+      }
+    })
+
+    const fallbackRepos = [...preparedRepos].sort((left, right) => {
+      const rootRank = Number(right.isWorkspaceRootRepo) - Number(left.isWorkspaceRootRepo)
+      if (rootRank !== 0) {
+        return rootRank
+      }
+
+      if (left.workspaceDepth !== right.workspaceDepth) {
+        return left.workspaceDepth - right.workspaceDepth
+      }
+
+      const enabledRank =
+        Number(right.isConfiguredEnabled ?? false) - Number(left.isConfiguredEnabled ?? false)
+      if (enabledRank !== 0) {
+        return enabledRank
+      }
+
+      if (left.origin !== right.origin) {
+        return left.origin === 'manual' ? -1 : 1
+      }
+
+      return left.label.localeCompare(right.label, undefined, {
+        sensitivity: 'base',
+      })
+    })
+
+    const orderedRepoIds = groupRepositoryOrder.get(group.id) ?? []
+    const preparedRepoById = new Map(preparedRepos.map(repo => [repo.repoId, repo] as const))
+    const repos: DisplayRepo[] = []
+    const seenRepoIds = new Set<string>()
+
+    for (const repoId of orderedRepoIds) {
+      const repo = preparedRepoById.get(repoId)
+      if (!repo || seenRepoIds.has(repoId)) {
+        continue
+      }
+
+      seenRepoIds.add(repoId)
+      repos.push(repo)
+    }
+
+    for (const repo of fallbackRepos) {
+      if (seenRepoIds.has(repo.repoId)) {
+        continue
+      }
+
+      seenRepoIds.add(repo.repoId)
+      repos.push(repo)
+    }
+
+    return {
+      ...group,
+      repos,
+    }
+  })
+
+  const fallbackGroups = [...normalizedGroups].sort((left, right) => {
+    if (left.path === null && right.path !== null) {
+      return 1
+    }
+    if (left.path !== null && right.path === null) {
+      return -1
+    }
+
+    return left.name.localeCompare(right.name, undefined, {
+      sensitivity: 'base',
+    })
+  })
+
+  const groupById = new Map(normalizedGroups.map(group => [group.id, group] as const))
+  const orderedGroups: DisplayGroup[] = []
+  const seenGroupIds = new Set<string>()
+
+  for (const groupId of effectiveWorkspaceOrder) {
+    const group = groupById.get(groupId)
+    if (!group || seenGroupIds.has(groupId)) {
+      continue
+    }
+
+    seenGroupIds.add(groupId)
+    orderedGroups.push(group)
+  }
+
+  for (const group of fallbackGroups) {
+    if (seenGroupIds.has(group.id)) {
+      continue
+    }
+
+    seenGroupIds.add(group.id)
+    orderedGroups.push(group)
+  }
+
+  return orderedGroups
+}
+
+export function resolveRepoDragTargetFromSnapshots(options: {
+  activeRepoId: string
+  clientX: number
+  clientY: number
+  groups: RepoDragGroupSnapshot[]
+}): DragTarget | null {
+  const { activeRepoId, clientX, clientY, groups } = options
+
+  for (const group of groups) {
+    for (const repo of group.repos) {
+      if (repo.id === activeRepoId || !repo.rect) {
+        continue
+      }
+
+      if (isPointWithinRect(repo.rect, clientX, clientY)) {
+        return {
+          kind: 'repo',
+          id: repo.id,
+          groupId: group.id,
+        }
+      }
+    }
+  }
+
+  for (const group of groups) {
+    if (group.bodyRect && isPointWithinRect(group.bodyRect, clientX, clientY)) {
+      return {
+        kind: 'workspace-body',
+        groupId: group.id,
+      }
+    }
+  }
+
+  for (const group of groups) {
+    if (group.workspaceRect && isPointWithinRect(group.workspaceRect, clientX, clientY)) {
+      return {
+        kind: 'workspace-body',
+        groupId: group.id,
+      }
+    }
+  }
+
+  return null
+}
+
 export function GitWorklogOverview({
   isPluginEnabled,
   state,
@@ -193,6 +516,7 @@ export function GitWorklogOverview({
         workspaceOrder,
         ignoredAutoRepositoryPaths: [],
         autoImportedWorkspacePaths: [],
+        dismissedWorkspacePaths: [],
         authorFilter: '',
         rangeMode: 'recent_days',
         recentDays: 7,
@@ -207,225 +531,23 @@ export function GitWorklogOverview({
   )
   const effectiveRepositoryOrder = normalizedOrdering.repositoryOrder
   const effectiveWorkspaceOrder = normalizedOrdering.workspaceOrder
-  const configuredRepositoryIdByPath = React.useMemo(() => {
-    const mapping = new Map<string, string>()
-    for (const repository of configuredRepositories) {
-      mapping.set(normalizeRepoPathForCompare(repository.path), repository.id)
-    }
-    return mapping
-  }, [configuredRepositories])
 
   const groupedRepos = React.useMemo<DisplayGroup[]>(() => {
-    const runtimeRepoByPath = new Map(
-      state.repos.map(repo => [normalizeRepoPathForCompare(repo.path), repo] as const),
-    )
-    const workspaceById = new Map(
-      (availableWorkspaces ?? []).map(workspace => [workspace.id, workspace] as const),
-    )
-    const mergedRepos: DisplayRepo[] = configuredRepositories.map(repository => {
-      const normalizedPath = normalizeRepoPathForCompare(repository.path)
-      const runtimeRepo = runtimeRepoByPath.get(normalizedPath)
-      const label = repository.label.trim().length > 0 ? repository.label : repository.id
-      const assignedWorkspace =
-        repository.assignedWorkspaceId && workspaceById.has(repository.assignedWorkspaceId)
-          ? workspaceById.get(repository.assignedWorkspaceId) ?? null
-          : null
-      runtimeRepoByPath.delete(normalizedPath)
-
-      return {
-        ...(runtimeRepo ?? {
-          repoId: repository.id,
-          label,
-          path: repository.path,
-          origin: 'manual' as const,
-          parentWorkspaceId: assignedWorkspace?.id ?? null,
-          parentWorkspaceName: assignedWorkspace?.name ?? null,
-          parentWorkspacePath: assignedWorkspace?.path ?? null,
-          commitCountToday: 0,
-          filesChangedToday: 0,
-          additionsToday: 0,
-          deletionsToday: 0,
-          changedLinesToday: 0,
-          netLinesToday: 0,
-          commitCountInRange: 0,
-          filesChangedInRange: 0,
-          additionsInRange: 0,
-          deletionsInRange: 0,
-          changedLinesInRange: 0,
-          totalCodeFiles: 0,
-          totalCodeLines: 0,
-          dailyPoints: [],
-          lastScannedAt: null,
-          error: null,
-        }),
-        repoId: repository.id,
-        label,
-        path: repository.path,
-        parentWorkspaceId: assignedWorkspace?.id ?? runtimeRepo?.parentWorkspaceId ?? null,
-        parentWorkspaceName: assignedWorkspace?.name ?? runtimeRepo?.parentWorkspaceName ?? null,
-        parentWorkspacePath: assignedWorkspace?.path ?? runtimeRepo?.parentWorkspacePath ?? null,
-        configuredRepositoryId: repository.id,
-        isConfiguredEnabled: repository.enabled,
-        hasRuntimeData: runtimeRepo !== undefined,
-        isWorkspaceRootRepo: false,
-        relativeWorkspacePath: null,
-        workspaceDepth: 0,
-      }
+    return buildGitWorklogOverviewGroups({
+      configuredRepositories,
+      runtimeRepos: state.repos,
+      availableWorkspaces: availableWorkspaces ?? [],
+      effectiveRepositoryOrder,
+      effectiveWorkspaceOrder,
+      externalWorkspaceGroupTitle: t(
+        'pluginManager.plugins.gitWorklog.externalWorkspaceGroupTitle',
+      ),
     })
-
-    const residualRuntimeRepos: DisplayRepo[] = [...runtimeRepoByPath.values()].map(repo => ({
-      ...repo,
-      configuredRepositoryId: null,
-      isConfiguredEnabled: null,
-      hasRuntimeData: true,
-      isWorkspaceRootRepo: false,
-      relativeWorkspacePath: null,
-      workspaceDepth: 0,
-    }))
-
-    const groups = new Map<string, DisplayGroup>()
-
-    for (const repo of [...mergedRepos, ...residualRuntimeRepos]) {
-      const key = repo.parentWorkspaceId ?? '__external__'
-      const current = groups.get(key)
-      if (current) {
-        current.repos.push(repo)
-        continue
-      }
-
-      groups.set(key, {
-        id: key,
-        name:
-          repo.parentWorkspaceName ??
-          t('pluginManager.plugins.gitWorklog.externalWorkspaceGroupTitle'),
-        path: repo.parentWorkspacePath,
-        repos: [repo],
-      })
-    }
-
-    const groupRepositoryOrder = new Map<string, string[]>()
-    for (const group of groups.values()) {
-      groupRepositoryOrder.set(
-        group.id,
-        effectiveRepositoryOrder.filter(repoId => group.repos.some(repo => repo.repoId === repoId)),
-      )
-    }
-    const workspaceOrderIndex = new Map(
-      effectiveWorkspaceOrder.map((workspaceId, index) => [workspaceId, index] as const),
-    )
-
-    const normalizedGroups = [...groups.values()].map(group => {
-      const preparedRepos = group.repos.map(repo => {
-        const relativeWorkspacePath = getRelativeRepoPath(repo.path, group.path)
-        const workspaceDepth =
-          relativeWorkspacePath?.split('/').filter(segment => segment.length > 0).length ?? 0
-
-        return {
-          ...repo,
-          relativeWorkspacePath,
-          workspaceDepth,
-          isWorkspaceRootRepo: group.path
-            ? normalizeRepoPathForCompare(repo.path) === normalizeRepoPathForCompare(group.path)
-            : false,
-        }
-      })
-
-      const fallbackRepos = [...preparedRepos].sort((left, right) => {
-        const rootRank = Number(right.isWorkspaceRootRepo) - Number(left.isWorkspaceRootRepo)
-        if (rootRank !== 0) {
-          return rootRank
-        }
-
-        if (left.workspaceDepth !== right.workspaceDepth) {
-          return left.workspaceDepth - right.workspaceDepth
-        }
-
-        const enabledRank =
-          Number(right.isConfiguredEnabled ?? false) - Number(left.isConfiguredEnabled ?? false)
-        if (enabledRank !== 0) {
-          return enabledRank
-        }
-
-        if (left.origin !== right.origin) {
-          return left.origin === 'manual' ? -1 : 1
-        }
-
-        return left.label.localeCompare(right.label, undefined, {
-          sensitivity: 'base',
-        })
-      })
-
-      const orderedRepoIds = groupRepositoryOrder.get(group.id) ?? []
-      const preparedRepoById = new Map(preparedRepos.map(repo => [repo.repoId, repo] as const))
-      const repos: DisplayRepo[] = []
-      const seenRepoIds = new Set<string>()
-
-      for (const repoId of orderedRepoIds) {
-        const repo = preparedRepoById.get(repoId)
-        if (!repo || seenRepoIds.has(repoId)) {
-          continue
-        }
-
-        seenRepoIds.add(repoId)
-        repos.push(repo)
-      }
-
-      for (const repo of fallbackRepos) {
-        if (seenRepoIds.has(repo.repoId)) {
-          continue
-        }
-
-        seenRepoIds.add(repo.repoId)
-        repos.push(repo)
-      }
-
-      return {
-        ...group,
-        repos,
-      }
-    })
-
-    const fallbackGroups = [...normalizedGroups].sort((left, right) => {
-      if (left.path === null && right.path !== null) {
-        return 1
-      }
-      if (left.path !== null && right.path === null) {
-        return -1
-      }
-
-      return left.name.localeCompare(right.name, undefined, {
-        sensitivity: 'base',
-      })
-    })
-
-    const groupById = new Map(normalizedGroups.map(group => [group.id, group] as const))
-    const orderedGroups: DisplayGroup[] = []
-    const seenGroupIds = new Set<string>()
-
-    for (const groupId of effectiveWorkspaceOrder) {
-      const group = groupById.get(groupId)
-      if (!group || seenGroupIds.has(groupId)) {
-        continue
-      }
-
-      seenGroupIds.add(groupId)
-      orderedGroups.push(group)
-    }
-
-    for (const group of fallbackGroups) {
-      if (seenGroupIds.has(group.id)) {
-        continue
-      }
-
-      seenGroupIds.add(group.id)
-      orderedGroups.push(group)
-    }
-
-    return orderedGroups
   }, [
     availableWorkspaces,
     configuredRepositories,
     effectiveRepositoryOrder,
+    effectiveWorkspaceOrder,
     state.repos,
     t,
   ])
@@ -529,48 +651,20 @@ export function GitWorklogOverview({
         return nearest
       }
 
-      for (const group of groupedRepos) {
-        for (const repo of group.repos) {
-          const element = repoRefs.current.get(repo.repoId)
-          if (!element) {
-            continue
-          }
-
-          const rect = element.getBoundingClientRect()
-          if (
-            clientX >= rect.left &&
-            clientX <= rect.right &&
-            clientY >= rect.top &&
-            clientY <= rect.bottom
-          ) {
-            return {
-              kind: 'repo',
-              id: repo.repoId,
-              groupId: group.id,
-            }
-          }
-        }
-
-        const bodyElement = workspaceBodyRefs.current.get(group.id)
-        if (!bodyElement) {
-          continue
-        }
-
-        const bodyRect = bodyElement.getBoundingClientRect()
-        if (
-          clientX >= bodyRect.left &&
-          clientX <= bodyRect.right &&
-          clientY >= bodyRect.top &&
-          clientY <= bodyRect.bottom
-        ) {
-          return {
-            kind: 'workspace-body',
-            groupId: group.id,
-          }
-        }
-      }
-
-      return null
+      return resolveRepoDragTargetFromSnapshots({
+        activeRepoId: activeDrag.id,
+        clientX,
+        clientY,
+        groups: groupedRepos.map(group => ({
+          id: group.id,
+          workspaceRect: workspaceRefs.current.get(group.id)?.getBoundingClientRect() ?? null,
+          bodyRect: workspaceBodyRefs.current.get(group.id)?.getBoundingClientRect() ?? null,
+          repos: group.repos.map(repo => ({
+            id: repo.repoId,
+            rect: repoRefs.current.get(repo.repoId)?.getBoundingClientRect() ?? null,
+          })),
+        })),
+      })
     },
     [groupedRepos],
   )
@@ -632,7 +726,9 @@ export function GitWorklogOverview({
       ) {
         onMoveRepositoryToWorkspaceGroup(
           activeDrag.id,
-          currentTarget.groupId === '__external__' ? null : currentTarget.groupId,
+          currentTarget.groupId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+            ? null
+            : currentTarget.groupId,
           currentTarget.id,
         )
       }
@@ -644,7 +740,9 @@ export function GitWorklogOverview({
       const anchorRepositoryId = targetGroup?.repos.at(-1)?.repoId ?? null
       onMoveRepositoryToWorkspaceGroup(
         activeDrag.id,
-        currentTarget.groupId === '__external__' ? null : currentTarget.groupId,
+        currentTarget.groupId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+          ? null
+          : currentTarget.groupId,
         anchorRepositoryId,
       )
     }
@@ -786,7 +884,7 @@ export function GitWorklogOverview({
         </div>
 
         <div className="git-worklog-overview__heatmap-row">
-          <GitWorklogHeatmap points={state.overview.dailyPoints} />
+          <GitWorklogHeatmap points={state.overview.heatmapDailyPoints} />
         </div>
       </section>
 
@@ -829,8 +927,21 @@ export function GitWorklogOverview({
                     dragTarget?.kind === 'workspace' && dragTarget.id === group.id
                       ? ' git-worklog-overview__workspace-card--drop-target'
                       : ''
+                  }${
+                    draggedEntity?.kind === 'repo' &&
+                    dragTarget?.kind === 'workspace-body' &&
+                    dragTarget.groupId === group.id
+                      ? ' git-worklog-overview__workspace-card--repo-drop-target'
+                      : ''
+                  }${
+                    group.id === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+                      ? ' git-worklog-overview__workspace-card--external'
+                      : ''
                   }`}
                   data-testid={`git-worklog-workspace-card-${group.id}`}
+                  data-group-kind={
+                    group.id === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID ? 'external' : 'workspace'
+                  }
                   data-drop-placement={
                     dragTarget?.kind === 'workspace' && dragTarget.id === group.id
                       ? dragTarget.placement
@@ -899,216 +1010,244 @@ export function GitWorklogOverview({
                         : ''
                     }`}
                   >
-                    {group.repos.map(repo => {
-                      const hasError = repo.error !== null
-                      const errorMessage = repo.error?.message ?? ''
-                      const configuredRepositoryId =
-                        repo.configuredRepositoryId ??
-                        configuredRepositoryIdByPath.get(normalizeRepoPathForCompare(repo.path)) ??
-                        null
-                      const repoOriginLabel =
-                        repo.origin === 'auto'
-                          ? t('pluginManager.plugins.gitWorklog.repoOriginAuto')
-                          : t('pluginManager.plugins.gitWorklog.repoOriginManual')
+                    {group.repos.length > 0 ? (
+                      group.repos.map(repo => {
+                        const hasError = repo.error !== null
+                        const errorMessage = repo.error?.message ?? ''
+                        const configuredRepositoryId = repo.configuredRepositoryId
+                        const repoOriginLabel =
+                          repo.origin === 'auto'
+                            ? t('pluginManager.plugins.gitWorklog.repoOriginAuto')
+                            : t('pluginManager.plugins.gitWorklog.repoOriginManual')
 
-                      return (
-                        <article
-                          ref={node => {
-                            registerRepoRef(repo.repoId, node)
-                          }}
-                          key={repo.repoId}
-                          className={`git-worklog-overview__repo-row${hasError ? ' git-worklog-overview__repo-row--error' : ''}${repo.isWorkspaceRootRepo ? ' git-worklog-overview__repo-row--root' : ''}${
-                            draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
-                              ? ' git-worklog-overview__repo-row--dragging'
-                              : ''
-                          }${
-                            dragTarget?.kind === 'repo' && dragTarget.id === repo.repoId
-                              ? ' git-worklog-overview__repo-row--drop-target'
-                              : ''
-                          }`}
-                          data-testid={`git-worklog-repo-card-${repo.repoId}`}
-                          onMouseDown={event => {
-                            event.stopPropagation()
-                            handlePointerDown(
-                              {
-                                kind: 'repo',
-                                id: repo.repoId,
-                                groupId: group.id,
-                              },
-                              event,
-                            )
-                          }}
-                          style={
-                            draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
-                              ? ({
-                                  '--git-worklog-drag-offset-x': `${dragOffset.x}px`,
-                                  '--git-worklog-drag-offset-y': `${dragOffset.y}px`,
-                                } as React.CSSProperties)
-                              : undefined
-                          }
-                        >
-                          <div className="git-worklog-overview__repo-top">
-                            <div className="git-worklog-overview__repo-main">
-                              <div className="git-worklog-overview__repo-copy">
-                                <div className="git-worklog-overview__repo-title-row">
-                                  <strong>{repo.label}</strong>
+                        return (
+                          <article
+                            ref={node => {
+                              registerRepoRef(repo.repoId, node)
+                            }}
+                            key={repo.repoId}
+                            className={`git-worklog-overview__repo-row${hasError ? ' git-worklog-overview__repo-row--error' : ''}${repo.isWorkspaceRootRepo ? ' git-worklog-overview__repo-row--root' : ''}${
+                              draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
+                                ? ' git-worklog-overview__repo-row--dragging'
+                                : ''
+                            }${
+                              dragTarget?.kind === 'repo' && dragTarget.id === repo.repoId
+                                ? ' git-worklog-overview__repo-row--drop-target'
+                                : ''
+                            }`}
+                            data-testid={`git-worklog-repo-card-${repo.repoId}`}
+                            onMouseDown={event => {
+                              event.stopPropagation()
+                              handlePointerDown(
+                                {
+                                  kind: 'repo',
+                                  id: repo.repoId,
+                                  groupId: group.id,
+                                },
+                                event,
+                              )
+                            }}
+                            style={
+                              draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
+                                ? ({
+                                    '--git-worklog-drag-offset-x': `${dragOffset.x}px`,
+                                    '--git-worklog-drag-offset-y': `${dragOffset.y}px`,
+                                  } as React.CSSProperties)
+                                : undefined
+                            }
+                          >
+                            <div className="git-worklog-overview__repo-top">
+                              <div className="git-worklog-overview__repo-main">
+                                <div className="git-worklog-overview__repo-copy">
+                                  <div className="git-worklog-overview__repo-title-row">
+                                    <strong>{repo.label}</strong>
+                                    <span
+                                      className={`git-worklog-overview__role-pill${repo.isWorkspaceRootRepo ? ' git-worklog-overview__role-pill--root' : ''}`}
+                                    >
+                                      {repo.isWorkspaceRootRepo
+                                        ? t('pluginManager.plugins.gitWorklog.repoRoleRoot')
+                                        : t('pluginManager.plugins.gitWorklog.repoRoleChild')}
+                                    </span>
+                                  </div>
+                                  <span title={repo.path}>{repo.path}</span>
+                                </div>
+
+                                <div className="git-worklog-overview__repo-meta-row">
                                   <span
-                                    className={`git-worklog-overview__role-pill${repo.isWorkspaceRootRepo ? ' git-worklog-overview__role-pill--root' : ''}`}
+                                    className={`git-worklog-overview__origin-pill${repo.origin === 'manual' ? ' git-worklog-overview__origin-pill--manual' : ''}`}
                                   >
-                                    {repo.isWorkspaceRootRepo
-                                      ? t('pluginManager.plugins.gitWorklog.repoRoleRoot')
-                                      : t('pluginManager.plugins.gitWorklog.repoRoleChild')}
+                                    {repoOriginLabel}
+                                  </span>
+                                  {repo.isConfiguredEnabled !== null ? (
+                                    <span
+                                      className={`git-worklog-overview__config-pill${repo.isConfiguredEnabled ? '' : ' git-worklog-overview__config-pill--muted'}`}
+                                    >
+                                      {repo.isConfiguredEnabled
+                                        ? t(
+                                            'pluginManager.plugins.gitWorklog.repositoryStatusEnabled',
+                                          )
+                                        : t(
+                                            'pluginManager.plugins.gitWorklog.repositoryStatusDisabled',
+                                          )}
+                                    </span>
+                                  ) : null}
+                                  {repo.relativeWorkspacePath ? (
+                                    <span className="git-worklog-overview__repo-meta-pill">
+                                      {t('pluginManager.plugins.gitWorklog.repoRelativePathLabel', {
+                                        path: repo.relativeWorkspacePath,
+                                      })}
+                                    </span>
+                                  ) : null}
+                                  <span className="git-worklog-overview__repo-meta-pill">
+                                    {t(
+                                      'pluginManager.plugins.gitWorklog.overviewColumns.lastScanned',
+                                    )}
+                                    {': '}
+                                    {formatLastUpdated(repo.lastScannedAt)}
                                   </span>
                                 </div>
-                                <span title={repo.path}>{repo.path}</span>
                               </div>
 
-                              <div className="git-worklog-overview__repo-meta-row">
-                                <span
-                                  className={`git-worklog-overview__origin-pill${repo.origin === 'manual' ? ' git-worklog-overview__origin-pill--manual' : ''}`}
-                                >
-                                  {repoOriginLabel}
-                                </span>
-                                {repo.isConfiguredEnabled !== null ? (
-                                  <span
-                                    className={`git-worklog-overview__config-pill${repo.isConfiguredEnabled ? '' : ' git-worklog-overview__config-pill--muted'}`}
-                                  >
-                                    {repo.isConfiguredEnabled
-                                      ? t(
-                                          'pluginManager.plugins.gitWorklog.repositoryStatusEnabled',
-                                        )
-                                      : t(
-                                          'pluginManager.plugins.gitWorklog.repositoryStatusDisabled',
+                              {configuredRepositoryId && onManageRepository ? (
+                                <div className="git-worklog-overview__repo-actions-panel">
+                                  <div className="git-worklog-overview__repo-actions">
+                                    <button
+                                      type="button"
+                                      className="cove-window__action cove-window__action--secondary"
+                                      data-testid={`git-worklog-manage-repository-${configuredRepositoryId}`}
+                                      onMouseDown={event => {
+                                        event.stopPropagation()
+                                      }}
+                                      onClick={() => {
+                                        if (suppressClickRef.current) {
+                                          return
+                                        }
+                                        onManageRepository(configuredRepositoryId)
+                                      }}
+                                    >
+                                      {t('pluginManager.plugins.gitWorklog.manageRepositoryAction')}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : repo.origin === 'auto' &&
+                                (onConvertAutoRepoToManual || onIgnoreAutoRepo) ? (
+                                <div className="git-worklog-overview__repo-actions-panel">
+                                  <div className="git-worklog-overview__repo-actions">
+                                    {onConvertAutoRepoToManual ? (
+                                      <button
+                                        type="button"
+                                        className="cove-window__action cove-window__action--secondary"
+                                        data-testid={`git-worklog-repo-convert-${repo.repoId}`}
+                                        onMouseDown={event => {
+                                          event.stopPropagation()
+                                        }}
+                                        onClick={() => {
+                                          if (suppressClickRef.current) {
+                                            return
+                                          }
+                                          onConvertAutoRepoToManual({
+                                            id: repo.repoId,
+                                            label: repo.label,
+                                            path: repo.path,
+                                            parentWorkspaceId:
+                                              group.id === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+                                                ? null
+                                                : group.id,
+                                          parentWorkspaceName:
+                                              group.id === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+                                                ? null
+                                                : group.name,
+                                            parentWorkspacePath: group.path,
+                                            detectedAt: repo.lastScannedAt,
+                                          })
+                                        }}
+                                      >
+                                        {t(
+                                          'pluginManager.plugins.gitWorklog.convertAutoRepoAction',
                                         )}
-                                  </span>
-                                ) : null}
-                                {repo.relativeWorkspacePath ? (
-                                  <span className="git-worklog-overview__repo-meta-pill">
-                                    {t('pluginManager.plugins.gitWorklog.repoRelativePathLabel', {
-                                      path: repo.relativeWorkspacePath,
-                                    })}
-                                  </span>
-                                ) : null}
-                                <span className="git-worklog-overview__repo-meta-pill">
-                                  {t(
-                                    'pluginManager.plugins.gitWorklog.overviewColumns.lastScanned',
-                                  )}
-                                  {': '}
-                                  {formatLastUpdated(repo.lastScannedAt)}
-                                </span>
-                              </div>
+                                      </button>
+                                    ) : null}
+                                    {onIgnoreAutoRepo ? (
+                                      <button
+                                        type="button"
+                                        className="cove-window__action cove-window__action--secondary"
+                                        data-testid={`git-worklog-repo-ignore-${repo.repoId}`}
+                                        onMouseDown={event => {
+                                          event.stopPropagation()
+                                        }}
+                                        onClick={() => {
+                                          if (suppressClickRef.current) {
+                                            return
+                                          }
+                                          onIgnoreAutoRepo({
+                                            label: repo.label,
+                                            path: repo.path,
+                                          })
+                                        }}
+                                      >
+                                        {t('pluginManager.plugins.gitWorklog.ignoreAutoRepoAction')}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
 
-                            {configuredRepositoryId && onManageRepository ? (
-                              <div className="git-worklog-overview__repo-actions-panel">
-                                <div className="git-worklog-overview__repo-actions">
-                                  <button
-                                    type="button"
-                                    className="cove-window__action cove-window__action--secondary"
-                                    data-testid={`git-worklog-manage-repository-${configuredRepositoryId}`}
-                                    onMouseDown={event => {
-                                      event.stopPropagation()
-                                    }}
-                                    onClick={() => {
-                                      if (suppressClickRef.current) {
-                                        return
-                                      }
-                                      onManageRepository(configuredRepositoryId)
-                                    }}
-                                  >
-                                    {t('pluginManager.plugins.gitWorklog.manageRepositoryAction')}
-                                  </button>
-                                </div>
+                            <div className="git-worklog-overview__repo-body">
+                              <div className="git-worklog-overview__repo-stats">
+                                <RepoStat
+                                  label={t(
+                                    'pluginManager.plugins.gitWorklog.repoMetrics.additionsToday',
+                                  )}
+                                  value={formatRepoMetricValue(repo.additionsToday, {
+                                    hasError,
+                                    hasRuntimeData: repo.hasRuntimeData,
+                                  })}
+                                />
+                                <RepoStat
+                                  label={t(
+                                    'pluginManager.plugins.gitWorklog.repoMetrics.deletionsToday',
+                                  )}
+                                  value={formatRepoMetricValue(repo.deletionsToday, {
+                                    hasError,
+                                    hasRuntimeData: repo.hasRuntimeData,
+                                  })}
+                                />
+                                <RepoStat
+                                  label={t(
+                                    'pluginManager.plugins.gitWorklog.repoMetrics.changedLinesInRange',
+                                  )}
+                                  value={formatRepoMetricValue(repo.changedLinesInRange, {
+                                    hasError,
+                                    hasRuntimeData: repo.hasRuntimeData,
+                                  })}
+                                />
                               </div>
-                            ) : repo.origin === 'auto' &&
-                              (onConvertAutoRepoToManual || onIgnoreAutoRepo) ? (
-                              <div className="git-worklog-overview__repo-actions-panel">
-                                <div className="git-worklog-overview__repo-actions">
-                                  {onConvertAutoRepoToManual ? (
-                                    <button
-                                      type="button"
-                                      className="cove-window__action cove-window__action--secondary"
-                                      data-testid={`git-worklog-repo-convert-${repo.repoId}`}
-                                      onMouseDown={event => {
-                                        event.stopPropagation()
-                                      }}
-                                      onClick={() => {
-                                        if (suppressClickRef.current) {
-                                          return
-                                        }
-                                        onConvertAutoRepoToManual({
-                                          id: repo.repoId,
-                                          label: repo.label,
-                                          path: repo.path,
-                                          parentWorkspaceId: repo.parentWorkspaceId,
-                                          parentWorkspaceName: repo.parentWorkspaceName,
-                                          parentWorkspacePath: repo.parentWorkspacePath,
-                                          detectedAt: repo.lastScannedAt,
-                                        })
-                                      }}
-                                    >
-                                      {t('pluginManager.plugins.gitWorklog.convertAutoRepoAction')}
-                                    </button>
-                                  ) : null}
-                                  {onIgnoreAutoRepo ? (
-                                    <button
-                                      type="button"
-                                      className="cove-window__action cove-window__action--secondary"
-                                      data-testid={`git-worklog-repo-ignore-${repo.repoId}`}
-                                      onMouseDown={event => {
-                                        event.stopPropagation()
-                                      }}
-                                      onClick={() => {
-                                        if (suppressClickRef.current) {
-                                          return
-                                        }
-                                        onIgnoreAutoRepo({
-                                          label: repo.label,
-                                          path: repo.path,
-                                        })
-                                      }}
-                                    >
-                                      {t('pluginManager.plugins.gitWorklog.ignoreAutoRepoAction')}
-                                    </button>
-                                  ) : null}
-                                </div>
+
+                              <GitWorklogMiniTrend points={repo.dailyPoints} repoId={repo.repoId} />
+                            </div>
+
+                            {hasError ? (
+                              <div className="git-worklog-overview__repo-row-detail">
+                                <p className="git-worklog-overview__repo-error">{errorMessage}</p>
                               </div>
                             ) : null}
-                          </div>
-
-                          <div className="git-worklog-overview__repo-body">
-                            <div className="git-worklog-overview__repo-stats">
-                              <RepoStat
-                                label={t(
-                                  'pluginManager.plugins.gitWorklog.repoMetrics.changedLinesToday',
-                                )}
-                                value={formatRepoMetricValue(repo.changedLinesToday, {
-                                  hasError,
-                                  hasRuntimeData: repo.hasRuntimeData,
-                                })}
-                              />
-                              <RepoStat
-                                label={t(
-                                  'pluginManager.plugins.gitWorklog.repoMetrics.changedLinesInRange',
-                                )}
-                                value={formatRepoMetricValue(repo.changedLinesInRange, {
-                                  hasError,
-                                  hasRuntimeData: repo.hasRuntimeData,
-                                })}
-                              />
-                            </div>
-
-                            <GitWorklogMiniTrend points={repo.dailyPoints} repoId={repo.repoId} />
-                          </div>
-
-                          {hasError ? (
-                            <div className="git-worklog-overview__repo-row-detail">
-                              <p className="git-worklog-overview__repo-error">{errorMessage}</p>
-                            </div>
-                          ) : null}
-                        </article>
-                      )
-                    })}
+                          </article>
+                        )
+                      })
+                    ) : (
+                      <div
+                        className="git-worklog-overview__repo-placeholder"
+                        data-testid={`git-worklog-empty-group-${group.id}`}
+                      >
+                        <strong>
+                          {t('pluginManager.plugins.gitWorklog.emptyGroupPlaceholderTitle')}
+                        </strong>
+                        <span>
+                          {t('pluginManager.plugins.gitWorklog.emptyGroupPlaceholderBody')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </article>
               )

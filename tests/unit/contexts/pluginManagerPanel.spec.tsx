@@ -122,9 +122,12 @@ function installGitWorklogApiMock(overrides: Partial<GitWorklogStateDto> = {}) {
       totalCodeFiles: 0,
       totalCodeLines: 0,
       dailyPoints: [],
+      heatmapDailyPoints: [],
     },
     repos: [],
     autoCandidates: [],
+    pendingImports: [],
+    dismissedImports: [],
     availableWorkspaces: [],
     lastError: null,
     ...overrides,
@@ -145,6 +148,10 @@ function installGitWorklogApiMock(overrides: Partial<GitWorklogStateDto> = {}) {
         gitWorklog: {
           getState: vi.fn().mockResolvedValue(state),
           refresh: vi.fn().mockResolvedValue(state),
+          refreshWorkspace: vi.fn().mockResolvedValue(state),
+          acceptPendingImport: vi.fn().mockResolvedValue(state),
+          dismissPendingImport: vi.fn().mockResolvedValue(state),
+          restoreDismissedImport: vi.fn().mockResolvedValue(state),
           resolveRepository: vi.fn().mockImplementation(async ({ path }: { path: string }) => ({
             path,
             label: path.split(/[\\/]/).filter(Boolean).at(-1) ?? path,
@@ -154,6 +161,21 @@ function installGitWorklogApiMock(overrides: Partial<GitWorklogStateDto> = {}) {
       },
     },
   })
+}
+
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve
+    reject = innerReject
+  })
+
+  return {
+    promise,
+    resolve,
+    reject,
+  }
 }
 
 function createDefaultOssSyncComparison(): OssSyncComparisonDto {
@@ -537,6 +559,35 @@ describe('PluginManagerPanel', () => {
             changedLines: 140,
           },
         ],
+        heatmapDailyPoints: [
+          {
+            day: '2025-11-18',
+            label: '11/18',
+            commitCount: 1,
+            filesChanged: 2,
+            additions: 24,
+            deletions: 6,
+            changedLines: 30,
+          },
+          {
+            day: '2026-03-31',
+            label: '03/31',
+            commitCount: 2,
+            filesChanged: 3,
+            additions: 80,
+            deletions: 12,
+            changedLines: 92,
+          },
+          {
+            day: '2026-04-01',
+            label: '04/01',
+            commitCount: 4,
+            filesChanged: 6,
+            additions: 120,
+            deletions: 20,
+            changedLines: 140,
+          },
+        ],
       },
       repos: [
         {
@@ -561,6 +612,35 @@ describe('PluginManagerPanel', () => {
           totalCodeFiles: 18,
           totalCodeLines: 2048,
           dailyPoints: [
+            {
+              day: '2026-03-31',
+              label: '03/31',
+              commitCount: 2,
+              filesChanged: 3,
+              additions: 80,
+              deletions: 12,
+              changedLines: 92,
+            },
+            {
+              day: '2026-04-01',
+              label: '04/01',
+              commitCount: 4,
+              filesChanged: 6,
+              additions: 120,
+              deletions: 20,
+              changedLines: 140,
+            },
+          ],
+          heatmapDailyPoints: [
+            {
+              day: '2025-11-18',
+              label: '11/18',
+              commitCount: 1,
+              filesChanged: 2,
+              additions: 24,
+              deletions: 6,
+              changedLines: 30,
+            },
             {
               day: '2026-03-31',
               label: '03/31',
@@ -608,14 +688,21 @@ describe('PluginManagerPanel', () => {
     expect(screen.getByTestId('git-worklog-summary-trend')).toBeVisible()
     expect(screen.getByTestId('git-worklog-heatmap')).toBeVisible()
     expect(screen.getByTestId('git-worklog-open-config-dialog')).toBeVisible()
+    expect(screen.getByText('今日新增')).toBeVisible()
+    expect(screen.getByText('今日删除')).toBeVisible()
+    expect(screen.getByText('累计改动')).toBeVisible()
     expect(screen.queryByTestId('git-worklog-config-board')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('git-worklog-heatmap-year-trigger'))
+    expect(screen.getByRole('option', { name: '2025 年' })).toBeVisible()
     fireEvent.click(screen.getByTestId('git-worklog-open-config-dialog'))
     expect(screen.getByTestId('git-worklog-config-dialog')).toBeVisible()
     expect(screen.getByTestId('git-worklog-config-board')).toBeVisible()
     expect(screen.getByTestId('git-worklog-config-scan-panel')).toBeVisible()
     expect(screen.getByTestId('git-worklog-config-automation-panel')).toBeVisible()
+    expect(screen.getByTestId('git-worklog-config-refresh-now')).toBeVisible()
+    expect(screen.getByTestId('git-worklog-config-add-repository')).toBeVisible()
     expect(screen.getByTestId('git-worklog-add-repository')).toBeVisible()
-    expect(screen.getAllByText('子仓库').at(0)).toBeVisible()
+    expect(screen.getAllByText('组内仓库').at(0)).toBeVisible()
     expect(screen.queryByTestId('git-worklog-repository-master-detail')).not.toBeInTheDocument()
   })
 
@@ -699,17 +786,25 @@ describe('PluginManagerPanel', () => {
     expect(ossApi.restore).not.toHaveBeenCalled()
   })
 
-  it('confirms auto-discovered candidates into managed repositories', async () => {
+  it('confirms pending workspace imports into managed repositories', async () => {
     installGitWorklogApiMock({
-      autoCandidates: [
+      pendingImports: [
         {
-          id: 'auto_workspace_root_apps__admin',
-          label: 'admin',
-          path: 'D:\\Project\\Drone\\apps\\admin',
-          parentWorkspaceId: 'workspace_drone',
-          parentWorkspaceName: 'Drone',
-          parentWorkspacePath: 'D:\\Project\\Drone',
           detectedAt: '2026-04-12T09:30:00.000Z',
+          workspaceId: 'workspace_drone',
+          workspaceName: 'Drone',
+          workspacePath: 'D:\\Project\\Drone',
+          repositories: [
+            {
+              id: 'auto_workspace_root_apps__admin',
+              label: 'admin',
+              path: 'D:\\Project\\Drone\\apps\\admin',
+              parentWorkspaceId: 'workspace_drone',
+              parentWorkspaceName: 'Drone',
+              parentWorkspacePath: 'D:\\Project\\Drone',
+              detectedAt: '2026-04-12T09:30:00.000Z',
+            },
+          ],
         },
       ],
       availableWorkspaces: [
@@ -740,10 +835,10 @@ describe('PluginManagerPanel', () => {
     fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
     expect(await screen.findByTestId('git-worklog-open-config-dialog')).toBeVisible()
     fireEvent.click(screen.getByTestId('git-worklog-open-config-dialog'))
-    expect(await screen.findByTestId('git-worklog-auto-candidates')).toBeVisible()
+    expect(await screen.findByTestId('git-worklog-workspace-scan-list')).toBeVisible()
 
     fireEvent.click(
-      screen.getByTestId('git-worklog-confirm-auto-candidate-auto_workspace_root_apps__admin'),
+      screen.getByTestId('git-worklog-scan-confirm-pending-import-d:/project/drone'),
     )
 
     await waitFor(() => {
@@ -771,6 +866,366 @@ describe('PluginManagerPanel', () => {
         },
       })
     })
+  })
+
+  it('dismisses pending workspace imports into dismissed history', async () => {
+    installGitWorklogApiMock({
+      pendingImports: [
+        {
+          detectedAt: '2026-04-12T09:30:00.000Z',
+          workspaceId: 'workspace_drone',
+          workspaceName: 'Drone',
+          workspacePath: 'D:\\Project\\Drone',
+          repositories: [
+            {
+              id: 'auto_workspace_root_apps__admin',
+              label: 'admin',
+              path: 'D:\\Project\\Drone\\apps\\admin',
+              parentWorkspaceId: 'workspace_drone',
+              parentWorkspaceName: 'Drone',
+              parentWorkspacePath: 'D:\\Project\\Drone',
+              detectedAt: '2026-04-12T09:30:00.000Z',
+            },
+          ],
+        },
+      ],
+    })
+    const onChange = vi.fn()
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+          },
+        }}
+        onChange={onChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+    fireEvent.click(screen.getByTestId('git-worklog-scan-dismiss-pending-import-d:/project/drone'))
+
+    expect(onChange).not.toHaveBeenCalled()
+    const dismissMock = window.freecliApi?.plugins?.gitWorklog?.dismissPendingImport
+    expect(dismissMock).toBeDefined()
+    expect(dismissMock).toHaveBeenCalledWith({
+      workspacePath: 'D:\\Project\\Drone',
+    })
+  })
+
+  it('shows the workspace scan list even when no pending repositories were detected', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_empty',
+          name: 'Empty Workspace',
+          path: 'D:\\Project\\Empty',
+        },
+      ],
+      pendingImports: [],
+      dismissedImports: [],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositories: [],
+              repositoryOrder: [],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const workspaceScanList = await screen.findByTestId('git-worklog-workspace-scan-list')
+    expect(workspaceScanList).toBeVisible()
+    expect(screen.getByRole('table')).toBeVisible()
+
+    const workspaceScanItem = screen.getByTestId(
+      'git-worklog-workspace-scan-item-d:/project/empty',
+    )
+    expect(within(workspaceScanItem).getByText('项目')).toBeVisible()
+    expect(within(workspaceScanItem).getByText('Empty Workspace')).toBeVisible()
+    expect(within(workspaceScanItem).getByText('尚未发现仓库')).toBeVisible()
+    expect(within(workspaceScanItem).getByText('已纳管 0 个，待确认 0 个')).toBeVisible()
+    expect(screen.getByText('项目 / 仓库')).toBeVisible()
+    expect(
+      screen.getByTestId('git-worklog-scan-refresh-workspace-d:/project/empty'),
+    ).toBeVisible()
+    expect(screen.queryByTestId('git-worklog-config-exception-list')).not.toBeInTheDocument()
+  })
+
+  it('shows workspace scan errors instead of rendering them as empty results', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_fastwrite',
+          name: 'FastWrite',
+          path: 'D:\\Project\\FastWrite',
+        },
+      ],
+      pendingImports: [
+        {
+          detectedAt: '2026-04-25T10:00:00.000Z',
+          workspaceId: 'workspace_fastwrite',
+          workspaceName: 'FastWrite',
+          workspacePath: 'D:\\Project\\FastWrite',
+          repositories: [],
+          error: {
+            type: 'command_failed',
+            message: '工作区 Git 扫描失败',
+            detail: 'spawn git EACCES',
+          },
+          retryCount: 2,
+        },
+      ],
+      dismissedImports: [],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositories: [],
+              repositoryOrder: [],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const workspaceScanItem = screen.getByTestId(
+      'git-worklog-workspace-scan-item-d:/project/fastwrite',
+    )
+    expect(within(workspaceScanItem).getByText('扫描失败')).toBeVisible()
+    expect(
+      within(workspaceScanItem).getByText(
+        '扫描失败，系统会自动重试（第 2 次）。原因：spawn git EACCES',
+      ),
+    ).toBeVisible()
+    expect(within(workspaceScanItem).queryByText('尚未发现仓库')).not.toBeInTheDocument()
+  })
+
+  it('shows repository action buttons inside the workspace scan list', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_drone',
+          name: 'Drone',
+          path: 'D:\\Project\\Drone',
+        },
+      ],
+      repos: [],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: ['repo_1'],
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'Drone API',
+                  path: 'D:\\Project\\Drone\\api',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: 'workspace_drone',
+                },
+              ],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    expect(screen.getByTestId('git-worklog-configured-repository-list')).toBeVisible()
+    expect(
+      screen.queryByTestId('git-worklog-workspace-scan-repository-d:/project/drone/api'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('git-worklog-configured-repository-d:/project/drone/api'),
+    ).toBeVisible()
+    expect(screen.getByText('当前归属项目：Drone。')).toBeVisible()
+    expect(screen.getByTestId('git-worklog-scan-manage-repository-repo_1')).toBeVisible()
+    expect(screen.getByTestId('git-worklog-scan-remove-repository-repo_1')).toBeVisible()
+  })
+
+  it('renders base repositories separately from workspace scan results', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_freecli',
+          name: 'FreeCli',
+          path: 'D:\\Project\\FreeCli',
+        },
+      ],
+      pendingImports: [
+        {
+          detectedAt: '2026-04-26T10:00:00.000Z',
+          workspaceId: 'workspace_freecli',
+          workspaceName: 'FreeCli',
+          workspacePath: 'D:\\Project\\FreeCli',
+          repositories: [
+            {
+              id: 'auto_workspace_freecli_root',
+              label: 'FreeCli',
+              path: 'D:\\Project\\FreeCli',
+              parentWorkspaceId: 'workspace_freecli',
+              parentWorkspaceName: 'FreeCli',
+              parentWorkspacePath: 'D:\\Project\\FreeCli',
+              detectedAt: '2026-04-26T10:00:00.000Z',
+            },
+          ],
+        },
+      ],
+      repos: [],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: ['repo_1', 'repo_2'],
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'FastWrite',
+                  path: 'D:\\Project\\FastWrite',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
+                },
+                {
+                  id: 'repo_2',
+                  label: 'Base Repo',
+                  path: 'D:\\Independent\\base-repo',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: '__external__',
+                },
+              ],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const scanList = screen.getByTestId('git-worklog-workspace-scan-list')
+    expect(
+      within(scanList).getByTestId('git-worklog-workspace-scan-item-d:/project/freecli'),
+    ).toBeVisible()
+    expect(within(scanList).queryByText('FastWrite')).not.toBeInTheDocument()
+    expect(within(scanList).queryByText('Base Repo')).not.toBeInTheDocument()
+
+    const configuredList = screen.getByTestId('git-worklog-configured-repository-list')
+    expect(within(configuredList).getByText('FastWrite')).toBeVisible()
+    expect(within(configuredList).getByText('Base Repo')).toBeVisible()
+    expect(within(configuredList).getByText('当前没有匹配到左侧项目，或该项目尚未出现在本次扫描快照中。')).toBeVisible()
+    expect(within(configuredList).getByText('当前已明确归入“基础仓库”分组。')).toBeVisible()
+  })
+
+  it('shows exception rows in the consolidated exception list', async () => {
+    installGitWorklogApiMock({
+      dismissedImports: [
+        {
+          detectedAt: '2026-04-12T09:30:00.000Z',
+          workspaceId: 'workspace_drone',
+          workspaceName: 'Drone',
+          workspacePath: 'D:\\Project\\Drone',
+          repositories: [],
+        },
+      ],
+      availableWorkspaces: [
+        {
+          id: 'workspace_drone',
+          name: 'Drone',
+          path: 'D:\\Project\\Drone',
+        },
+      ],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              ignoredAutoRepositoryPaths: ['D:\\Project\\Drone\\legacy'],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const exceptionList = screen.getByTestId('git-worklog-config-exception-list')
+    expect(exceptionList).toBeVisible()
+    expect(
+      within(exceptionList).getByTestId('git-worklog-dismissed-import-d:/project/drone'),
+    ).toBeVisible()
+    expect(
+      within(exceptionList).getByTestId('git-worklog-ignored-auto-repository-d:/project/drone/legacy'),
+    ).toBeVisible()
   })
 
   it('opens repository manager dialog from overview card and edits the repository', async () => {
@@ -815,6 +1270,26 @@ describe('PluginManagerPanel', () => {
               changedLines: 40,
             },
           ],
+          heatmapDailyPoints: [
+            {
+              day: '2025-10-12',
+              label: '10/12',
+              commitCount: 2,
+              filesChanged: 5,
+              additions: 50,
+              deletions: 10,
+              changedLines: 60,
+            },
+            {
+              day: '2026-04-02',
+              label: '04/02',
+              commitCount: 3,
+              filesChanged: 6,
+              additions: 30,
+              deletions: 10,
+              changedLines: 40,
+            },
+          ],
           lastScannedAt: '2026-04-02T09:30:00.000Z',
           error: null,
         },
@@ -840,6 +1315,7 @@ describe('PluginManagerPanel', () => {
           totalCodeFiles: 0,
           totalCodeLines: 0,
           dailyPoints: [],
+          heatmapDailyPoints: [],
           lastScannedAt: null,
           error: null,
         },
@@ -886,7 +1362,10 @@ describe('PluginManagerPanel', () => {
     )
 
     fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
-    expect(await screen.findByTestId('git-worklog-manage-repository-repo_2')).toBeVisible()
+    await screen.findByTestId('git-worklog-repo-card-repo_2')
+    await waitFor(() => {
+      expect(screen.getByTestId('git-worklog-manage-repository-repo_2')).toBeVisible()
+    })
 
     fireEvent.click(screen.getByTestId('git-worklog-manage-repository-repo_2'))
     const detail = screen.getByTestId('git-worklog-repository-dialog-repo_2')
@@ -963,6 +1442,707 @@ describe('PluginManagerPanel', () => {
     })
   })
 
+  it('recomputes workspace summary from presentation grouping in the renderer', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_a',
+          name: 'Drone',
+          path: 'D:\\Project\\Drone',
+        },
+        {
+          id: 'workspace_b',
+          name: 'Console',
+          path: 'D:\\Project\\Console',
+        },
+      ],
+      repos: [
+        {
+          repoId: 'repo_1',
+          label: 'Drone API',
+          path: 'D:\\Project\\Drone\\api',
+          origin: 'manual',
+          parentWorkspaceId: null,
+          parentWorkspaceName: null,
+          parentWorkspacePath: null,
+          commitCountToday: 3,
+          filesChangedToday: 6,
+          additionsToday: 30,
+          deletionsToday: 10,
+          changedLinesToday: 40,
+          netLinesToday: 20,
+          commitCountInRange: 3,
+          filesChangedInRange: 6,
+          additionsInRange: 30,
+          deletionsInRange: 10,
+          changedLinesInRange: 40,
+          totalCodeFiles: 10,
+          totalCodeLines: 500,
+          dailyPoints: [],
+          heatmapDailyPoints: [],
+          lastScannedAt: '2026-04-02T09:30:00.000Z',
+          error: null,
+        },
+        {
+          repoId: 'repo_2',
+          label: 'Console Admin',
+          path: 'D:\\Project\\Console\\admin',
+          origin: 'manual',
+          parentWorkspaceId: null,
+          parentWorkspaceName: null,
+          parentWorkspacePath: null,
+          commitCountToday: 2,
+          filesChangedToday: 4,
+          additionsToday: 20,
+          deletionsToday: 5,
+          changedLinesToday: 25,
+          netLinesToday: 15,
+          commitCountInRange: 2,
+          filesChangedInRange: 4,
+          additionsInRange: 20,
+          deletionsInRange: 5,
+          changedLinesInRange: 25,
+          totalCodeFiles: 8,
+          totalCodeLines: 320,
+          dailyPoints: [],
+          heatmapDailyPoints: [],
+          lastScannedAt: '2026-04-02T09:30:00.000Z',
+          error: null,
+        },
+      ],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: ['repo_1', 'repo_2'],
+              workspaceOrder: ['workspace_a', 'workspace_b'],
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'Drone API',
+                  path: 'D:\\Project\\Drone\\api',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: 'workspace_b',
+                },
+                {
+                  id: 'repo_2',
+                  label: 'Console Admin',
+                  path: 'D:\\Project\\Console\\admin',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: 'workspace_b',
+                },
+              ],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+
+    const consoleGroup = await screen.findByTestId('git-worklog-workspace-card-workspace_b')
+    expect(within(consoleGroup).getByText('2 个仓库')).toBeVisible()
+    expect(within(consoleGroup).getByText('5 次提交')).toBeVisible()
+    expect(within(consoleGroup).getByText('65 行改动')).toBeVisible()
+  })
+
+  it('groups standalone repositories under the base repositories card', async () => {
+    installGitWorklogApiMock({
+      repos: [
+        {
+          repoId: 'repo_1',
+          label: 'Standalone API',
+          path: 'D:\\Independent\\api',
+          origin: 'manual',
+          parentWorkspaceId: null,
+          parentWorkspaceName: null,
+          parentWorkspacePath: null,
+          commitCountToday: 3,
+          filesChangedToday: 6,
+          additionsToday: 30,
+          deletionsToday: 10,
+          changedLinesToday: 40,
+          netLinesToday: 20,
+          commitCountInRange: 3,
+          filesChangedInRange: 6,
+          additionsInRange: 30,
+          deletionsInRange: 10,
+          changedLinesInRange: 40,
+          totalCodeFiles: 10,
+          totalCodeLines: 500,
+          dailyPoints: [],
+          heatmapDailyPoints: [],
+          lastScannedAt: '2026-04-02T09:30:00.000Z',
+          error: null,
+        },
+        {
+          repoId: 'repo_2',
+          label: 'Standalone Admin',
+          path: 'D:\\Independent\\admin',
+          origin: 'manual',
+          parentWorkspaceId: null,
+          parentWorkspaceName: null,
+          parentWorkspacePath: null,
+          commitCountToday: 2,
+          filesChangedToday: 4,
+          additionsToday: 20,
+          deletionsToday: 5,
+          changedLinesToday: 25,
+          netLinesToday: 15,
+          commitCountInRange: 2,
+          filesChangedInRange: 4,
+          additionsInRange: 20,
+          deletionsInRange: 5,
+          changedLinesInRange: 25,
+          totalCodeFiles: 8,
+          totalCodeLines: 320,
+          dailyPoints: [],
+          heatmapDailyPoints: [],
+          lastScannedAt: '2026-04-02T09:30:00.000Z',
+          error: null,
+        },
+      ],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: ['repo_1', 'repo_2'],
+              workspaceOrder: [],
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'Standalone API',
+                  path: 'D:\\Independent\\api',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
+                },
+                {
+                  id: 'repo_2',
+                  label: 'Standalone Admin',
+                  path: 'D:\\Independent\\admin',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
+                },
+              ],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+
+    const baseGroup = await screen.findByTestId('git-worklog-workspace-card-__external__')
+    expect(within(baseGroup).getByText('基础仓库')).toBeVisible()
+    expect(within(baseGroup).getByTestId('git-worklog-repo-card-repo_1')).toBeVisible()
+    expect(within(baseGroup).getByTestId('git-worklog-repo-card-repo_2')).toBeVisible()
+    expect(screen.getAllByText('基础仓库')).toHaveLength(1)
+  })
+
+  it('keeps the base repositories card visible even when it has no repositories', async () => {
+    installGitWorklogApiMock({
+      repos: [],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: [],
+              workspaceOrder: [],
+              repositories: [],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+
+    const baseGroup = await screen.findByTestId('git-worklog-workspace-card-__external__')
+    expect(within(baseGroup).getByText('基础仓库')).toBeVisible()
+    expect(within(baseGroup).getByTestId('git-worklog-empty-group-__external__')).toBeVisible()
+    expect(within(baseGroup).getByText('拖拽仓库到这里')).toBeVisible()
+  })
+
+  it('shows a loading state while reloading workspace scan results', async () => {
+    const deferred = createDeferredPromise<GitWorklogStateDto>()
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_empty',
+          name: 'Empty',
+          path: 'D:\\Project\\empty',
+        },
+      ],
+    })
+
+    const gitWorklogApi = window.freecliApi?.plugins?.gitWorklog
+    expect(gitWorklogApi).toBeDefined()
+    const refreshMock = vi.fn().mockImplementation(() => deferred.promise)
+    ;(
+      gitWorklogApi as {
+        refreshWorkspace: typeof refreshMock
+      }
+    ).refreshWorkspace = refreshMock
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const refreshButton = await screen.findByTestId('git-worklog-scan-refresh-workspace-d:/project/empty')
+    fireEvent.click(refreshButton)
+
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(refreshButton).toBeDisabled()
+    expect(refreshButton).toHaveAttribute('aria-busy', 'true')
+    expect(refreshButton).toHaveTextContent('刷新中')
+
+    deferred.resolve({
+      isEnabled: false,
+      isRefreshing: false,
+      status: 'needs_config',
+      lastUpdatedAt: null,
+      configuredRepoCount: 0,
+      activeRepoCount: 1,
+      successfulRepoCount: 0,
+      overview: {
+        monitoredRepoCount: 0,
+        activeRepoCount: 0,
+        healthyRepoCount: 0,
+        commitCountToday: 0,
+        filesChangedToday: 0,
+        additionsToday: 0,
+        deletionsToday: 0,
+        changedLinesToday: 0,
+        commitCountInRange: 0,
+        filesChangedInRange: 0,
+        additionsInRange: 0,
+        deletionsInRange: 0,
+        changedLinesInRange: 0,
+        totalCodeFiles: 0,
+        totalCodeLines: 0,
+        dailyPoints: [],
+        heatmapDailyPoints: [],
+      },
+      repos: [],
+      autoCandidates: [],
+      pendingImports: [],
+      dismissedImports: [],
+      availableWorkspaces: [
+        {
+          id: 'workspace_empty',
+          name: 'Empty',
+          path: 'D:\\Project\\empty',
+        },
+      ],
+      lastError: null,
+    })
+
+    await waitFor(() => {
+      expect(refreshButton).not.toBeDisabled()
+    })
+    expect(refreshButton).toHaveAttribute('aria-busy', 'false')
+    expect(refreshButton).toHaveTextContent('重新读取')
+  })
+
+  it('repairs managed repository config and shows inline feedback', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_fastwrite',
+          name: 'FastWrite',
+          path: 'D:\\Project\\FastWrite',
+        },
+      ],
+    })
+
+    const gitWorklogApi = window.freecliApi?.plugins?.gitWorklog
+    expect(gitWorklogApi).toBeDefined()
+    const repairMock = vi.fn().mockResolvedValue({
+      repairedSettings: {
+        ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+        repositories: [
+          {
+            id: 'repo_1',
+            label: 'FastWrite',
+            path: 'D:\\Project\\FastWrite',
+            enabled: true,
+            origin: 'manual',
+            assignedWorkspaceId: 'workspace_fastwrite',
+          },
+        ],
+        repositoryOrder: ['repo_1'],
+        workspaceOrder: ['workspace_fastwrite'],
+      },
+      summary: {
+        duplicateIdsFixed: 1,
+        duplicatePathsFixed: 0,
+        pathsNormalized: 1,
+        workspaceAssignmentsFixed: 1,
+        labelsFixed: 1,
+      },
+      changedRepositories: [
+        {
+          repositoryId: 'repo_1',
+          path: 'D:\\Project\\FastWrite',
+          changes: ['仓库路径已归一到真实 Git 根目录'],
+        },
+      ],
+      backupAvailable: true,
+    })
+    ;(
+      gitWorklogApi as {
+        repairRepositories: typeof repairMock
+      }
+    ).repairRepositories = repairMock
+
+    const onChange = vi.fn()
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'FreeCli',
+                  path: 'D:\\Project\\FastWrite\\packages\\ui',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: 'workspace_missing',
+                },
+              ],
+              repositoryOrder: ['repo_1'],
+              workspaceOrder: ['workspace_missing'],
+            },
+          },
+        }}
+        onChange={onChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const repairButton = await screen.findByTestId('git-worklog-repair-repositories')
+    fireEvent.click(repairButton)
+
+    await waitFor(() => {
+      expect(repairMock).toHaveBeenCalledTimes(1)
+    })
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plugins: expect.objectContaining({
+          gitWorklog: expect.objectContaining({
+            repositories: [
+              expect.objectContaining({
+                label: 'FastWrite',
+                path: 'D:\\Project\\FastWrite',
+              }),
+            ],
+          }),
+        }),
+      }),
+    )
+    expect(await screen.findByTestId('git-worklog-repair-feedback')).toHaveTextContent(
+      '已修复 1 条仓库配置异常',
+    )
+  })
+
+  it('undoes the last repository repair and restores the previous settings', async () => {
+    installGitWorklogApiMock()
+
+    const gitWorklogApi = window.freecliApi?.plugins?.gitWorklog
+    expect(gitWorklogApi).toBeDefined()
+    const undoMock = vi.fn().mockResolvedValue({
+      restored: true,
+      restoredSettings: {
+        ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+        repositories: [
+          {
+            id: 'repo_1',
+            label: 'FreeCli',
+            path: 'D:\\Project\\FastWrite\\packages\\ui',
+            enabled: true,
+            origin: 'manual',
+            assignedWorkspaceId: 'workspace_missing',
+          },
+        ],
+        repositoryOrder: ['repo_1'],
+        workspaceOrder: ['workspace_missing'],
+      },
+    })
+    ;(
+      gitWorklogApi as {
+        undoRepositoryRepair: typeof undoMock
+      }
+    ).undoRepositoryRepair = undoMock
+
+    const onChange = vi.fn()
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+          },
+        }}
+        onChange={onChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const undoButton = await screen.findByTestId('git-worklog-undo-repository-repair')
+    fireEvent.click(undoButton)
+
+    await waitFor(() => {
+      expect(undoMock).toHaveBeenCalledTimes(1)
+    })
+    expect(onChange).toHaveBeenCalled()
+    expect(await screen.findByTestId('git-worklog-repair-feedback')).toHaveTextContent(
+      '已恢复到修复前的仓库配置',
+    )
+  })
+
+  it('allows retrying workspace reload after a failed refresh attempt', async () => {
+    installGitWorklogApiMock({
+      pendingImports: [
+        {
+          workspaceId: 'workspace_fastwrite',
+          workspaceName: 'FastWrite',
+          workspacePath: 'D:\\Project\\FastWrite',
+          repositories: [],
+          error: {
+            code: 'workspace_scan_failed',
+            message: '读取失败',
+            detail: 'git 命令执行失败',
+          },
+          retryCount: 1,
+        },
+      ],
+      availableWorkspaces: [
+        {
+          id: 'workspace_fastwrite',
+          name: 'FastWrite',
+          path: 'D:\\Project\\FastWrite',
+        },
+      ],
+    })
+
+    const gitWorklogApi = window.freecliApi?.plugins?.gitWorklog
+    expect(gitWorklogApi).toBeDefined()
+    const refreshMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('first refresh failed'))
+      .mockResolvedValue({
+        isEnabled: false,
+        isRefreshing: false,
+        status: 'needs_config',
+        lastUpdatedAt: null,
+        configuredRepoCount: 0,
+        activeRepoCount: 1,
+        successfulRepoCount: 0,
+        overview: {
+          monitoredRepoCount: 0,
+          activeRepoCount: 0,
+          healthyRepoCount: 0,
+          commitCountToday: 0,
+          filesChangedToday: 0,
+          additionsToday: 0,
+          deletionsToday: 0,
+          changedLinesToday: 0,
+          commitCountInRange: 0,
+          filesChangedInRange: 0,
+          additionsInRange: 0,
+          deletionsInRange: 0,
+          changedLinesInRange: 0,
+          totalCodeFiles: 0,
+          totalCodeLines: 0,
+          dailyPoints: [],
+          heatmapDailyPoints: [],
+        },
+        repos: [],
+        autoCandidates: [],
+        pendingImports: [
+          {
+            workspaceId: 'workspace_fastwrite',
+            workspaceName: 'FastWrite',
+            workspacePath: 'D:\\Project\\FastWrite',
+            repositories: [],
+            error: {
+              code: 'workspace_scan_failed',
+              message: '读取失败',
+              detail: 'git 命令执行失败',
+            },
+            retryCount: 2,
+          },
+        ],
+        dismissedImports: [],
+        availableWorkspaces: [
+          {
+            id: 'workspace_fastwrite',
+            name: 'FastWrite',
+            path: 'D:\\Project\\FastWrite',
+          },
+        ],
+        lastError: null,
+      })
+    ;(
+      gitWorklogApi as {
+        refreshWorkspace: typeof refreshMock
+      }
+    ).refreshWorkspace = refreshMock
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
+
+    const refreshButton = await screen.findByTestId(
+      'git-worklog-scan-refresh-workspace-d:/project/fastwrite',
+    )
+    expect(screen.getByText('扫描失败')).toBeVisible()
+
+    fireEvent.click(refreshButton)
+
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(refreshButton).not.toBeDisabled()
+    })
+    expect(refreshButton).toHaveAttribute('aria-busy', 'false')
+    expect(refreshButton).toHaveTextContent('重新读取')
+
+    fireEvent.click(refreshButton)
+
+    await waitFor(() => {
+      expect(refreshMock).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('separates auto grouping from explicit base repositories selection in the repository dialog', async () => {
+    installGitWorklogApiMock({
+      availableWorkspaces: [
+        {
+          id: 'workspace_a',
+          name: 'Drone',
+          path: 'D:\\Project\\Drone',
+        },
+      ],
+      repos: [],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+              repositoryOrder: ['repo_1'],
+              workspaceOrder: [],
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'Drone API',
+                  path: 'D:\\Project\\Drone\\api',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
+                },
+              ],
+            },
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
+    await screen.findByTestId('git-worklog-manage-repository-repo_1')
+    fireEvent.click(screen.getByTestId('git-worklog-manage-repository-repo_1'))
+
+    const select = screen.getByTestId('git-worklog-repository-workspace-repo_1')
+    expect(within(select).getByRole('option', { name: '自动按路径归组' })).toBeVisible()
+    expect(within(select).getByRole('option', { name: '基础仓库' })).toBeVisible()
+  })
+
   it('falls back to raw remain quota display when the derived integer field is missing', async () => {
     installQuotaMonitorApiMock({
       status: 'ready',
@@ -1032,6 +2212,52 @@ describe('PluginManagerPanel', () => {
     const usageGrid = screen.getByTestId('quota-monitor-usage-grid')
     expect(within(usageGrid).getByText('单次均额')).toBeVisible()
     expect(within(usageGrid).getByText('8')).toBeVisible()
+  })
+
+  it('keeps long quota monitor summary values on a single line', async () => {
+    installQuotaMonitorApiMock({
+      status: 'ready',
+      lastUpdatedAt: '2026-04-02T09:30:00.000Z',
+      configuredProfileCount: 1,
+      successfulProfileCount: 1,
+      profiles: [
+        createQuotaProfileState({
+          modelUsageSummary: {
+            todayTokens: 1080770,
+            totalTokens: 1080770000,
+            models: [
+              {
+                modelName: 'gpt-5.2',
+                todayTokens: 1080770,
+                totalTokens: 1080770000,
+                averageDailyTokens: 108077,
+              },
+            ],
+          },
+        }),
+      ],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['quota-monitor'],
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-quota-monitor'))
+
+    const usageGrid = await screen.findByTestId('quota-monitor-usage-grid')
+    const totalTokenValue = within(usageGrid).getByText('1080.77M')
+    expect(totalTokenValue).toBeVisible()
   })
 
   it('toggles api key visibility inside quota monitor key profiles', async () => {

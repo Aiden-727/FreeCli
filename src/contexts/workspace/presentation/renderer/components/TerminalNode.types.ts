@@ -6,7 +6,7 @@ import type {
   WorkspaceNodeKind,
 } from '../types'
 import type { TerminalRuntimeKind } from '@shared/contracts/dto'
-import type { LabelColor } from '@shared/types/labelColor'
+import type { LabelColor, NodeLabelColorOverride } from '@shared/types/labelColor'
 import type { TerminalThemeMode } from './terminalNode/theme'
 
 export interface TerminalNodeInteractionOptions {
@@ -23,6 +23,7 @@ export interface TerminalNodeProps {
   kind: WorkspaceNodeKind
   isAgentLike?: boolean
   labelColor?: LabelColor | null
+  labelColorOverride?: NodeLabelColorOverride
   terminalThemeMode?: TerminalThemeMode
   profileId?: string | null
   runtimeKind?: TerminalRuntimeKind
@@ -50,6 +51,7 @@ export interface TerminalNodeProps {
   onResize: (frame: NodeFrame) => void
   onScrollbackChange?: (scrollback: string) => void
   onTitleCommit?: (title: string) => void
+  onLabelColorChange?: (labelColorOverride: NodeLabelColorOverride) => void
   onCredentialProfileChange?: (credentialProfileId: string | null) => void
   onPersistenceModeChange?: (mode: TerminalPersistenceMode) => void
   onCommandRun?: (command: string) => void

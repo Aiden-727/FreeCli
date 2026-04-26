@@ -111,6 +111,87 @@ describe('TerminalNodeHeader directory mismatch badge', () => {
     expect(screen.queryByTestId('terminal-node-inline-title-input')).not.toBeInTheDocument()
   })
 
+  it('selects the whole title when title editing starts from the edit button', () => {
+    render(
+      <TerminalNodeHeader
+        title="一个很长的终端标题"
+        kind="terminal"
+        status={null}
+        onTitleCommit={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('terminal-node-title-edit'))
+
+    const input = screen.getByTestId('terminal-node-inline-title-input') as HTMLInputElement
+    expect(input.selectionStart).toBe(0)
+    expect(input.selectionEnd).toBe(input.value.length)
+  })
+
+  it('opens the label color menu and applies an explicit color override', () => {
+    const onLabelColorChange = vi.fn()
+
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        labelColor="red"
+        labelColorOverride="red"
+        onLabelColorChange={onLabelColorChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('terminal-node-label-button'))
+    expect(screen.getByTestId('terminal-node-label-menu')).toBeVisible()
+
+    fireEvent.click(screen.getByTestId('terminal-node-label-option-green'))
+    expect(onLabelColorChange).toHaveBeenCalledWith('green')
+  })
+
+  it('allows the terminal to switch back to auto-inherit label color', () => {
+    const onLabelColorChange = vi.fn()
+
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        labelColor="blue"
+        labelColorOverride="blue"
+        onLabelColorChange={onLabelColorChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('terminal-node-label-button'))
+    fireEvent.click(screen.getByTestId('terminal-node-label-option-auto'))
+
+    expect(onLabelColorChange).toHaveBeenCalledWith(null)
+  })
+
+  it('allows the terminal to explicitly clear its label color', () => {
+    const onLabelColorChange = vi.fn()
+
+    render(
+      <TerminalNodeHeader
+        title="pwsh"
+        kind="terminal"
+        status={null}
+        labelColorOverride="none"
+        onLabelColorChange={onLabelColorChange}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('terminal-node-label-button'))
+    fireEvent.click(screen.getByTestId('terminal-node-label-option-none'))
+
+    expect(onLabelColorChange).toHaveBeenCalledWith('none')
+  })
+
   it('shows hosted terminal agent chrome for tracked CLI sessions', () => {
     const onCopyLastMessage = vi.fn(async () => undefined)
 

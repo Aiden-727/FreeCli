@@ -24,6 +24,7 @@ export function buildPluginHostSyncTasks(options: {
 }): PluginHostSyncTask[] {
   const tasks: PluginHostSyncTask[] = []
   const pluginsApi = options.api?.plugins
+  const enabledPluginIds = new Set(options.settings.plugins.enabledIds)
   if (!pluginsApi) {
     return tasks
   }
@@ -94,7 +95,10 @@ export function buildPluginHostSyncTasks(options: {
     })
   }
 
-  if (typeof pluginsApi.workspaceAssistant?.syncSettings === 'function') {
+  if (
+    enabledPluginIds.has('workspace-assistant') &&
+    typeof pluginsApi.workspaceAssistant?.syncSettings === 'function'
+  ) {
     tasks.push({
       code: 'workspace_assistant_sync',
       signature: JSON.stringify(options.settings.plugins.workspaceAssistant),
@@ -105,7 +109,10 @@ export function buildPluginHostSyncTasks(options: {
     })
   }
 
-  if (typeof pluginsApi.workspaceAssistant?.syncWorkspaceSnapshot === 'function') {
+  if (
+    enabledPluginIds.has('workspace-assistant') &&
+    typeof pluginsApi.workspaceAssistant?.syncWorkspaceSnapshot === 'function'
+  ) {
     tasks.push({
       code: 'workspace_assistant_workspace_sync',
       signature: JSON.stringify(options.workspaceAssistantSnapshot),

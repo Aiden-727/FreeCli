@@ -22,7 +22,10 @@ class FakeStatement {
 class FakeDb {
   public readonly meta = new Map<string, string>()
   public settingsJson = '{}'
-  public readonly workspaces = new Map<string, { activeSpaceId: string | null }>()
+  public readonly workspaces = new Map<
+    string,
+    { sortOrder: number; activeSpaceId: string | null }
+  >()
   public readonly nodes = new Set<string>()
   public readonly spaces = new Set<string>()
   public readonly spaceLinks = new Map<string, Set<string>>()
@@ -45,7 +48,10 @@ class FakeDb {
 
     if (normalizedSql.startsWith('INSERT INTO workspaces')) {
       return new FakeStatement((...params) => {
-        this.workspaces.set(String(params[0]), { activeSpaceId: (params[10] as string | null) ?? null })
+        this.workspaces.set(String(params[0]), {
+          sortOrder: Number(params[1]),
+          activeSpaceId: (params[13] as string | null) ?? null,
+        })
       })
     }
 
@@ -280,6 +286,42 @@ function createState(
 }
 
 describe('sqlite write helpers', () => {
+  it('persists workspace sort order from the input array index', () => {
+    const db = new FakeDb()
+
+    const state: NormalizedPersistedAppState = {
+      formatVersion: 1,
+      activeWorkspaceId: 'workspace-c',
+      settings: {},
+      workspaces: [
+        {
+          ...createState().workspaces[0],
+          id: 'workspace-c',
+          name: 'workspace-c',
+          path: '/tmp/workspace-c',
+        },
+        {
+          ...createState().workspaces[0],
+          id: 'workspace-a',
+          name: 'workspace-a',
+          path: '/tmp/workspace-a',
+        },
+        {
+          ...createState().workspaces[0],
+          id: 'workspace-b',
+          name: 'workspace-b',
+          path: '/tmp/workspace-b',
+        },
+      ],
+    }
+
+    writeNormalizedAppState(db as never, state)
+
+    expect(db.workspaces.get('workspace-c')?.sortOrder).toBe(0)
+    expect(db.workspaces.get('workspace-a')?.sortOrder).toBe(1)
+    expect(db.workspaces.get('workspace-b')?.sortOrder).toBe(2)
+  })
+
   it('keeps unchanged scrollback timestamps stable and removes deleted node records', () => {
     const db = new FakeDb()
 

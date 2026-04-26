@@ -11,6 +11,7 @@ import {
   isFinalTerminalRuntimeStatus,
   resolveRuntimeStatusFromSessionState,
 } from '../utils/terminalRuntimeStatus'
+import { isWorkspaceArchived } from '../utils/workspaceArchive'
 
 function shouldIgnoreAgentStatusUpdate(status: TerminalNodeData['status']): boolean {
   return isFinalTerminalRuntimeStatus(status)
@@ -49,7 +50,10 @@ function updateWorkspacesWithSessionNodes(
   let didChange = false
 
   const nextWorkspaces = workspaces.map(workspace => {
-    if (excludeWorkspaceId && workspace.id === excludeWorkspaceId) {
+    if (
+      isWorkspaceArchived(workspace) ||
+      (excludeWorkspaceId && workspace.id === excludeWorkspaceId)
+    ) {
       return workspace
     }
 
@@ -96,7 +100,10 @@ export function updateWorkspacesWithAgentExit({
   let didChange = false
 
   const nextWorkspaces = workspaces.map(workspace => {
-    if (excludeWorkspaceId && workspace.id === excludeWorkspaceId) {
+    if (
+      isWorkspaceArchived(workspace) ||
+      (excludeWorkspaceId && workspace.id === excludeWorkspaceId)
+    ) {
       return workspace
     }
 
@@ -263,10 +270,7 @@ export function usePtyWorkspaceRuntimeSync({
               }
             }
 
-            if (
-              node.data.status === nextStatus &&
-              node.data.hostedAgent.state === 'active'
-            ) {
+            if (node.data.status === nextStatus && node.data.hostedAgent.state === 'active') {
               return null
             }
 

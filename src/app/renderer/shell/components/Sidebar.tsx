@@ -1,25 +1,35 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from '@app/renderer/i18n'
 import { AGENT_PROVIDER_LABEL } from '@contexts/settings/domain/agentSettings'
 import { isAgentWorking } from '@contexts/workspace/presentation/renderer/components/workspaceCanvas/helpers'
-import { resolveTerminalRuntimeStatus } from '../utils/terminalRuntimeStatus'
-import type { PersistNotice, ProjectContextMenuState } from '../types'
+import {
+  hasLiveTerminalSession,
+  resolveSidebarAgentRuntimeStatus,
+  resolveSidebarTerminalRuntimeStatus,
+} from '../utils/terminalRuntimeStatus'
+import type {
+  PersistNotice,
+  ProjectContextMenuState,
+  WorkspaceListKind,
+  WorkspaceListPlacement,
+  WorkspaceMoveIntent,
+} from '../types'
 import { toRelativeTime } from '../utils/format'
 import type {
   AgentRuntimeStatus,
   TerminalNodeData,
   WorkspaceState,
 } from '@contexts/workspace/presentation/renderer/types'
+import { isWorkspaceArchived } from '../utils/workspaceArchive'
 
-type SidebarAgentStatus = 'working' | 'standby'
+type SidebarAgentStatus = 'working' | 'standby' | 'stopped'
 
 type SidebarStatusTone = 'working' | 'standby' | 'failed' | 'stopped'
 
 type WorkspaceProjectStatusTone = 'done' | 'active' | 'error' | 'standby' | 'idle'
 
 type WorkspaceProjectStatusMotion = 'steady' | 'pulse'
-
-type WorkspaceDropPlacement = 'before' | 'after'
 
 type AggregatedTerminalStatusKind = 'error' | 'active' | 'done' | 'standby' | 'mixed' | 'idle'
 
@@ -28,20 +38,56 @@ type WorkspaceGraphNode = WorkspaceState['nodes'][number]
 type SidebarTerminalItem = {
   id: string
   title: string
+  hasLiveSession: boolean
   status: AgentRuntimeStatus | null
   statusLabelKey: string
 }
 
 type SidebarDerivedAgentItem = {
+  hasLiveSession: boolean
   node: WorkspaceGraphNode
   linkedTaskTitle: string | null
 }
 
+type DropTarget = {
+  list: WorkspaceListKind
+  anchorWorkspaceId: string | null
+  placement: WorkspaceListPlacement
+}
+
+type ArchiveIngressAnimation = {
+  workspaceId: string
+  workspaceName: string
+  workspacePath: string
+  startRect: { left: number; top: number; width: number; height: number }
+  endRect: { left: number; top: number; width: number; height: number }
+  phase: 'prepare' | 'active'
+}
+
+type DragPreview = {
+  workspaceId: string
+  workspaceName: string
+  workspacePath: string
+  isArchived: boolean
+  startClient: { x: number; y: number }
+}
+
+type ArchivePanelPosition = {
+  left: number
+  top: number
+  maxHeight: number
+}
+
 const WORKSPACE_DRAG_START_DISTANCE_PX = 8
+const ARCHIVE_INGRESS_ANIMATION_MS = 340
 
 function resolveSidebarAgentStatus(runtimeStatus: TerminalNodeData['status']): SidebarAgentStatus {
   if (isAgentWorking(runtimeStatus)) {
     return 'working'
+  }
+
+  if (runtimeStatus === 'stopped') {
+    return 'stopped'
   }
 
   return 'standby'
@@ -141,6 +187,7 @@ function getWorkspaceNodeStartedAt(node: WorkspaceGraphNode): number {
 
 function deriveWorkspaceSidebarData(workspace: WorkspaceState): {
   agentCount: number
+  hasAnyLiveRuntimeSession: boolean
   taskCount: number
   terminalCount: number
   workspaceAgents: SidebarDerivedAgentItem[]
@@ -149,6 +196,7 @@ function deriveWorkspaceSidebarData(workspace: WorkspaceState): {
   let agentCount = 0
   let taskCount = 0
   let terminalCount = 0
+  let hasAnyLiveRuntimeSession = false
   const agentNodes: WorkspaceGraphNode[] = []
   const terminalNodes: WorkspaceGraphNode[] = []
   const taskNodeById = new Map<string, WorkspaceGraphNode>()
@@ -184,10 +232,13 @@ function deriveWorkspaceSidebarData(workspace: WorkspaceState): {
     .sort((left, right) => getWorkspaceNodeStartedAt(right) - getWorkspaceNodeStartedAt(left))
     .map(node => {
       const linkedTaskNode =
-        (node.data.agent?.taskId ? taskNodeById.get(node.data.agent.taskId) ?? null : null) ??
-        (taskTitleByLinkedAgentId.has(node.id) ? taskTitleByLinkedAgentId.get(node.id) ?? null : null)
+        (node.data.agent?.taskId ? (taskNodeById.get(node.data.agent.taskId) ?? null) : null) ??
+        (taskTitleByLinkedAgentId.has(node.id)
+          ? (taskTitleByLinkedAgentId.get(node.id) ?? null)
+          : null)
 
       return {
+        hasLiveSession: hasLiveTerminalSession(node.data),
         node,
         linkedTaskTitle:
           linkedTaskNode && typeof linkedTaskNode !== 'string'
@@ -199,17 +250,31 @@ function deriveWorkspaceSidebarData(workspace: WorkspaceState): {
   const workspaceTerminalItems = [...terminalNodes]
     .sort((left, right) => getWorkspaceNodeStartedAt(right) - getWorkspaceNodeStartedAt(left))
     .map(node => {
-      const runtimeStatus = resolveTerminalRuntimeStatus(node.data)
+      const hasLiveSession = hasLiveTerminalSession(node.data)
+      if (hasLiveSession) {
+        hasAnyLiveRuntimeSession = true
+      }
+
+      const runtimeStatus = resolveSidebarTerminalRuntimeStatus(node.data)
       return {
         id: node.id,
         title: node.data.title,
+        hasLiveSession,
         status: runtimeStatus,
         statusLabelKey: resolveTerminalStatusLabelKey(runtimeStatus),
       }
     })
 
+  for (const { hasLiveSession } of workspaceAgents) {
+    if (hasLiveSession) {
+      hasAnyLiveRuntimeSession = true
+      break
+    }
+  }
+
   return {
     agentCount,
+    hasAnyLiveRuntimeSession,
     taskCount,
     terminalCount,
     workspaceAgents,
@@ -236,7 +301,7 @@ function WorkspaceSidebarItem({
   activeWorkspaceId: string | null
   isDragging: boolean
   isDropTarget: boolean
-  dropPlacement: WorkspaceDropPlacement | null
+  dropPlacement: WorkspaceListPlacement | null
   dragOffset: { x: number; y: number }
   onWorkspacePointerDown: (workspaceId: string, event: React.MouseEvent<HTMLButtonElement>) => void
   onSelectWorkspace: (workspaceId: string) => void
@@ -246,12 +311,21 @@ function WorkspaceSidebarItem({
 }): React.JSX.Element {
   const { t } = useTranslation()
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = React.useState(false)
-  const { workspaceAgents, workspaceTerminalItems, terminalCount, agentCount, taskCount } =
-    React.useMemo(() => deriveWorkspaceSidebarData(workspace), [workspace])
+  const {
+    workspaceAgents,
+    workspaceTerminalItems,
+    terminalCount,
+    agentCount,
+    taskCount,
+    hasAnyLiveRuntimeSession,
+  } = React.useMemo(() => deriveWorkspaceSidebarData(workspace), [workspace])
+  const isArchived = isWorkspaceArchived(workspace)
   const workspaceProjectStatus = resolveWorkspaceTerminalAggregate(
-    workspaceTerminalItems.map(item => item.status),
+    hasAnyLiveRuntimeSession ? workspaceTerminalItems.map(item => item.status) : [],
   )
-  const workspaceStatusSummaryText = t(`sidebar.aggregateStatus.${workspaceProjectStatus.kind}`)
+  const workspaceStatusSummaryText = isArchived
+    ? t('sidebar.archivedStatus')
+    : t(`sidebar.aggregateStatus.${workspaceProjectStatus.kind}`)
   const dragStyle = isDragging
     ? ({
         '--workspace-drag-offset-x': `${dragOffset.x}px`,
@@ -281,7 +355,9 @@ function WorkspaceSidebarItem({
         type="button"
         className={`workspace-item ${isActive ? 'workspace-item--active' : ''} ${
           isDragging ? 'workspace-item--dragging' : ''
-        } ${isDropTarget ? 'workspace-item--drop-target' : ''}`}
+        } ${isDropTarget ? 'workspace-item--drop-target' : ''} ${
+          isArchived ? 'workspace-item--archived' : ''
+        }`}
         style={dragStyle}
         aria-grabbed={isDragging}
         data-drop-placement={dropPlacement ?? undefined}
@@ -290,6 +366,9 @@ function WorkspaceSidebarItem({
         }}
         data-testid={`workspace-item-${workspace.id}`}
         onClick={() => {
+          if (isArchived) {
+            return
+          }
           onSelectWorkspace(workspace.id)
         }}
         onContextMenu={event => {
@@ -327,7 +406,11 @@ function WorkspaceSidebarItem({
                 data-testid={`workspace-status-trigger-${workspace.id}`}
               >
                 <span
-                  className={`workspace-item__status-dot workspace-item__status-dot--${workspaceProjectStatus.tone} workspace-item__status-dot--${workspaceProjectStatus.motion}`}
+                  className={`workspace-item__status-dot workspace-item__status-dot--${
+                    isArchived ? 'idle' : workspaceProjectStatus.tone
+                  } workspace-item__status-dot--${
+                    isArchived ? 'steady' : workspaceProjectStatus.motion
+                  }`}
                   aria-hidden="true"
                   data-testid={`workspace-status-dot-${workspace.id}`}
                 />
@@ -368,7 +451,11 @@ function WorkspaceSidebarItem({
                 )}
               </span>
             </span>
-            <span>{t('sidebar.terminals', { count: terminalCount })}</span>
+            <span>
+              {isArchived
+                ? t('sidebar.archivedBadge')
+                : t('sidebar.terminals', { count: terminalCount })}
+            </span>
           </span>
           <span className="workspace-item__meta-separator" aria-hidden="true">
             ·
@@ -385,21 +472,32 @@ function WorkspaceSidebarItem({
         </span>
       </button>
 
-      {workspaceAgents.length > 0 ? (
+      {!isArchived && workspaceAgents.length > 0 ? (
         <div className="workspace-item__agents">
           {workspaceAgents.map(({ node, linkedTaskTitle }) => {
             const provider = node.data.agent?.provider
             const providerText = provider
               ? AGENT_PROVIDER_LABEL[provider]
               : t('sidebar.fallbackAgentLabel')
-            const sidebarAgentStatus = resolveSidebarAgentStatus(node.data.status)
+            const sidebarAgentStatus = resolveSidebarAgentStatus(
+              resolveSidebarAgentRuntimeStatus({
+                sessionId: node.data.sessionId,
+                status: node.data.status,
+              }),
+            )
             const sidebarAgentStatusTone: SidebarStatusTone =
-              sidebarAgentStatus === 'working' ? 'working' : 'standby'
+              sidebarAgentStatus === 'working'
+                ? 'working'
+                : sidebarAgentStatus === 'stopped'
+                  ? 'stopped'
+                  : 'standby'
             const startedText = toRelativeTime(node.data.startedAt)
             const sidebarAgentStatusText =
               sidebarAgentStatus === 'working'
                 ? t('sidebar.status.working')
-                : t('sidebar.status.standby')
+                : sidebarAgentStatus === 'stopped'
+                  ? t('agentRuntime.stopped')
+                  : t('sidebar.status.standby')
 
             return (
               <button
@@ -441,34 +539,51 @@ function WorkspaceSidebarItem({
   )
 }
 
+function resolveDropPlacementFromPointer(rect: DOMRect, clientY: number): WorkspaceListPlacement {
+  return clientY >= rect.top + rect.height / 2 ? 'after' : 'before'
+}
+
+function isPointerInsideRect(rect: DOMRect, clientX: number, clientY: number): boolean {
+  return (
+    clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+  )
+}
+
 export function Sidebar({
   workspaces,
   activeWorkspaceId,
-  activeProviderLabel,
-  activeProviderModel,
   persistNotice,
   onAddWorkspace,
   onSelectWorkspace,
-  onReorderWorkspaces,
+  onMoveWorkspace,
   onOpenProjectContextMenu,
   onSelectAgentNode,
 }: {
   workspaces: WorkspaceState[]
   activeWorkspaceId: string | null
-  activeProviderLabel: string
-  activeProviderModel: string
   persistNotice: PersistNotice | null
   onAddWorkspace: () => void
   onSelectWorkspace: (workspaceId: string) => void
-  onReorderWorkspaces: (activeWorkspaceId: string, overWorkspaceId: string) => void
+  onMoveWorkspace: (intent: WorkspaceMoveIntent) => void
   onOpenProjectContextMenu: (state: ProjectContextMenuState) => void
   onSelectAgentNode: (workspaceId: string, nodeId: string) => void
 }): React.JSX.Element {
   const { t } = useTranslation()
+  const [isArchivePanelOpen, setIsArchivePanelOpen] = React.useState(false)
   const [draggedWorkspaceId, setDraggedWorkspaceId] = React.useState<string | null>(null)
-  const [dropTargetWorkspaceId, setDropTargetWorkspaceId] = React.useState<string | null>(null)
+  const [dropTarget, setDropTarget] = React.useState<DropTarget | null>(null)
   const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 })
-  const workspaceGroupRefs = React.useRef(new Map<string, HTMLDivElement>())
+  const [dragPreview, setDragPreview] = React.useState<DragPreview | null>(null)
+  const [archivePanelPosition, setArchivePanelPosition] =
+    React.useState<ArchivePanelPosition | null>(null)
+  const [archiveIngressAnimation, setArchiveIngressAnimation] =
+    React.useState<ArchiveIngressAnimation | null>(null)
+  const sidebarRef = React.useRef<HTMLElement | null>(null)
+  const activeWorkspaceGroupRefs = React.useRef(new Map<string, HTMLDivElement>())
+  const archivedWorkspaceGroupRefs = React.useRef(new Map<string, HTMLDivElement>())
+  const activeListRef = React.useRef<HTMLDivElement | null>(null)
+  const archivedListRef = React.useRef<HTMLDivElement | null>(null)
+  const archiveCardRef = React.useRef<HTMLButtonElement | null>(null)
   const pendingPointerDownRef = React.useRef<{
     workspaceId: string
     startX: number
@@ -476,91 +591,328 @@ export function Sidebar({
     startedDragging: boolean
   } | null>(null)
   const draggedWorkspaceIdRef = React.useRef<string | null>(null)
-  const dropTargetWorkspaceIdRef = React.useRef<string | null>(null)
+  const dropTargetRef = React.useRef<DropTarget | null>(null)
   const suppressWorkspaceClickRef = React.useRef(false)
+  const lastArchiveDragEndedAtRef = React.useRef(0)
+
+  const activeWorkspaces = React.useMemo(
+    () => workspaces.filter(workspace => !isWorkspaceArchived(workspace)),
+    [workspaces],
+  )
+  const archivedWorkspaces = React.useMemo(
+    () => workspaces.filter(workspace => isWorkspaceArchived(workspace)),
+    [workspaces],
+  )
+
+  const activeWorkspaceIds = React.useMemo(
+    () => new Set(activeWorkspaces.map(workspace => workspace.id)),
+    [activeWorkspaces],
+  )
+  const archivedWorkspaceIds = React.useMemo(
+    () => new Set(archivedWorkspaces.map(workspace => workspace.id)),
+    [archivedWorkspaces],
+  )
+
+  const registerWorkspaceGroupRef = React.useCallback(
+    (list: WorkspaceListKind, workspaceId: string, node: HTMLDivElement | null) => {
+      const targetMap =
+        list === 'archived' ? archivedWorkspaceGroupRefs.current : activeWorkspaceGroupRefs.current
+      if (node) {
+        targetMap.set(workspaceId, node)
+        return
+      }
+
+      targetMap.delete(workspaceId)
+    },
+    [],
+  )
 
   const setDraggedWorkspace = React.useCallback((workspaceId: string | null) => {
     draggedWorkspaceIdRef.current = workspaceId
     setDraggedWorkspaceId(workspaceId)
   }, [])
 
-  const setDropTargetWorkspace = React.useCallback((workspaceId: string | null) => {
-    dropTargetWorkspaceIdRef.current = workspaceId
-    setDropTargetWorkspaceId(workspaceId)
+  const setResolvedDropTarget = React.useCallback((nextTarget: DropTarget | null) => {
+    dropTargetRef.current = nextTarget
+    setDropTarget(nextTarget)
   }, [])
-
-  const activeDropPlacement = React.useMemo<WorkspaceDropPlacement | null>(() => {
-    if (
-      !draggedWorkspaceId ||
-      !dropTargetWorkspaceId ||
-      draggedWorkspaceId === dropTargetWorkspaceId
-    ) {
-      return null
-    }
-
-    const draggedIndex = workspaces.findIndex(workspace => workspace.id === draggedWorkspaceId)
-    const targetIndex = workspaces.findIndex(workspace => workspace.id === dropTargetWorkspaceId)
-    if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) {
-      return null
-    }
-
-    // reorderWorkspaces inserts at the hovered item's array index; after removing a higher item,
-    // this appears visually as inserting after the hovered target.
-    return draggedIndex < targetIndex ? 'after' : 'before'
-  }, [draggedWorkspaceId, dropTargetWorkspaceId, workspaces])
 
   const resetDragOffset = React.useCallback(() => {
     setDragOffset({ x: 0, y: 0 })
   }, [])
 
-  const registerGroupRef = React.useCallback((workspaceId: string, node: HTMLDivElement | null) => {
-    if (node) {
-      workspaceGroupRefs.current.set(workspaceId, node)
+  const activeDropTargetWorkspaceId =
+    dropTarget?.list === 'active' ? dropTarget.anchorWorkspaceId : null
+  const archivedDropTargetWorkspaceId =
+    dropTarget?.list === 'archived' ? dropTarget.anchorWorkspaceId : null
+
+  const activeDropPlacement = React.useMemo<WorkspaceListPlacement | null>(() => {
+    if (
+      !draggedWorkspaceId ||
+      !activeDropTargetWorkspaceId ||
+      draggedWorkspaceId === activeDropTargetWorkspaceId
+    ) {
+      return null
+    }
+
+    return dropTarget?.placement ?? null
+  }, [activeDropTargetWorkspaceId, draggedWorkspaceId, dropTarget?.placement])
+
+  const archivedDropPlacement = React.useMemo<WorkspaceListPlacement | null>(() => {
+    if (
+      !draggedWorkspaceId ||
+      !archivedDropTargetWorkspaceId ||
+      draggedWorkspaceId === archivedDropTargetWorkspaceId
+    ) {
+      return null
+    }
+
+    return dropTarget?.placement ?? null
+  }, [archivedDropTargetWorkspaceId, draggedWorkspaceId, dropTarget?.placement])
+
+  const updateArchivePanelPosition = React.useCallback(() => {
+    const archiveCard = archiveCardRef.current
+    if (!archiveCard || typeof window === 'undefined') {
       return
     }
 
-    workspaceGroupRefs.current.delete(workspaceId)
+    const archiveCardRect = archiveCard.getBoundingClientRect()
+    const viewportPadding = 24
+    const preferredLeft = archiveCardRect.right + 18
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - 344)
+    const top = Math.min(
+      Math.max(viewportPadding, archiveCardRect.top),
+      Math.max(viewportPadding, window.innerHeight - 220),
+    )
+
+    setArchivePanelPosition({
+      left: Math.min(preferredLeft, maxLeft),
+      top,
+      maxHeight: Math.max(240, window.innerHeight - top - viewportPadding),
+    })
   }, [])
 
-  const resolveWorkspaceDropTarget = React.useCallback(
-    (clientY: number): string | null => {
-      let nearestWorkspaceId: string | null = null
-      let nearestDistance = Number.POSITIVE_INFINITY
+  React.useEffect(() => {
+    if (!isArchivePanelOpen) {
+      setArchivePanelPosition(null)
+      return
+    }
 
-      for (const workspace of workspaces) {
-        const element = workspaceGroupRefs.current.get(workspace.id)
-        if (!element) {
+    updateArchivePanelPosition()
+    window.addEventListener('resize', updateArchivePanelPosition)
+
+    return () => {
+      window.removeEventListener('resize', updateArchivePanelPosition)
+    }
+  }, [isArchivePanelOpen, updateArchivePanelPosition])
+
+  React.useEffect(() => {
+    if (!archiveIngressAnimation || archiveIngressAnimation.phase !== 'prepare') {
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setArchiveIngressAnimation(current =>
+        current
+          ? {
+              ...current,
+              phase: 'active',
+            }
+          : null,
+      )
+    })
+    const timeoutId = window.setTimeout(() => {
+      setArchiveIngressAnimation(current =>
+        current?.workspaceId === archiveIngressAnimation.workspaceId ? null : current,
+      )
+    }, ARCHIVE_INGRESS_ANIMATION_MS)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      window.clearTimeout(timeoutId)
+    }
+  }, [archiveIngressAnimation])
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    document.body.classList.toggle('workspace-archive-panel-open', isArchivePanelOpen)
+
+    return () => {
+      document.body.classList.remove('workspace-archive-panel-open')
+    }
+  }, [isArchivePanelOpen])
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    const blockedElements = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.workspace-main, .workspace-canvas, .react-flow, .react-flow__pane, .react-flow__viewport',
+      ),
+    )
+
+    if (!isArchivePanelOpen) {
+      for (const element of blockedElements) {
+        const previous = element.dataset.archivePanelPointerEvents
+        if (typeof previous === 'string') {
+          if (previous.length > 0) {
+            element.style.pointerEvents = previous
+          } else {
+            element.style.removeProperty('pointer-events')
+          }
+          delete element.dataset.archivePanelPointerEvents
+        }
+      }
+      return
+    }
+
+    for (const element of blockedElements) {
+      if (element.dataset.archivePanelPointerEvents === undefined) {
+        element.dataset.archivePanelPointerEvents = element.style.pointerEvents
+      }
+      element.style.pointerEvents = 'none'
+    }
+
+    return () => {
+      for (const element of blockedElements) {
+        const previous = element.dataset.archivePanelPointerEvents
+        if (typeof previous !== 'string') {
           continue
         }
 
+        if (previous.length > 0) {
+          element.style.pointerEvents = previous
+        } else {
+          element.style.removeProperty('pointer-events')
+        }
+        delete element.dataset.archivePanelPointerEvents
+      }
+    }
+  }, [isArchivePanelOpen])
+
+  const resolveDropTargetFromList = React.useCallback(
+    (
+      list: WorkspaceListKind,
+      clientX: number,
+      clientY: number,
+      refs: Map<string, HTMLDivElement>,
+      fallbackContainer: HTMLDivElement | null,
+    ): DropTarget | null => {
+      const fallbackRect = fallbackContainer?.getBoundingClientRect() ?? null
+      const pointerInsideContainer =
+        fallbackRect !== null ? isPointerInsideRect(fallbackRect, clientX, clientY) : false
+      let nearestWorkspaceId: string | null = null
+      let nearestPlacement: WorkspaceListPlacement = 'after'
+      let nearestDistance = Number.POSITIVE_INFINITY
+
+      for (const [workspaceId, element] of refs) {
         const rect = element.getBoundingClientRect()
-        if (clientY >= rect.top && clientY <= rect.bottom) {
-          return workspace.id
+        const placement = resolveDropPlacementFromPointer(rect, clientY)
+        if (isPointerInsideRect(rect, clientX, clientY)) {
+          return {
+            list,
+            anchorWorkspaceId: workspaceId,
+            placement,
+          }
         }
 
-        const distance = Math.abs(clientY - (rect.top + rect.height / 2))
+        if (!pointerInsideContainer) {
+          continue
+        }
+
+        const anchorY = placement === 'before' ? rect.top : rect.bottom
+        const distance = Math.abs(clientY - anchorY)
         if (distance < nearestDistance) {
           nearestDistance = distance
-          nearestWorkspaceId = workspace.id
+          nearestWorkspaceId = workspaceId
+          nearestPlacement = placement
         }
       }
 
-      return nearestWorkspaceId
+      if (pointerInsideContainer && nearestWorkspaceId) {
+        return {
+          list,
+          anchorWorkspaceId: nearestWorkspaceId,
+          placement: nearestPlacement,
+        }
+      }
+
+      if (pointerInsideContainer) {
+        return {
+          list,
+          anchorWorkspaceId: null,
+          placement: 'after',
+        }
+      }
+
+      return null
     },
-    [workspaces],
+    [],
+  )
+
+  const resolveWorkspaceDropTarget = React.useCallback(
+    (clientX: number, clientY: number): DropTarget | null => {
+      if (isArchivePanelOpen) {
+        const archivedTarget = resolveDropTargetFromList(
+          'archived',
+          clientX,
+          clientY,
+          archivedWorkspaceGroupRefs.current,
+          archivedListRef.current,
+        )
+        if (archivedTarget) {
+          return archivedTarget
+        }
+      }
+
+      const activeTarget = resolveDropTargetFromList(
+        'active',
+        clientX,
+        clientY,
+        activeWorkspaceGroupRefs.current,
+        activeListRef.current,
+      )
+      if (activeTarget) {
+        return activeTarget
+      }
+
+      if (archiveCardRef.current) {
+        const rect = archiveCardRef.current.getBoundingClientRect()
+        if (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        ) {
+          return {
+            list: 'archived',
+            anchorWorkspaceId: null,
+            placement: 'after',
+          }
+        }
+      }
+
+      return null
+    },
+    [isArchivePanelOpen, resolveDropTargetFromList],
   )
 
   const finishWorkspaceDrag = React.useCallback(() => {
     const pendingPointerDown = pendingPointerDownRef.current
     const activeDragWorkspaceId = draggedWorkspaceIdRef.current
-    const activeDropTargetWorkspaceId = dropTargetWorkspaceIdRef.current
+    const activeDropTarget = dropTargetRef.current
 
     pendingPointerDownRef.current = null
     setDraggedWorkspace(null)
-    setDropTargetWorkspace(null)
+    setResolvedDropTarget(null)
     resetDragOffset()
 
-    if (!pendingPointerDown?.startedDragging || !activeDragWorkspaceId) {
+    if (!pendingPointerDown?.startedDragging || !activeDragWorkspaceId || !activeDropTarget) {
       return
     }
 
@@ -568,11 +920,76 @@ export function Sidebar({
     window.setTimeout(() => {
       suppressWorkspaceClickRef.current = false
     }, 0)
+    lastArchiveDragEndedAtRef.current = Date.now()
 
-    if (activeDropTargetWorkspaceId && activeDropTargetWorkspaceId !== activeDragWorkspaceId) {
-      onReorderWorkspaces(activeDragWorkspaceId, activeDropTargetWorkspaceId)
+    const sourceList: WorkspaceListKind = archivedWorkspaceIds.has(activeDragWorkspaceId)
+      ? 'archived'
+      : 'active'
+
+    if (
+      sourceList === 'active' &&
+      activeDropTarget.list === 'archived' &&
+      activeDropTarget.anchorWorkspaceId === null
+    ) {
+      const draggedGroup =
+        activeWorkspaceGroupRefs.current.get(activeDragWorkspaceId) ??
+        archivedWorkspaceGroupRefs.current.get(activeDragWorkspaceId) ??
+        null
+      const draggedCard = draggedGroup?.querySelector<HTMLElement>('.workspace-item') ?? null
+      const draggedRect = draggedCard?.getBoundingClientRect() ?? null
+      const archiveCardRect = archiveCardRef.current?.getBoundingClientRect() ?? null
+      const draggedWorkspace =
+        workspaces.find(workspace => workspace.id === activeDragWorkspaceId) ?? null
+
+      if (draggedRect && archiveCardRect && draggedWorkspace) {
+        setArchiveIngressAnimation({
+          workspaceId: draggedWorkspace.id,
+          workspaceName: draggedWorkspace.name,
+          workspacePath: draggedWorkspace.path,
+          startRect: {
+            left: draggedRect.left,
+            top: draggedRect.top,
+            width: draggedRect.width,
+            height: draggedRect.height,
+          },
+          endRect: {
+            left: archiveCardRect.left + archiveCardRect.width * 0.16,
+            top: archiveCardRect.top + archiveCardRect.height * 0.52,
+            width: Math.max(archiveCardRect.width * 0.34, 92),
+            height: Math.max(archiveCardRect.height * 0.22, 24),
+          },
+          phase: 'prepare',
+        })
+      }
     }
-  }, [onReorderWorkspaces, resetDragOffset, setDraggedWorkspace, setDropTargetWorkspace])
+
+    if (
+      activeDropTarget.list === sourceList &&
+      activeDropTarget.anchorWorkspaceId === activeDragWorkspaceId
+    ) {
+      return
+    }
+
+    onMoveWorkspace({
+      workspaceId: activeDragWorkspaceId,
+      targetList: activeDropTarget.list,
+      anchorWorkspaceId:
+        activeDropTarget.anchorWorkspaceId === activeDragWorkspaceId
+          ? null
+          : activeDropTarget.anchorWorkspaceId,
+      placement: activeDropTarget.placement,
+    })
+  }, [
+    activeWorkspaceGroupRefs,
+    archiveCardRef,
+    archivedWorkspaceIds,
+    archivedWorkspaceGroupRefs,
+    onMoveWorkspace,
+    resetDragOffset,
+    setDraggedWorkspace,
+    setResolvedDropTarget,
+    workspaces,
+  ])
 
   React.useEffect(() => {
     const handleWindowMouseMove = (event: MouseEvent) => {
@@ -592,6 +1009,20 @@ export function Sidebar({
 
       if (!pendingPointerDown.startedDragging) {
         pendingPointerDown.startedDragging = true
+        const draggedWorkspace =
+          workspaces.find(workspace => workspace.id === pendingPointerDown.workspaceId) ?? null
+        if (draggedWorkspace) {
+          setDragPreview({
+            workspaceId: draggedWorkspace.id,
+            workspaceName: draggedWorkspace.name,
+            workspacePath: draggedWorkspace.path,
+            isArchived: isWorkspaceArchived(draggedWorkspace),
+            startClient: {
+              x: pendingPointerDown.startX,
+              y: pendingPointerDown.startY,
+            },
+          })
+        }
         setDraggedWorkspace(pendingPointerDown.workspaceId)
       }
 
@@ -599,10 +1030,11 @@ export function Sidebar({
         x: event.clientX - pendingPointerDown.startX,
         y: event.clientY - pendingPointerDown.startY,
       })
-      setDropTargetWorkspace(resolveWorkspaceDropTarget(event.clientY))
+      setResolvedDropTarget(resolveWorkspaceDropTarget(event.clientX, event.clientY))
     }
 
     const handleWindowMouseUp = () => {
+      setDragPreview(null)
       finishWorkspaceDrag()
     }
 
@@ -613,7 +1045,7 @@ export function Sidebar({
       window.removeEventListener('mousemove', handleWindowMouseMove)
       window.removeEventListener('mouseup', handleWindowMouseUp)
     }
-  }, [finishWorkspaceDrag, resolveWorkspaceDropTarget, setDraggedWorkspace, setDropTargetWorkspace])
+  }, [finishWorkspaceDrag, resolveWorkspaceDropTarget, setDraggedWorkspace, setResolvedDropTarget])
 
   const handleWorkspacePointerDown = React.useCallback(
     (workspaceId: string, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -627,9 +1059,14 @@ export function Sidebar({
         startY: event.clientY,
         startedDragging: false,
       }
-      setDropTargetWorkspace(workspaceId)
+
+      setResolvedDropTarget({
+        list: archivedWorkspaceIds.has(workspaceId) ? 'archived' : 'active',
+        anchorWorkspaceId: workspaceId,
+        placement: 'after',
+      })
     },
-    [setDropTargetWorkspace],
+    [archivedWorkspaceIds, setResolvedDropTarget],
   )
 
   const handleWorkspaceSelect = React.useCallback(
@@ -643,8 +1080,102 @@ export function Sidebar({
     [onSelectWorkspace],
   )
 
+  const archiveCardDropActive =
+    draggedWorkspaceId !== null &&
+    dropTarget?.list === 'archived' &&
+    dropTarget.anchorWorkspaceId === null
+  const activeListDropActive =
+    draggedWorkspaceId !== null &&
+    dropTarget?.list === 'active' &&
+    dropTarget.anchorWorkspaceId === null
+  const archiveGhostStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!archiveIngressAnimation) {
+      return undefined
+    }
+
+    const dx = archiveIngressAnimation.endRect.left - archiveIngressAnimation.startRect.left
+    const dy = archiveIngressAnimation.endRect.top - archiveIngressAnimation.startRect.top
+    const scaleX =
+      archiveIngressAnimation.startRect.width > 0
+        ? archiveIngressAnimation.endRect.width / archiveIngressAnimation.startRect.width
+        : 0.36
+    const scaleY =
+      archiveIngressAnimation.startRect.height > 0
+        ? archiveIngressAnimation.endRect.height / archiveIngressAnimation.startRect.height
+        : 0.3
+
+    return {
+      left: `${archiveIngressAnimation.startRect.left}px`,
+      top: `${archiveIngressAnimation.startRect.top}px`,
+      width: `${archiveIngressAnimation.startRect.width}px`,
+      height: `${archiveIngressAnimation.startRect.height}px`,
+      transform:
+        archiveIngressAnimation.phase === 'active'
+          ? `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`
+          : 'translate(0px, 0px) scale(1)',
+      opacity: archiveIngressAnimation.phase === 'active' ? 0.08 : 0.96,
+    }
+  }, [archiveIngressAnimation])
+  const dragPreviewStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    if (!dragPreview) {
+      return undefined
+    }
+
+    return {
+      left: `${dragPreview.startClient.x - 110 + dragOffset.x}px`,
+      top: `${dragPreview.startClient.y - 42 + dragOffset.y}px`,
+    }
+  }, [dragOffset.x, dragOffset.y, dragPreview])
+  const dragLayer =
+    typeof document !== 'undefined' &&
+    ((archiveIngressAnimation && archiveGhostStyle) ||
+      (dragPreview && draggedWorkspaceId === dragPreview.workspaceId && dragPreviewStyle))
+      ? createPortal(
+          <div className="workspace-sidebar__drag-layer" data-testid="workspace-sidebar-drag-layer">
+            {archiveIngressAnimation && archiveGhostStyle ? (
+              <div
+                className="workspace-sidebar__archive-ingress-ghost"
+                data-testid="workspace-sidebar-archive-ingress-ghost"
+                style={archiveGhostStyle}
+              >
+                <div className="workspace-sidebar__archive-ingress-card">
+                  <span className="workspace-sidebar__archive-ingress-title">
+                    {archiveIngressAnimation.workspaceName}
+                  </span>
+                  <span className="workspace-sidebar__archive-ingress-path">
+                    {archiveIngressAnimation.workspacePath}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+            {dragPreview && draggedWorkspaceId === dragPreview.workspaceId && dragPreviewStyle ? (
+              <div
+                className="workspace-sidebar__drag-preview"
+                data-testid="workspace-sidebar-drag-preview"
+                style={dragPreviewStyle}
+              >
+                <div
+                  className={`workspace-sidebar__drag-preview-card ${
+                    dragPreview.isArchived ? 'workspace-sidebar__drag-preview-card--archived' : ''
+                  }`}
+                >
+                  <span className="workspace-sidebar__drag-preview-title">
+                    {dragPreview.workspaceName}
+                  </span>
+                  <span className="workspace-sidebar__drag-preview-path">
+                    {dragPreview.workspacePath}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null
+
   return (
     <aside
+      ref={sidebarRef}
       className={`workspace-sidebar ${draggedWorkspaceId ? 'workspace-sidebar--reordering' : ''}`}
     >
       <div className="workspace-sidebar__header">
@@ -661,11 +1192,31 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="workspace-sidebar__agent">
-        <span className="workspace-sidebar__agent-label">{t('sidebar.defaultAgent')}</span>
-        <strong className="workspace-sidebar__agent-provider">{activeProviderLabel}</strong>
-        <span className="workspace-sidebar__agent-model">{activeProviderModel}</span>
-      </div>
+      <button
+        ref={archiveCardRef}
+        type="button"
+        className={`workspace-sidebar__archive-card ${
+          isArchivePanelOpen ? 'workspace-sidebar__archive-card--open' : ''
+        } ${archiveCardDropActive ? 'workspace-sidebar__archive-card--drop-target' : ''}`}
+        data-testid="workspace-sidebar-archive-card"
+        onClick={() => {
+          if (Date.now() - lastArchiveDragEndedAtRef.current < 250) {
+            return
+          }
+          setIsArchivePanelOpen(open => !open)
+        }}
+      >
+        <span className="workspace-sidebar__archive-card-label">{t('sidebar.archiveFolder')}</span>
+        <strong className="workspace-sidebar__archive-card-title">
+          {t('sidebar.archivedProjects')}
+        </strong>
+        <span className="workspace-sidebar__archive-card-description">
+          {t('sidebar.archiveFolderDescription')}
+        </span>
+        <span className="workspace-sidebar__archive-card-meta">
+          {t('sidebar.archivedCount', { count: archivedWorkspaces.length })}
+        </span>
+      </button>
 
       {persistNotice ? (
         <div
@@ -676,37 +1227,130 @@ export function Sidebar({
         </div>
       ) : null}
 
-      <div className="workspace-sidebar__list">
-        {workspaces.length === 0 ? (
-          <p className="workspace-sidebar__empty">{t('sidebar.noProjectYet')}</p>
-        ) : null}
+      <div className="workspace-sidebar__body">
+        <div
+          ref={activeListRef}
+          className={`workspace-sidebar__list ${
+            activeListDropActive ? 'workspace-sidebar__list--drop-target' : ''
+          }`}
+        >
+          {workspaces.length === 0 ? (
+            <p className="workspace-sidebar__empty">{t('sidebar.noProjectYet')}</p>
+          ) : null}
 
-        {workspaces.map(workspace => {
-          const isDragging = workspace.id === draggedWorkspaceId
-          const isDropTarget =
-            draggedWorkspaceId !== null &&
-            workspace.id === dropTargetWorkspaceId &&
-            workspace.id !== draggedWorkspaceId
+          {activeWorkspaces.map(workspace => {
+            const isDragging = workspace.id === draggedWorkspaceId
+            const isDropTarget =
+              draggedWorkspaceId !== null &&
+              workspace.id === activeDropTargetWorkspaceId &&
+              workspace.id !== draggedWorkspaceId
 
-          return (
-            <WorkspaceSidebarItem
-              key={workspace.id}
-              workspace={workspace}
-              isActive={workspace.id === activeWorkspaceId}
-              activeWorkspaceId={activeWorkspaceId}
-              isDragging={isDragging}
-              isDropTarget={isDropTarget}
-              dropPlacement={isDropTarget ? activeDropPlacement : null}
-              dragOffset={dragOffset}
-              onWorkspacePointerDown={handleWorkspacePointerDown}
-              onSelectWorkspace={handleWorkspaceSelect}
-              onOpenProjectContextMenu={onOpenProjectContextMenu}
-              onSelectAgentNode={onSelectAgentNode}
-              registerGroupRef={registerGroupRef}
-            />
-          )
-        })}
+            return (
+              <WorkspaceSidebarItem
+                key={workspace.id}
+                workspace={workspace}
+                isActive={workspace.id === activeWorkspaceId}
+                activeWorkspaceId={activeWorkspaceId}
+                isDragging={isDragging}
+                isDropTarget={isDropTarget}
+                dropPlacement={isDropTarget ? activeDropPlacement : null}
+                dragOffset={dragOffset}
+                onWorkspacePointerDown={handleWorkspacePointerDown}
+                onSelectWorkspace={handleWorkspaceSelect}
+                onOpenProjectContextMenu={onOpenProjectContextMenu}
+                onSelectAgentNode={onSelectAgentNode}
+                registerGroupRef={(workspaceId, node) => {
+                  registerWorkspaceGroupRef('active', workspaceId, node)
+                }}
+              />
+            )
+          })}
+        </div>
+
       </div>
+      {isArchivePanelOpen && archivePanelPosition && typeof document !== 'undefined'
+        ? createPortal(
+            <>
+              <div
+                className="workspace-sidebar__archive-panel-shield"
+                aria-hidden="true"
+                style={{
+                  left: `${Math.max(archivePanelPosition.left - 28, 0)}px`,
+                }}
+              />
+              <div
+                className="workspace-sidebar__archive-panel"
+                data-testid="workspace-sidebar-archive-panel"
+                style={{
+                  left: `${archivePanelPosition.left}px`,
+                  top: `${archivePanelPosition.top}px`,
+                  maxHeight: `${archivePanelPosition.maxHeight}px`,
+                }}
+              >
+                <div className="workspace-sidebar__archive-panel-header">
+                  <div className="workspace-sidebar__archive-panel-copy">
+                    <strong>{t('sidebar.archivedProjects')}</strong>
+                    <span>{t('sidebar.openArchivedList')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="workspace-sidebar__archive-panel-close"
+                    onClick={() => {
+                      setIsArchivePanelOpen(false)
+                    }}
+                    aria-label={t('common.close')}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div
+                  ref={archivedListRef}
+                  className={`workspace-sidebar__archive-panel-list ${
+                    archiveCardDropActive
+                      ? 'workspace-sidebar__archive-panel-list--drop-target'
+                      : ''
+                  }`}
+                >
+                  {archivedWorkspaces.length === 0 ? (
+                    <p className="workspace-sidebar__archive-empty">
+                      {t('sidebar.emptyArchivedProjects')}
+                    </p>
+                  ) : null}
+
+                  {archivedWorkspaces.map(workspace => {
+                    const isDragging = workspace.id === draggedWorkspaceId
+                    const isDropTarget =
+                      draggedWorkspaceId !== null &&
+                      workspace.id === archivedDropTargetWorkspaceId &&
+                      workspace.id !== draggedWorkspaceId
+
+                    return (
+                      <WorkspaceSidebarItem
+                        key={workspace.id}
+                        workspace={workspace}
+                        isActive={false}
+                        activeWorkspaceId={activeWorkspaceId}
+                        isDragging={isDragging}
+                        isDropTarget={isDropTarget}
+                        dropPlacement={isDropTarget ? archivedDropPlacement : null}
+                        dragOffset={dragOffset}
+                        onWorkspacePointerDown={handleWorkspacePointerDown}
+                        onSelectWorkspace={handleWorkspaceSelect}
+                        onOpenProjectContextMenu={onOpenProjectContextMenu}
+                        onSelectAgentNode={onSelectAgentNode}
+                        registerGroupRef={(workspaceId, node) => {
+                          registerWorkspaceGroupRef('archived', workspaceId, node)
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
+      {dragLayer}
     </aside>
   )
 }

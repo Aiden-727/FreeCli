@@ -75,6 +75,8 @@ export interface SeedWorkspace {
   name: string
   path: string
   nodes: SeedNode[]
+  lifecycleState?: 'active' | 'archived'
+  archivedAt?: string | null
   spaces?: Array<{
     id: string
     name: string
@@ -179,8 +181,11 @@ export async function seedWorkspaceState(
       }
     }, expectedWorkspaces)
 
+    const expectedVisibleWorkspaceCount = payload.workspaces.filter(
+      workspace => workspace.lifecycleState !== 'archived',
+    ).length
     const workspaceCount = await window.locator('.workspace-item').count()
-    if (seededReady && workspaceCount >= payload.workspaces.length) {
+    if (seededReady && workspaceCount >= expectedVisibleWorkspaceCount) {
       return true
     }
 

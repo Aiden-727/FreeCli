@@ -4,11 +4,17 @@ import { registerHandledIpc } from '../../../../app/main/ipc/handle'
 import type { IpcRegistrationDisposable } from '../../../../app/main/ipc/types'
 import { IPC_CHANNELS } from '../../../../shared/contracts/ipc'
 import type {
+  AcceptGitWorklogPendingImportInput,
+  DismissGitWorklogPendingImportInput,
   GitWorklogStateDto,
   InputStatsStateDto,
   OssSyncComparisonDto,
   OssBackupStateDto,
+  RepairGitWorklogRepositoriesResultDto,
+  RefreshGitWorklogWorkspaceInput,
+  RepairGitWorklogRepositoriesInput,
   RestorePluginBackupResultDto,
+  RestoreGitWorklogDismissedImportInput,
   QuotaMonitorStateDto,
   ResolveGitWorklogRepositoryResult,
   SystemMonitorStateDto,
@@ -21,25 +27,35 @@ import type {
   SyncPluginRuntimeStateInput,
   SyncPluginRuntimeStateResult,
   SyncQuotaMonitorSettingsInput,
+  UndoGitWorklogRepositoriesRepairInput,
+  UndoGitWorklogRepositoriesRepairResultDto,
 } from '../../../../shared/contracts/dto'
 import { MainPluginRuntimeHost } from '../../application/MainPluginRuntimeHost'
 import { getBuiltinPluginRuntimeFactories } from '../../infrastructure/main/pluginRuntimeRegistry'
 import { InputStatsPluginController } from '../../../../plugins/inputStats/presentation/main/InputStatsPluginController'
 import { QuotaMonitorPluginController } from '../../../../plugins/quotaMonitor/presentation/main/QuotaMonitorPluginController'
 import { GitWorklogPluginController } from '../../../../plugins/gitWorklog/presentation/main/GitWorklogPluginController'
+import { GitWorklogRepositoryRepairService } from '../../../../plugins/gitWorklog/presentation/main/GitWorklogRepositoryRepairService'
 import { GitWorklogScanner } from '../../../../plugins/gitWorklog/presentation/main/GitWorklogScanner'
+import { GitWorklogDiscoveryStore } from '../../../../plugins/gitWorklog/infrastructure/main/GitWorklogDiscoveryStore'
 import { GitWorklogHistoryStore } from '../../../../plugins/gitWorklog/infrastructure/main/GitWorklogHistoryStore'
 import { OssBackupPluginController } from '../../../../plugins/ossBackup/presentation/main/OssBackupPluginController'
 import { SystemMonitorPluginController } from '../../../../plugins/systemMonitor/presentation/main/SystemMonitorPluginController'
 import { WorkspaceAssistantPluginController } from '../../../../plugins/workspaceAssistant/presentation/main/WorkspaceAssistantPluginController'
 import { createAppError } from '../../../../shared/errors/appError'
 import {
+  normalizeAcceptGitWorklogPendingImportPayload,
+  normalizeDismissGitWorklogPendingImportPayload,
   normalizeNotifyOssBackupPersistedSettingsPayload,
+  normalizeRepairGitWorklogRepositoriesPayload,
+  normalizeRefreshGitWorklogWorkspacePayload,
   normalizeSyncInputStatsSettingsPayload,
   normalizeSyncGitWorklogSettingsPayload,
   normalizeSyncGitWorklogWorkspacesPayload,
   normalizeResolveGitWorklogRepositoryPayload,
+  normalizeUndoGitWorklogRepositoriesRepairPayload,
   normalizeSyncOssBackupSettingsPayload,
+  normalizeRestoreGitWorklogDismissedImportPayload,
   normalizeSyncPluginRuntimeStatePayload,
   normalizeSyncQuotaMonitorSettingsPayload,
   normalizeSyncSystemMonitorSettingsPayload,
@@ -59,6 +75,9 @@ export function registerPluginIpcHandlers(
   const gitWorklogHistoryStore = new GitWorklogHistoryStore(
     resolve(userDataPath, 'plugins', 'git-worklog', 'history-cache.json'),
   )
+  const gitWorklogDiscoveryStore = new GitWorklogDiscoveryStore(
+    resolve(userDataPath, 'plugins', 'git-worklog', 'discovery-state.json'),
+  )
   const gitWorklogScanner = new GitWorklogScanner({
     historyStore: gitWorklogHistoryStore,
   })
@@ -75,8 +94,24 @@ export function registerPluginIpcHandlers(
   })
   const gitWorklogController = new GitWorklogPluginController({
     approvedWorkspaces,
+    discoveryStore: gitWorklogDiscoveryStore,
     scanner: gitWorklogScanner,
   })
+  const gitWorklogRepairService = new GitWorklogRepositoryRepairService(
+    resolve(userDataPath, 'plugins', 'git-worklog', 'repository-repair-backup.json'),
+    async pathValue => {
+      try {
+        const resolved = await gitWorklogController.resolveRepository(pathValue)
+        return {
+          ok: true as const,
+          path: resolved.path,
+          label: resolved.label,
+        }
+      } catch {
+        return { ok: false as const }
+      }
+    },
+  )
   const ossBackupController = new OssBackupPluginController({
     getPersistenceStore,
     appVersion: options.appVersion ?? 'unknown',
@@ -215,6 +250,65 @@ export function registerPluginIpcHandlers(
     { defaultErrorCode: 'common.unexpected' },
   )
 
+  registerHandledIpc<GitWorklogStateDto, RefreshGitWorklogWorkspaceInput>(
+    IPC_CHANNELS.pluginsGitWorklogRefreshWorkspace,
+    async (_event, payload): Promise<GitWorklogStateDto> => {
+      const normalized = normalizeRefreshGitWorklogWorkspacePayload(payload)
+      return await gitWorklogController.refreshWorkspace(normalized.workspacePath)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<RepairGitWorklogRepositoriesResultDto, RepairGitWorklogRepositoriesInput>(
+    IPC_CHANNELS.pluginsGitWorklogRepairRepositories,
+    async (_event, payload): Promise<RepairGitWorklogRepositoriesResultDto> => {
+      const normalized = normalizeRepairGitWorklogRepositoriesPayload(payload)
+      return await gitWorklogRepairService.repair({
+        settings: normalized.settings,
+        availableWorkspaces: normalized.availableWorkspaces,
+      })
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<UndoGitWorklogRepositoriesRepairResultDto, UndoGitWorklogRepositoriesRepairInput>(
+    IPC_CHANNELS.pluginsGitWorklogUndoRepositoryRepair,
+    async (_event, payload): Promise<UndoGitWorklogRepositoriesRepairResultDto> => {
+      const normalized = normalizeUndoGitWorklogRepositoriesRepairPayload(payload)
+      return await gitWorklogRepairService.undo({
+        settings: normalized.settings,
+      })
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<GitWorklogStateDto, AcceptGitWorklogPendingImportInput>(
+    IPC_CHANNELS.pluginsGitWorklogAcceptPendingImport,
+    async (_event, payload): Promise<GitWorklogStateDto> => {
+      const normalized = normalizeAcceptGitWorklogPendingImportPayload(payload)
+      return await gitWorklogController.acceptPendingImport(normalized.workspacePath)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<GitWorklogStateDto, DismissGitWorklogPendingImportInput>(
+    IPC_CHANNELS.pluginsGitWorklogDismissPendingImport,
+    async (_event, payload): Promise<GitWorklogStateDto> => {
+      const normalized = normalizeDismissGitWorklogPendingImportPayload(payload)
+      return await gitWorklogController.dismissPendingImport(normalized.workspacePath)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<GitWorklogStateDto, RestoreGitWorklogDismissedImportInput>(
+    IPC_CHANNELS.pluginsGitWorklogRestoreDismissedImport,
+    async (_event, payload): Promise<GitWorklogStateDto> => {
+      const normalized = normalizeRestoreGitWorklogDismissedImportPayload(payload)
+      return await gitWorklogController.restoreDismissedImport(normalized.workspacePath)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
   registerHandledIpc<OssBackupStateDto, SyncOssBackupSettingsInput>(
     IPC_CHANNELS.pluginsOssBackupSyncSettings,
     async (_event, payload): Promise<OssBackupStateDto> => {
@@ -325,6 +419,12 @@ export function registerPluginIpcHandlers(
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogGetState)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogResolveRepository)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogRefresh)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogRefreshWorkspace)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogRepairRepositories)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogUndoRepositoryRepair)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogAcceptPendingImport)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogDismissPendingImport)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsGitWorklogRestoreDismissedImport)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupSyncSettings)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupGetState)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsOssBackupTestConnection)
@@ -345,6 +445,7 @@ export function registerPluginIpcHandlers(
       await gitWorklogController.dispose()
       await ossBackupController.dispose()
       await workspaceAssistantController.dispose()
+      await gitWorklogDiscoveryStore.dispose()
       await gitWorklogHistoryStore.dispose()
     },
   }

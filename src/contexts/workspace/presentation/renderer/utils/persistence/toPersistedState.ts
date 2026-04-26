@@ -35,6 +35,11 @@ export function toPersistedWorkspaceState(workspace: WorkspaceState): PersistedW
     name: workspace.name,
     path: workspace.path,
     worktreesRoot: normalizeOptionalString(workspace.worktreesRoot) ?? '',
+    lifecycleState: workspace.lifecycleState,
+    archivedAt:
+      workspace.lifecycleState === 'archived'
+        ? normalizeOptionalString(workspace.archivedAt)
+        : null,
     pullRequestBaseBranchOptions: normalizePullRequestBaseBranchOptions(
       workspace.pullRequestBaseBranchOptions,
     ),

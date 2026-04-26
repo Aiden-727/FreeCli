@@ -22,8 +22,20 @@ function truncateText(text: string, maxLength: number): string {
   return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`
 }
 
+function normalizeNodeTitle(
+  value: unknown,
+  fallback: string,
+): string {
+  if (typeof value !== 'string') {
+    return fallback
+  }
+
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : fallback
+}
+
 function extractTaskTitleFromNode(nodeTitle: string, task: TaskNodeData | null): string {
-  const title = nodeTitle.trim()
+  const title = normalizeNodeTitle(nodeTitle, '')
   if (title.length > 0) {
     return title
   }
@@ -68,7 +80,7 @@ export function buildWorkspaceAssistantSnapshot(
       case 'agent':
         agents.push({
           id: node.id,
-          title: node.data.title.trim() || '未命名 Agent',
+          title: normalizeNodeTitle(node.data.title, '未命名 Agent'),
           status: node.data.status,
           provider: node.data.agent?.provider ?? null,
           taskId: node.data.agent?.taskId ?? null,
@@ -79,7 +91,7 @@ export function buildWorkspaceAssistantSnapshot(
       case 'note':
         notes.push({
           id: node.id,
-          title: node.data.title.trim() || '未命名笔记',
+          title: normalizeNodeTitle(node.data.title, '未命名笔记'),
           text: truncateText(node.data.note?.text ?? '', 120),
         })
         break

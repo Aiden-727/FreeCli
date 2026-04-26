@@ -23,6 +23,10 @@ export interface GitWorklogCachedCodeStats {
   totalCodeLines: number
 }
 
+export interface GitWorklogCachedHeatmapStats {
+  dailyPoints: GitWorklogDailyPointDto[]
+}
+
 export interface GitWorklogRangeCacheValidation {
   authorFilter: string
   from: string | null
@@ -32,6 +36,11 @@ export interface GitWorklogRangeCacheValidation {
 
 export interface GitWorklogCodeCacheValidation {
   fileFingerprint: string
+}
+
+export interface GitWorklogHeatmapCacheValidation {
+  authorFilter: string
+  refsFingerprint: string
 }
 
 interface GitWorklogRangeCacheEntry {
@@ -48,10 +57,18 @@ interface GitWorklogCodeCacheEntry {
   updatedAt: string
 }
 
+interface GitWorklogHeatmapCacheEntry {
+  key: string
+  validation: GitWorklogHeatmapCacheValidation
+  stats: GitWorklogCachedHeatmapStats
+  updatedAt: string
+}
+
 interface GitWorklogRepositoryCacheEntry {
   repoPath: string
   rangeStats: GitWorklogRangeCacheEntry[]
   codeStats: GitWorklogCodeCacheEntry[]
+  heatmapStats: GitWorklogHeatmapCacheEntry[]
 }
 
 export interface GitWorklogHistorySyncPayload {
@@ -69,6 +86,7 @@ const STORE_FORMAT_VERSION = 1
 const MAX_REPOSITORIES = 240
 const MAX_RANGE_STATS_PER_REPO = 18
 const MAX_CODE_STATS_PER_REPO = 18
+const MAX_HEATMAP_STATS_PER_REPO = 6
 
 function normalizePathForCompare(pathValue: string): string {
   const resolved = resolve(pathValue.trim())
@@ -167,6 +185,22 @@ function normalizeCodeStats(raw: unknown): GitWorklogCachedCodeStats | null {
   }
 }
 
+function normalizeHeatmapStats(raw: unknown): GitWorklogCachedHeatmapStats | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+
+  const dailyPoints = Array.isArray(raw.dailyPoints)
+    ? raw.dailyPoints
+        .map(normalizeDailyPoint)
+        .filter((point): point is GitWorklogDailyPointDto => point !== null)
+    : []
+
+  return {
+    dailyPoints,
+  }
+}
+
 function normalizeRangeValidation(raw: unknown): GitWorklogRangeCacheValidation | null {
   if (!isRecord(raw)) {
     return null
@@ -199,6 +233,22 @@ function normalizeCodeValidation(raw: unknown): GitWorklogCodeCacheValidation | 
   }
 
   return { fileFingerprint }
+}
+
+function normalizeHeatmapValidation(raw: unknown): GitWorklogHeatmapCacheValidation | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+
+  const refsFingerprint = typeof raw.refsFingerprint === 'string' ? raw.refsFingerprint.trim() : ''
+  if (refsFingerprint.length === 0) {
+    return null
+  }
+
+  return {
+    authorFilter: typeof raw.authorFilter === 'string' ? raw.authorFilter.trim() : '',
+    refsFingerprint,
+  }
 }
 
 function createEmptyState(): GitWorklogHistoryStoreState {
@@ -284,6 +334,44 @@ function normalizeCodeEntries(raw: unknown): GitWorklogCodeCacheEntry[] {
     .slice(0, MAX_CODE_STATS_PER_REPO)
 }
 
+function normalizeHeatmapEntries(raw: unknown): GitWorklogHeatmapCacheEntry[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+
+  const entries: GitWorklogHeatmapCacheEntry[] = []
+  const seenKeys = new Set<string>()
+
+  for (const item of raw) {
+    if (!isRecord(item)) {
+      continue
+    }
+
+    const key = typeof item.key === 'string' ? item.key.trim() : ''
+    if (key.length === 0 || seenKeys.has(key)) {
+      continue
+    }
+
+    const validation = normalizeHeatmapValidation(item.validation)
+    const stats = normalizeHeatmapStats(item.stats)
+    if (!validation || !stats) {
+      continue
+    }
+
+    seenKeys.add(key)
+    entries.push({
+      key,
+      validation,
+      stats,
+      updatedAt: normalizeIsoDate(item.updatedAt),
+    })
+  }
+
+  return entries
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, MAX_HEATMAP_STATS_PER_REPO)
+}
+
 function normalizeRepositoryEntries(raw: unknown): GitWorklogRepositoryCacheEntry[] {
   if (!Array.isArray(raw)) {
     return []
@@ -312,6 +400,7 @@ function normalizeRepositoryEntries(raw: unknown): GitWorklogRepositoryCacheEntr
       repoPath: normalizedRepoPath,
       rangeStats: normalizeRangeEntries(item.rangeStats),
       codeStats: normalizeCodeEntries(item.codeStats),
+      heatmapStats: normalizeHeatmapEntries(item.heatmapStats),
     })
   }
 
@@ -325,7 +414,9 @@ function normalizeRepositoryEntries(raw: unknown): GitWorklogRepositoryCacheEntr
 function computeRepositoryLatestTimestamp(entry: GitWorklogRepositoryCacheEntry): string {
   const rangeLatest = entry.rangeStats[0]?.updatedAt ?? ''
   const codeLatest = entry.codeStats[0]?.updatedAt ?? ''
-  return rangeLatest.localeCompare(codeLatest) >= 0 ? rangeLatest : codeLatest
+  const heatmapLatest = entry.heatmapStats[0]?.updatedAt ?? ''
+  const rangeOrCodeLatest = rangeLatest.localeCompare(codeLatest) >= 0 ? rangeLatest : codeLatest
+  return rangeOrCodeLatest.localeCompare(heatmapLatest) >= 0 ? rangeOrCodeLatest : heatmapLatest
 }
 
 export function normalizeGitWorklogHistorySyncPayload(raw: unknown): GitWorklogHistorySyncPayload {
@@ -365,6 +456,14 @@ export function buildGitWorklogRangeCacheKey(validation: GitWorklogRangeCacheVal
 export function buildGitWorklogCodeCacheKey(validation: GitWorklogCodeCacheValidation): string {
   const payload = JSON.stringify({
     fileFingerprint: validation.fileFingerprint,
+  })
+  return createHash('sha256').update(payload, 'utf8').digest('hex')
+}
+
+export function buildGitWorklogHeatmapCacheKey(validation: GitWorklogHeatmapCacheValidation): string {
+  const payload = JSON.stringify({
+    authorFilter: validation.authorFilter.trim(),
+    refsFingerprint: validation.refsFingerprint,
   })
   return createHash('sha256').update(payload, 'utf8').digest('hex')
 }
@@ -453,6 +552,42 @@ export class GitWorklogHistoryStore {
     this.dirty = true
   }
 
+  public async getHeatmapStats(
+    repoPath: string,
+    key: string,
+  ): Promise<GitWorklogCachedHeatmapStats | null> {
+    await this.ensureLoaded()
+    const repository = this.findRepository(repoPath)
+    if (!repository) {
+      return null
+    }
+
+    return repository.heatmapStats.find(entry => entry.key === key)?.stats ?? null
+  }
+
+  public async saveHeatmapStats(options: {
+    repoPath: string
+    key: string
+    validation: GitWorklogHeatmapCacheValidation
+    stats: GitWorklogCachedHeatmapStats
+  }): Promise<void> {
+    await this.ensureLoaded()
+    const repository = this.getOrCreateRepository(options.repoPath)
+    const now = new Date().toISOString()
+    repository.heatmapStats = [
+      {
+        key: options.key,
+        validation: options.validation,
+        stats: options.stats,
+        updatedAt: now,
+      },
+      ...repository.heatmapStats.filter(entry => entry.key !== options.key),
+    ].slice(0, MAX_HEATMAP_STATS_PER_REPO)
+
+    this.reorderAndTrimRepositories()
+    this.dirty = true
+  }
+
   public async exportForSync(): Promise<GitWorklogHistorySyncPayload> {
     await this.ensureLoaded()
     return {
@@ -526,6 +661,7 @@ export class GitWorklogHistoryStore {
       repoPath: normalizedRepoPath,
       rangeStats: [],
       codeStats: [],
+      heatmapStats: [],
     }
     this.state.repositories.push(next)
     return next

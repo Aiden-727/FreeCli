@@ -31,8 +31,12 @@ function getFallbackState(): GitWorklogStateDto {
       totalCodeFiles: 0,
       totalCodeLines: 0,
       dailyPoints: [],
+      heatmapDailyPoints: [],
     },
     repos: [],
+    autoCandidates: [],
+    pendingImports: [],
+    dismissedImports: [],
     lastError: null,
   }
 }
@@ -40,6 +44,7 @@ function getFallbackState(): GitWorklogStateDto {
 export function useGitWorklogState(): {
   state: GitWorklogStateDto
   refresh: () => Promise<GitWorklogStateDto>
+  setState: React.Dispatch<React.SetStateAction<GitWorklogStateDto>>
 } {
   const [state, setState] = React.useState<GitWorklogStateDto>(getFallbackState)
 
@@ -87,5 +92,6 @@ export function useGitWorklogState(): {
   return {
     state,
     refresh,
+    setState,
   }
 }

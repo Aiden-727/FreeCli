@@ -399,6 +399,9 @@ export function WorkspaceCanvasInner({
     updateNodeScrollback: nodeStore.updateNodeScrollback,
     updateTerminalTitle: nodeStore.updateTerminalTitle,
     renameTerminalTitle: nodeStore.renameTerminalTitle,
+    setTerminalLabelColorOverride: (nodeId, override) => {
+      nodeStore.setNodeLabelColorOverride([nodeId], override)
+    },
     setTerminalCredentialProfile: handleTerminalCredentialProfileChange,
     setTerminalActiveCredentialProfile: nodeStore.setTerminalActiveCredentialProfile,
     setTerminalPersistenceMode: nodeStore.setTerminalPersistenceMode,

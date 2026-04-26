@@ -72,15 +72,19 @@ export function writeNormalizedAppState(
   const insertWorkspace = db.prepare(
     `
       INSERT INTO workspaces (
-        id, name, path, worktrees_root, pull_request_base_branch_options_json, space_archive_records_json,
+        id, sort_order, name, path, worktrees_root, lifecycle_state, archived_at,
+        pull_request_base_branch_options_json, space_archive_records_json,
         viewport_x, viewport_y, viewport_zoom,
         is_minimap_visible, active_space_id
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        sort_order = excluded.sort_order,
         name = excluded.name,
         path = excluded.path,
         worktrees_root = excluded.worktrees_root,
+        lifecycle_state = excluded.lifecycle_state,
+        archived_at = excluded.archived_at,
         pull_request_base_branch_options_json = excluded.pull_request_base_branch_options_json,
         space_archive_records_json = excluded.space_archive_records_json,
         viewport_x = excluded.viewport_x,
@@ -162,12 +166,15 @@ export function writeNormalizedAppState(
     const nodeIds: string[] = []
     const spaceIds: string[] = []
 
-    for (const workspace of state.workspaces) {
+    state.workspaces.forEach((workspace, workspaceIndex) => {
       insertWorkspace.run(
         workspace.id,
+        workspaceIndex,
         workspace.name,
         workspace.path,
         workspace.worktreesRoot,
+        workspace.lifecycleState,
+        workspace.archivedAt,
         safeJsonStringify(workspace.pullRequestBaseBranchOptions),
         safeJsonStringify(workspace.spaceArchiveRecords),
         workspace.viewport.x,
@@ -230,7 +237,7 @@ export function writeNormalizedAppState(
           ids: space.nodeIds,
         })
       }
-    }
+    })
 
     deleteRowsMissingIds(db, 'workspaces', 'id', workspaceIds)
     deleteRowsMissingIds(db, 'nodes', 'id', nodeIds)

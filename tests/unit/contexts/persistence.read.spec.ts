@@ -23,6 +23,8 @@ describe('workspace persistence (read/normalize)', () => {
         name: 'cove',
         path: '/tmp/cove',
         worktreesRoot: '.freecli/worktrees',
+        lifecycleState: 'archived',
+        archivedAt: '2026-04-23T01:00:00.000Z',
         spaceArchiveRecords: [],
         viewport: { x: -320, y: 180, zoom: 1.25 },
         isMinimapVisible: false,
@@ -154,6 +156,8 @@ describe('workspace persistence (read/normalize)', () => {
     expect(restored?.workspaces[0].viewport).toEqual({ x: -320, y: 180, zoom: 1.25 })
     expect(restored?.workspaces[0].isMinimapVisible).toBe(false)
     expect(restored?.workspaces[0].worktreesRoot).toBe('.freecli/worktrees')
+    expect(restored?.workspaces[0].lifecycleState).toBe('archived')
+    expect(restored?.workspaces[0].archivedAt).toBe('2026-04-23T01:00:00.000Z')
     expect(restored?.workspaces[0].nodes).toHaveLength(3)
     expect(restored?.workspaces[0].nodes[0].title).toBe('terminal-1')
     expect(restored?.workspaces[0].nodes[0].scrollback).toBeNull()
@@ -378,6 +382,74 @@ describe('workspace persistence (read/normalize)', () => {
     expect(restored?.workspaces[0].activeSpaceId).toBeNull()
   })
 
+  it('fills safe fallback titles for legacy nodes with missing title fields', async () => {
+    await writeRawPersistedState(
+      JSON.stringify({
+        activeWorkspaceId: 'workspace-1',
+        workspaces: [
+          {
+            id: 'workspace-1',
+            name: 'legacy',
+            path: '/tmp/legacy',
+            viewport: { x: 0, y: 0, zoom: 1 },
+            isMinimapVisible: true,
+            nodes: [
+              {
+                id: 'agent-1',
+                position: { x: 0, y: 0 },
+                width: 480,
+                height: 320,
+                kind: 'agent',
+                status: 'running',
+                startedAt: null,
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+                scrollback: null,
+                agent: {
+                  provider: 'codex',
+                  prompt: 'repair renderer crash',
+                  model: null,
+                  effectiveModel: null,
+                  launchMode: 'new',
+                  executionDirectory: '/tmp/legacy',
+                  expectedDirectory: null,
+                  directoryMode: 'workspace',
+                  customDirectory: null,
+                  shouldCreateDirectory: false,
+                  taskId: null,
+                },
+                task: null,
+              },
+              {
+                id: 'note-1',
+                position: { x: 32, y: 32 },
+                width: 320,
+                height: 220,
+                kind: 'note',
+                status: null,
+                startedAt: null,
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+                scrollback: null,
+                agent: null,
+                task: {
+                  text: 'legacy note body',
+                },
+              },
+            ],
+          },
+        ],
+        settings: {},
+      }),
+    )
+
+    const restored = await readPersistedState()
+    expect(restored?.workspaces[0].nodes[0].title).toBe('未命名 Agent')
+    expect(restored?.workspaces[0].nodes[1].title).toBe('未命名笔记')
+  })
+
   it('persists workspace spaces and active space id', async () => {
     await writeRawPersistedState(
       JSON.stringify({
@@ -459,6 +531,8 @@ describe('workspace persistence (read/normalize)', () => {
             id: 'workspace-1',
             name: 'cove',
             path: '/tmp/cove',
+            lifecycleState: 'archived',
+            archivedAt: '2026-04-23T01:00:00.000Z',
             nodes: [],
             spaceArchiveRecords,
           },
@@ -469,6 +543,7 @@ describe('workspace persistence (read/normalize)', () => {
 
     const restored = await readPersistedState()
     expect(restored?.workspaces[0].spaceArchiveRecords).toHaveLength(50)
+    expect(restored?.workspaces[0].lifecycleState).toBe('archived')
     expect(restored?.workspaces[0].spaceArchiveRecords[0]?.id).toBe('archive-0')
     expect(restored?.workspaces[0].spaceArchiveRecords.some(item => item.id === 'archive-54')).toBe(
       false,

@@ -55,6 +55,7 @@ describe('GitWorklogControlCenterWidget', () => {
         totalCodeFiles: 80,
         totalCodeLines: 4000,
         dailyPoints: [],
+        heatmapDailyPoints: [],
       },
       repos: [],
       lastError: null,

@@ -66,6 +66,8 @@ describe('workspace persistence (write)', () => {
           name: 'cove',
           path: '/tmp/cove',
           worktreesRoot: '',
+          lifecycleState: 'archived',
+          archivedAt: '2026-04-23T01:00:00.000Z',
           viewport: { x: 0, y: 0, zoom: 1 },
           isMinimapVisible: true,
           spaces: [],

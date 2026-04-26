@@ -1,9 +1,6 @@
-name: Beta (Scheduled)
+name: Beta (Manual)
 
 on:
-  schedule:
-    # 04:00 Asia/Shanghai = 20:00 UTC (previous day)
-    - cron: '0 20 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -20,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nightly-scheduled
+  group: nightly-manual
   cancel-in-progress: false
 
 jobs:

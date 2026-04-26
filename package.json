@@ -101,6 +101,7 @@
     "release:minor": "node scripts/prepare-release.mjs minor",
     "release:major": "node scripts/prepare-release.mjs major",
     "release:version": "node scripts/prepare-release.mjs",
+    "release:nightly:tag": "node scripts/resolve-nightly-tag.mjs",
     "pre-commit": "pnpm line-check:staged && pnpm secret-check:staged && pnpm naming-check:staged && pnpm lint:fix && pnpm format-check:staged && pnpm check && pnpm test:staged && pnpm test:e2e:pre-commit",
     "prepare": "husky"
   },

@@ -33,10 +33,11 @@ describe('pluginHostSyncRegistry', () => {
     expect(tasks[0]?.signature).toContain('[]')
   })
 
-  it('adds workspace assistant snapshot sync when the bridge is available', () => {
+  it('does not add workspace assistant sync tasks when the plugin is disabled', () => {
     const api = {
       plugins: {
         workspaceAssistant: {
+          syncSettings: vi.fn(),
           syncWorkspaceSnapshot: vi.fn(),
         },
       },
@@ -66,8 +67,54 @@ describe('pluginHostSyncRegistry', () => {
       api,
     })
 
-    expect(tasks.map(task => task.code)).toEqual(['workspace_assistant_workspace_sync'])
-    expect(tasks[0]?.signature).toContain('Workspace 1')
+    expect(tasks).toEqual([])
+  })
+
+  it('adds workspace assistant sync tasks only when the plugin is enabled', () => {
+    const api = {
+      plugins: {
+        workspaceAssistant: {
+          syncSettings: vi.fn(),
+          syncWorkspaceSnapshot: vi.fn(),
+        },
+      },
+    } as unknown as typeof window.freecliApi
+
+    const tasks = buildPluginHostSyncTasks({
+      settings: {
+        ...DEFAULT_AGENT_SETTINGS,
+        plugins: {
+          ...DEFAULT_AGENT_SETTINGS.plugins,
+          enabledIds: ['workspace-assistant'],
+        },
+      },
+      workspaces: [],
+      workspaceAssistantSnapshot: {
+        id: 'workspace_1',
+        name: 'Workspace 1',
+        path: 'D:\\Project\\Workspace1',
+        activeSpaceId: 'space_1',
+        spaceCount: 1,
+        nodeCount: 3,
+        taskCount: 1,
+        agentCount: 1,
+        noteCount: 1,
+        terminalCount: 0,
+        projectSummary: null,
+        projectFiles: [],
+        tasks: [],
+        agents: [],
+        notes: [],
+        spaces: [],
+      },
+      api,
+    })
+
+    expect(tasks.map(task => task.code)).toEqual([
+      'workspace_assistant_sync',
+      'workspace_assistant_workspace_sync',
+    ])
+    expect(tasks[1]?.signature).toContain('Workspace 1')
   })
 
   it('treats enabled plugin changes as persisted plugin changes', () => {

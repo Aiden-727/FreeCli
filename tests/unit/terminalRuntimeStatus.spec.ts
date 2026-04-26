@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { TerminalNodeData } from '../../src/contexts/workspace/presentation/renderer/types'
-import { resolveTerminalRuntimeStatus } from '../../src/app/renderer/shell/utils/terminalRuntimeStatus'
+import {
+  resolveSidebarAgentRuntimeStatus,
+  resolveSidebarTerminalRuntimeStatus,
+  resolveTerminalRuntimeStatus,
+} from '../../src/app/renderer/shell/utils/terminalRuntimeStatus'
 
 function createTerminalNodeData(
   overrides: Partial<TerminalNodeData> = {},
@@ -74,5 +78,81 @@ describe('terminalRuntimeStatus', () => {
 
     expect(activeStatus).toBe('running')
     expect(inactiveStatus).toBe('standby')
+  })
+
+  it('downgrades persisted active terminal statuses to stopped in sidebar when no live session exists', () => {
+    const runningStatus = resolveSidebarTerminalRuntimeStatus(
+      createTerminalNodeData({
+        sessionId: '',
+        status: 'running',
+      }),
+    )
+    const restoringStatus = resolveSidebarTerminalRuntimeStatus(
+      createTerminalNodeData({
+        sessionId: '',
+        status: 'restoring',
+      }),
+    )
+    const standbyStatus = resolveSidebarTerminalRuntimeStatus(
+      createTerminalNodeData({
+        sessionId: '',
+        status: 'standby',
+      }),
+    )
+
+    expect(runningStatus).toBe('stopped')
+    expect(restoringStatus).toBe('stopped')
+    expect(standbyStatus).toBe('stopped')
+  })
+
+  it('keeps live terminal statuses intact in sidebar once runtime session is attached', () => {
+    const status = resolveSidebarTerminalRuntimeStatus(
+      createTerminalNodeData({
+        sessionId: 'live-session',
+        status: 'running',
+      }),
+    )
+
+    expect(status).toBe('running')
+  })
+
+  it('downgrades persisted active agent statuses to stopped in sidebar when no live session exists', () => {
+    expect(
+      resolveSidebarAgentRuntimeStatus({
+        sessionId: '',
+        status: 'running',
+      }),
+    ).toBe('stopped')
+    expect(
+      resolveSidebarAgentRuntimeStatus({
+        sessionId: '',
+        status: 'restoring',
+      }),
+    ).toBe('stopped')
+    expect(
+      resolveSidebarAgentRuntimeStatus({
+        sessionId: '',
+        status: 'standby',
+      }),
+    ).toBe('stopped')
+  })
+
+  it('treats hosted terminal state as historical when no live session exists', () => {
+    const status = resolveSidebarTerminalRuntimeStatus(
+      createTerminalNodeData({
+        sessionId: '',
+        status: null,
+        hostedAgent: {
+          provider: 'codex',
+          state: 'active',
+          promptHint: null,
+          lastError: null,
+          restoreIntent: true,
+          model: null,
+        },
+      }),
+    )
+
+    expect(status).toBe('stopped')
   })
 })

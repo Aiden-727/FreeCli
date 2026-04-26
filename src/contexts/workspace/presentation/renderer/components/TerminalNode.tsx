@@ -70,6 +70,7 @@ export function TerminalNode({
   kind,
   isAgentLike = false,
   labelColor,
+  labelColorOverride,
   terminalThemeMode = 'sync-with-ui',
   profileId,
   runtimeKind,
@@ -93,6 +94,7 @@ export function TerminalNode({
   onResize,
   onScrollbackChange,
   onTitleCommit,
+  onLabelColorChange,
   onCredentialProfileChange,
   onPersistenceModeChange,
   onCommandRun,
@@ -825,6 +827,7 @@ export function TerminalNode({
       kind={kind}
       isAgentLike={isAgentLike}
       labelColor={labelColor}
+      labelColorOverride={labelColorOverride}
       terminalThemeMode={terminalThemeMode}
       credentialProfileId={credentialProfileId}
       activeCredentialProfileId={activeCredentialProfileId}
@@ -851,6 +854,7 @@ export function TerminalNode({
       consumeIgnoredTerminalBodyClick={consumeIgnoredTerminalBodyClick}
       onInteractionStart={onInteractionStart}
       onTitleCommit={onTitleCommit}
+      onLabelColorChange={onLabelColorChange}
       onCredentialProfileChange={onCredentialProfileChange}
       onPersistenceModeChange={onPersistenceModeChange}
       onClose={onClose}

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   answerWorkspaceAssistantPrompt,
+  buildWorkspaceAssistantSnapshot,
   buildWorkspaceAssistantInsights,
 } from '../../../src/plugins/workspaceAssistant/presentation/renderer/workspaceAssistantContext'
 import { buildWorkspaceAssistantProjectSummary } from '../../../src/plugins/workspaceAssistant/presentation/renderer/workspaceAssistantProjectContext'
 import type { WorkspaceAssistantWorkspaceSnapshotDto } from '../../../src/shared/contracts/dto'
+import type { WorkspaceState } from '../../../src/contexts/workspace/presentation/renderer/types'
 
 function createSnapshot(): WorkspaceAssistantWorkspaceSnapshotDto {
   return {
@@ -122,5 +124,88 @@ describe('workspaceAssistantContext', () => {
     const result = answerWorkspaceAssistantPrompt('帮我看看 package 和 tsconfig', createSnapshot())
     expect(result.reply).toContain('README.md')
     expect(result.reply).toContain('package.json')
+  })
+
+  it('tolerates legacy nodes whose titles are missing', () => {
+    const workspace = {
+      id: 'workspace-1',
+      name: 'Legacy Workspace',
+      path: 'D:\\Project\\Legacy',
+      worktreesRoot: '',
+      lifecycleState: 'active',
+      archivedAt: null,
+      pullRequestBaseBranchOptions: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      isMinimapVisible: true,
+      spaces: [],
+      activeSpaceId: null,
+      spaceArchiveRecords: [],
+      nodes: [
+        {
+          id: 'agent-1',
+          type: 'terminalNode',
+          position: { x: 0, y: 0 },
+          data: {
+            sessionId: '',
+            title: undefined,
+            width: 480,
+            height: 320,
+            kind: 'agent',
+            status: 'running',
+            startedAt: null,
+            endedAt: null,
+            exitCode: null,
+            lastError: null,
+            scrollback: null,
+            agent: {
+              provider: 'codex',
+              prompt: '修复白屏',
+              model: null,
+              effectiveModel: null,
+              launchMode: 'new',
+              resumeSessionId: null,
+              executionDirectory: 'D:\\Project\\Legacy',
+              expectedDirectory: null,
+              directoryMode: 'workspace',
+              customDirectory: null,
+              shouldCreateDirectory: false,
+              taskId: null,
+            },
+            hostedAgent: null,
+            task: null,
+            note: null,
+            image: null,
+          },
+        },
+        {
+          id: 'note-1',
+          type: 'noteNode',
+          position: { x: 40, y: 40 },
+          data: {
+            sessionId: '',
+            title: undefined,
+            width: 320,
+            height: 200,
+            kind: 'note',
+            status: null,
+            startedAt: null,
+            endedAt: null,
+            exitCode: null,
+            lastError: null,
+            scrollback: null,
+            agent: null,
+            hostedAgent: null,
+            task: null,
+            note: { text: 'legacy note' },
+            image: null,
+          },
+        },
+      ],
+    } as unknown as WorkspaceState
+
+    expect(() => buildWorkspaceAssistantSnapshot(workspace)).not.toThrow()
+    const snapshot = buildWorkspaceAssistantSnapshot(workspace)
+    expect(snapshot?.agents[0]?.title).toBe('未命名 Agent')
+    expect(snapshot?.notes[0]?.title).toBe('未命名笔记')
   })
 })

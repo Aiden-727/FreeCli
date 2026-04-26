@@ -6,6 +6,7 @@ import {
   resolveWorkspaceMinimapNodeAtPosition,
   resolveWorkspaceMinimapNodeClassName,
   resolveWorkspaceMinimapNodeColor,
+  resolveWorkspaceMinimapNodeLabelColor,
   resolveWorkspaceMinimapProjection,
   resolveWorkspaceMinimapNodeStrokeColor,
   resolveWorkspaceMinimapViewportWindowLayout,
@@ -181,6 +182,25 @@ describe('workspace minimap helpers', () => {
     expect(resolveWorkspaceMinimapNodeHeaderColor(failedTerminalNode)).toBe(
       'var(--cove-canvas-minimap-node-terminal-inactive-header)',
     )
+  })
+
+  it('keeps runtime state as the primary minimap color while exposing label identity separately', () => {
+    const labeledRunningTerminalNode = createNode({
+      id: 'terminal-labeled',
+      data: {
+        title: 'labeled terminal',
+        kind: 'terminal',
+        width: 420,
+        height: 260,
+        status: 'running',
+        effectiveLabelColor: 'green',
+      },
+    })
+
+    expect(resolveWorkspaceMinimapNodeColor(labeledRunningTerminalNode)).toBe(
+      'var(--cove-canvas-minimap-node-terminal-running)',
+    )
+    expect(resolveWorkspaceMinimapNodeLabelColor(labeledRunningTerminalNode)).toBe('green')
   })
 
   it('projects the current viewport into minimap percentage bounds', () => {

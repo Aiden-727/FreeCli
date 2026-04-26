@@ -6,6 +6,17 @@
   min-height: 0;
 }
 
+body.workspace-archive-panel-open .workspace-main {
+  pointer-events: none;
+}
+
+body.workspace-archive-panel-open .workspace-main .workspace-canvas,
+body.workspace-archive-panel-open .workspace-main .workspace-canvas *,
+body.workspace-archive-panel-open .workspace-main .react-flow,
+body.workspace-archive-panel-open .workspace-main .react-flow * {
+  pointer-events: none !important;
+}
+
 .workspace-empty-state {
   height: 100%;
   display: grid;

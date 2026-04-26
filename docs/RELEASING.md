@@ -219,12 +219,41 @@ node scripts/prepare-release.mjs 0.2.0 --dry-run
 
 推荐流程：
 
-1) 确认当前 `main` 已经推到远端
-2) 用当天日期 + 递增序号创建测试版 tag
+1) 先判断这次测试版要不要包含你本地尚未提交的改动
+   - 如果 **不要包含**：直接基于远端已有提交发版，不需要整理当前脏工作区
+   - 如果 **要包含**：先把这批改动提交到一个明确的 commit，再用该 commit 发版；测试版 tag 永远只会打到某个 commit，不会直接包含“未提交文件”
+2) 确认用于发版的目标 commit 已经在远端可见
+3) 生成当天可用的 nightly tag
 
 ```bash
-git tag v0.2.0-nightly.20260312.1
-git push origin v0.2.0-nightly.20260312.1
+pnpm release:nightly:tag
+# 或
+node scripts/resolve-nightly-tag.mjs
+```
+
+说明：
+
+- 默认按北京时间 `Asia/Shanghai` 生成 `YYYYMMDD`
+- 会自动扫描当前仓库已有 tag，并在当天序号基础上递增
+- 也可以手工指定日期，便于补发或演练：
+
+```bash
+node scripts/resolve-nightly-tag.mjs --date 20260426
+```
+
+4) 用生成出的 tag 创建测试版并推送到远端
+
+假设脚本输出：
+
+```bash
+v0.0.1-nightly.20260426.2
+```
+
+则执行：
+
+```bash
+git tag v0.0.1-nightly.20260426.2
+git push origin v0.0.1-nightly.20260426.2
 ```
 
 约定建议：
@@ -242,12 +271,73 @@ git push origin v0.2.0-nightly.20260312.1
 - Auto Update 依赖 release assets 中的 channel metadata（如 `latest.yml` / `nightly.yml`），GitHub Actions 会随构建一起上传。
 - 构建命令会自动生成 `release/release-manifest.json`，并将其嵌入安装包，同时作为 GitHub Release asset 上传。
 
-## 测试版定时发布（每天 04:00 北京时间）
+### 工作区里还有很多未提交改动时，应该怎么发
 
-仓库提供一个定时任务：每天北京时间 `04:00` 自动从 `main` 打包并发布最新测试版（GitHub prerelease）。
+这是最容易混乱的地方，规则只有一条：
+
+- **测试版发布的对象是一个 commit，不是你当前工作区画面。**
+
+按这个规则拆成三种做法：
+
+#### 场景 A：本地脏改动暂时不想发出去
+
+最稳妥，推荐优先使用。
+
+1. 用 `git status --short` 看清哪些文件还没准备发布。
+2. 确认远端 `main` 上最后一个你认可的 commit。
+3. 直接基于那个已推送 commit 打 nightly tag：
+
+```bash
+pnpm release:nightly:tag
+git tag <上一步生成的tag> origin/main
+git push origin <上一步生成的tag>
+```
+
+Why：这样测试版只包含远端 `main` 的稳定快照，你本地未提交/未完成内容完全不会被打进 release。
+
+#### 场景 B：本地这批改动就是要拿去发测试版
+
+1. 先把这批要发布的改动整理成一个明确 commit。
+2. push 到远端分支或 `main`。
+3. 再生成 nightly tag 并 push。
+
+```bash
+git add <准备发版的文件>
+git commit -m "chore: beta snapshot"
+git push origin HEAD
+pnpm release:nightly:tag
+git tag <上一步生成的tag>
+git push origin <上一步生成的tag>
+```
+
+Why：GitHub Actions 只能构建远端 commit；不先提交，CI 根本拿不到你的本地修改。
+
+#### 场景 C：本地还有很多杂乱改动，但只想拿其中一部分发测试版
+
+不要直接在当前脏工作区里硬打 tag，容易把不该发的东西混进去。更稳妥的做法是：
+
+1. 新开一个临时分支。
+2. 只提交本次准备发 beta 的那部分文件。
+3. push 临时分支。
+4. 在该分支对应 commit 上打 nightly tag。
+
+如果你已经把“要发的”和“不要发的”改动混在同一批文件里，先拆干净再发；否则测试版不可追溯。
+
+### 测试版发布前的最小清单
+
+- `git status` 已确认：你知道这次 beta 基于哪个 commit 发
+- `pnpm release:nightly:tag` 能正常生成 tag
+- 目标 commit 已 push 到 GitHub
+- 若本次 beta 主要验证自动更新，建议本机已有更低版本安装包可供升级测试
+- 若需要自定义 `What's New`，提前准备 `build/release-notes/nightly/v<version>.json`
+
+## 测试版手动触发发布
+
+仓库不再提供每天自动发布测试版的定时任务，避免在你没有主动发版时仍持续生成新的 nightly prerelease，并导致客户端频繁收到更新提示。
 
 - Workflow: `.github/workflows/nightly.yml`
-- Tag 形如：`v<package.json.version>-nightly.<YYYYMMDD>.<N>`
+- 当前仅保留 `workflow_dispatch`，可在 GitHub Actions 页面手动触发 Beta 打包/发布
+- 你也可以继续直接 push 合规 nightly tag，例如 `v<package.json.version>-nightly.<YYYYMMDD>.<N>`，由 `.github/workflows/release.yml` 自动创建对应 prerelease
 
 ## 未签名/未公证的安装说明（给用户）
 

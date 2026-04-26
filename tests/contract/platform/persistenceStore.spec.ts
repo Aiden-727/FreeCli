@@ -17,9 +17,12 @@ const CURRENT_SCHEMA_COLUMNS = {
   app_settings: ['id', 'value'],
   workspaces: [
     'id',
+    'sort_order',
     'name',
     'path',
     'worktrees_root',
+    'lifecycle_state',
+    'archived_at',
     'pull_request_base_branch_options_json',
     'space_archive_records_json',
     'viewport_x',
@@ -459,12 +462,15 @@ describe('PersistenceStore', () => {
       store.dispose()
 
       const migratedState = mockDbByPath.get(dbPath)
-      expect(migratedState?.userVersion).toBe(7)
+      expect(migratedState?.userVersion).toBe(9)
+      expect(migratedState?.tables.get('workspaces')).toContain('sort_order')
       expect(migratedState?.tables.get('nodes')).toContain('label_color_override')
       expect(migratedState?.tables.get('workspace_spaces')).toContain('label_color')
       expect(migratedState?.tables.get('workspaces')).toContain(
         'pull_request_base_branch_options_json',
       )
+      expect(migratedState?.tables.get('workspaces')).toContain('lifecycle_state')
+      expect(migratedState?.tables.get('workspaces')).toContain('archived_at')
       expect(migratedState?.tables.get('workspaces')).toContain('space_archive_records_json')
     },
     PERSISTENCE_STORE_TEST_TIMEOUT_MS,
@@ -500,6 +506,9 @@ describe('PersistenceStore', () => {
       expect(repairedState?.tables.get('workspaces')).toContain(
         'pull_request_base_branch_options_json',
       )
+      expect(repairedState?.tables.get('workspaces')).toContain('sort_order')
+      expect(repairedState?.tables.get('workspaces')).toContain('lifecycle_state')
+      expect(repairedState?.tables.get('workspaces')).toContain('archived_at')
       expect(repairedState?.tables.get('workspaces')).toContain('space_archive_records_json')
     },
     PERSISTENCE_STORE_TEST_TIMEOUT_MS,

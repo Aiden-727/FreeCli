@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import {
+  beginDragMouse,
   createTestUserDataDir,
   dragMouse,
   launchApp,
@@ -335,6 +336,88 @@ test.describe('Workspace Canvas - Sidebar Workspaces', () => {
         .hover()
       await expect(popover).toBeVisible()
       await expect(popover).toContainText(/恢复中|Restoring/)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('does not show persisted active terminals as running in sidebar before live runtime reattaches', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace-project-relaunch',
+        workspaces: [
+          {
+            id: 'workspace-project-relaunch',
+            name: 'workspace-project-relaunch',
+            path: testWorkspacePath,
+            nodes: [
+              {
+                id: 'terminal-persisted-running',
+                title: 'terminal-persisted-running',
+                position: { x: 120, y: 120 },
+                width: 460,
+                height: 300,
+                kind: 'terminal',
+                status: 'running',
+                startedAt: '2026-02-09T08:00:00.000Z',
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+              },
+              {
+                id: 'agent-persisted-running',
+                title: 'agent-persisted-running',
+                position: { x: 620, y: 120 },
+                width: 520,
+                height: 320,
+                kind: 'agent',
+                status: 'running',
+                startedAt: '2026-02-09T08:05:00.000Z',
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+                agent: {
+                  provider: 'codex',
+                  prompt: 'persisted session',
+                  model: 'gpt-5.2-codex',
+                  effectiveModel: 'gpt-5.2-codex',
+                  launchMode: 'new',
+                  resumeSessionId: null,
+                  executionDirectory: testWorkspacePath,
+                  directoryMode: 'workspace',
+                  customDirectory: null,
+                  shouldCreateDirectory: false,
+                },
+              },
+            ],
+          },
+        ],
+      })
+
+      const statusDot = window.locator(
+        '[data-testid="workspace-status-dot-workspace-project-relaunch"]',
+      )
+      const popover = window.locator(
+        '[data-testid="workspace-status-popover-workspace-project-relaunch"]',
+      )
+      const agentItem = window.locator(
+        '[data-testid="workspace-agent-item-workspace-project-relaunch-agent-persisted-running"]',
+      )
+
+      await expect(statusDot).toBeVisible()
+      await expect(statusDot).not.toHaveClass(/workspace-item__status-dot--active/)
+      await expect(statusDot).toHaveClass(/workspace-item__status-dot--idle/)
+      await expect(statusDot).not.toHaveClass(/workspace-item__status-dot--pulse/)
+
+      await window
+        .locator('[data-testid="workspace-status-trigger-workspace-project-relaunch"]')
+        .hover()
+      await expect(popover).toBeVisible()
+      await expect(popover).toContainText(/已停止|Stopped/)
+
+      await expect(agentItem).toContainText(/已停止|Stopped/)
     } finally {
       await electronApp.close()
     }
@@ -870,6 +953,372 @@ test.describe('Workspace Canvas - Sidebar Workspaces', () => {
       await expect(
         window.locator('[data-testid="workspace-project-open-workspace-open-b-pycharm"]'),
       ).toBeVisible()
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('archives project from sidebar context menu and moves it into archived section', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace-archive-a',
+        workspaces: [
+          {
+            id: 'workspace-archive-a',
+            name: 'workspace-archive-a',
+            path: testWorkspacePath,
+            nodes: [],
+          },
+          {
+            id: 'workspace-archive-b',
+            name: 'workspace-archive-b',
+            path: `${testWorkspacePath}-b`,
+            nodes: [],
+          },
+        ],
+      })
+
+      const targetWorkspace = window
+        .locator('.workspace-item')
+        .filter({
+          has: window.locator('.workspace-item__name', { hasText: 'workspace-archive-a' }),
+        })
+        .first()
+      await expect(targetWorkspace).toBeVisible()
+
+      await targetWorkspace.click({ button: 'right' })
+
+      const archiveButton = window.locator(
+        '[data-testid="workspace-project-archive-workspace-archive-a"]',
+      )
+      await expect(archiveButton).toBeVisible()
+      await archiveButton.click()
+
+      await expect(window.locator('.workspace-sidebar__section-label')).toContainText(
+        /已归档|Archived/,
+      )
+      await expect(window.locator('.workspace-item--archived')).toContainText('workspace-archive-a')
+      await expect(window.locator('.workspace-item.workspace-item--active')).toContainText(
+        'workspace-archive-b',
+      )
+
+      await expect
+        .poll(
+          async () =>
+            await window.evaluate(async () => {
+              const raw = await window.freecliApi.persistence.readWorkspaceStateRaw()
+              if (!raw) {
+                return null
+              }
+
+              const parsed = JSON.parse(raw) as {
+                activeWorkspaceId?: string | null
+                workspaces?: Array<{
+                  id?: string
+                  lifecycleState?: string
+                }>
+              }
+
+              return {
+                activeWorkspaceId:
+                  typeof parsed.activeWorkspaceId === 'string' ? parsed.activeWorkspaceId : null,
+                lifecycleStates: (parsed.workspaces ?? []).reduce<Record<string, string>>(
+                  (acc, workspace) => {
+                    if (typeof workspace.id === 'string') {
+                      acc[workspace.id] =
+                        typeof workspace.lifecycleState === 'string'
+                          ? workspace.lifecycleState
+                          : 'active'
+                    }
+                    return acc
+                  },
+                  {},
+                ),
+              }
+            }),
+          { timeout: 10_000 },
+        )
+        .toEqual({
+          activeWorkspaceId: 'workspace-archive-b',
+          lifecycleStates: {
+            'workspace-archive-a': 'archived',
+            'workspace-archive-b': 'active',
+          },
+        })
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('opens archive drawer and supports dragging projects in and out of it', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace-drag-a',
+        workspaces: [
+          {
+            id: 'workspace-drag-a',
+            name: 'workspace-drag-a',
+            path: `${testWorkspacePath}-drag-a`,
+            nodes: [],
+          },
+          {
+            id: 'workspace-drag-b',
+            name: 'workspace-drag-b',
+            path: `${testWorkspacePath}-drag-b`,
+            nodes: [],
+          },
+          {
+            id: 'workspace-drag-c',
+            name: 'workspace-drag-c',
+            path: `${testWorkspacePath}-drag-c`,
+            nodes: [],
+          },
+        ],
+      })
+
+      const archiveCard = window.locator('[data-testid="workspace-sidebar-archive-card"]')
+      await expect(archiveCard).toBeVisible()
+      await archiveCard.click()
+
+      const archivePanel = window.locator('[data-testid="workspace-sidebar-archive-panel"]')
+      await expect(archivePanel).toBeVisible()
+      await expect(archivePanel).toContainText(/还没有归档项目|No archived projects/)
+
+      const sourceWorkspace = window.locator('[data-testid="workspace-item-workspace-drag-b"]')
+      const sourceBox = await sourceWorkspace.boundingBox()
+      const archiveCardBox = await archiveCard.boundingBox()
+      if (!sourceBox || !archiveCardBox) {
+        throw new Error('archive drag source or target not found')
+      }
+
+      const archiveDrag = await beginDragMouse(window, {
+        start: {
+          x: sourceBox.x + sourceBox.width / 2,
+          y: sourceBox.y + sourceBox.height / 2,
+        },
+        initialTarget: {
+          x: archiveCardBox.x + archiveCardBox.width / 2,
+          y: archiveCardBox.y + archiveCardBox.height / 2,
+        },
+      })
+
+      const dragLayer = window.locator('[data-testid="workspace-sidebar-drag-layer"]')
+      const dragPreview = window.locator('[data-testid="workspace-sidebar-drag-preview"]')
+      await expect(dragLayer).toBeVisible()
+      await expect(dragPreview).toBeVisible()
+      await expect
+        .poll(async () => {
+          return await window.evaluate(() => {
+            const currentDragLayer = document.querySelector<HTMLElement>(
+              '[data-testid="workspace-sidebar-drag-layer"]',
+            )
+            const currentDragPreview = document.querySelector<HTMLElement>(
+              '[data-testid="workspace-sidebar-drag-preview"]',
+            )
+            const currentArchivePanel = document.querySelector<HTMLElement>(
+              '[data-testid="workspace-sidebar-archive-panel"]',
+            )
+            const sidebar = document.querySelector<HTMLElement>('.workspace-sidebar')
+
+            return {
+              dragLayerParentIsBody: currentDragLayer?.parentElement === document.body,
+              dragPreviewParentIsDragLayer: currentDragPreview?.parentElement === currentDragLayer,
+              previewInsideSidebar: sidebar?.contains(currentDragPreview ?? null) ?? false,
+              dragLayerZIndex: currentDragLayer
+                ? window.getComputedStyle(currentDragLayer).zIndex
+                : null,
+              archivePanelZIndex: currentArchivePanel
+                ? window.getComputedStyle(currentArchivePanel).zIndex
+                : null,
+            }
+          })
+        })
+        .toEqual({
+          dragLayerParentIsBody: true,
+          dragPreviewParentIsDragLayer: true,
+          previewInsideSidebar: false,
+          dragLayerZIndex: '180',
+          archivePanelZIndex: '40',
+        })
+
+      await archiveDrag.moveTo({
+        x: archiveCardBox.x + archiveCardBox.width / 2,
+        y: archiveCardBox.y + archiveCardBox.height / 2,
+      })
+      await archiveDrag.release()
+
+      await expect(
+        window.locator('.workspace-sidebar__list .workspace-item__name', {
+          hasText: 'workspace-drag-b',
+        }),
+      ).toHaveCount(0)
+      await expect(archivePanel.locator('.workspace-item--archived')).toContainText('workspace-drag-b')
+
+      await window.evaluate(() => {
+        const source = document.querySelector<HTMLElement>(
+          '[data-testid="workspace-item-workspace-drag-b"]',
+        )
+        const target = document.querySelector<HTMLElement>(
+          '[data-testid="workspace-item-workspace-drag-c"]',
+        )
+        if (!source || !target) {
+          throw new Error('restore drag source or target not found')
+        }
+
+        const sourceRect = source.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+        const sourceCenterX = sourceRect.left + sourceRect.width / 2
+        const sourceCenterY = sourceRect.top + sourceRect.height / 2
+        const targetCenterX = targetRect.left + targetRect.width / 2
+        const targetCenterY = targetRect.top + targetRect.height / 2
+
+        source.dispatchEvent(
+          new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: sourceCenterX,
+            clientY: sourceCenterY,
+            view: window,
+          }),
+        )
+
+        window.dispatchEvent(
+          new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: sourceCenterX - 40,
+            clientY: sourceCenterY,
+            view: window,
+          }),
+        )
+
+        window.dispatchEvent(
+          new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 1,
+            clientX: targetCenterX,
+            clientY: targetCenterY,
+            view: window,
+          }),
+        )
+
+        window.dispatchEvent(
+          new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            buttons: 0,
+            clientX: targetCenterX,
+            clientY: targetCenterY,
+            view: window,
+          }),
+        )
+      })
+
+      await expect
+        .poll(async () => {
+          return await window
+            .locator('.workspace-sidebar__list .workspace-item__name')
+            .evaluateAll(nodes => nodes.map(node => node.textContent?.trim() ?? ''))
+        })
+        .toEqual(['workspace-drag-a', 'workspace-drag-b', 'workspace-drag-c'])
+
+      await expect(archivePanel.locator('.workspace-item--archived')).toHaveCount(0)
+
+      await expect
+        .poll(async () => {
+          return await window.evaluate(async () => {
+            const raw = await window.freecliApi.persistence.readWorkspaceStateRaw()
+            if (!raw) {
+              return null
+            }
+
+            const parsed = JSON.parse(raw) as {
+              workspaces?: Array<{
+                id?: string
+                lifecycleState?: string
+              }>
+            }
+
+            return (parsed.workspaces ?? []).reduce<Record<string, string>>((acc, workspace) => {
+              if (typeof workspace.id === 'string') {
+                acc[workspace.id] =
+                  typeof workspace.lifecycleState === 'string'
+                    ? workspace.lifecycleState
+                    : 'active'
+              }
+              return acc
+            }, {})
+          })
+        })
+        .toEqual({
+          'workspace-drag-a': 'active',
+          'workspace-drag-b': 'active',
+          'workspace-drag-c': 'active',
+        })
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('archive drawer content remains clickable and scrollable after opening', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace-archive-active',
+        workspaces: [
+          {
+            id: 'workspace-archive-active',
+            name: 'workspace-archive-active',
+            path: `${testWorkspacePath}-archive-active`,
+            nodes: [],
+          },
+          ...Array.from({ length: 12 }, (_, index) => ({
+            id: `workspace-archive-${index}`,
+            name: `workspace-archive-${index}`,
+            path: `${testWorkspacePath}-archive-${index}`,
+            lifecycleState: 'archived' as const,
+            archivedAt: `2026-04-26T10:${String(index).padStart(2, '0')}:00.000Z`,
+            nodes: [],
+          })),
+        ],
+      })
+
+      await window.locator('[data-testid="workspace-sidebar-archive-card"]').click()
+
+      const archivePanel = window.locator('[data-testid="workspace-sidebar-archive-panel"]')
+      const archiveList = archivePanel.locator('.workspace-sidebar__archive-panel-list')
+      const archivedCard = window.locator('[data-testid="workspace-item-workspace-archive-0"]')
+
+      await expect(archivePanel).toBeVisible()
+      await expect(archivedCard).toBeVisible()
+
+      await archivedCard.click()
+      await expect(archivePanel).toBeVisible()
+
+      const scrollMetrics = await archiveList.evaluate(element => {
+        const container = element as HTMLDivElement
+        container.scrollTop = 160
+        return {
+          clientHeight: container.clientHeight,
+          scrollHeight: container.scrollHeight,
+          scrollTop: container.scrollTop,
+        }
+      })
+
+      expect(scrollMetrics.scrollHeight).toBeGreaterThan(scrollMetrics.clientHeight)
+      expect(scrollMetrics.scrollTop).toBeGreaterThan(0)
     } finally {
       await electronApp.close()
     }

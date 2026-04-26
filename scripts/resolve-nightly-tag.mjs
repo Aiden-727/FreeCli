@@ -16,9 +16,20 @@ function readGitTags() {
 }
 
 function resolveBeijingDateYmd() {
-  // GitHub Actions runs in UTC. We want China Standard Time (UTC+8).
-  // This yields YYYYMMDD in that timezone, matching our nightly tag convention.
-  return execFileSync('bash', ['-lc', 'TZ=Asia/Shanghai date +%Y%m%d'], { encoding: 'utf8' }).trim()
+  // Use Intl instead of shelling out to bash so the helper works on Windows,
+  // local PowerShell sessions, and GitHub Actions with the same result.
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+
+  const parts = formatter.formatToParts(new Date())
+  const year = parts.find(part => part.type === 'year')?.value ?? ''
+  const month = parts.find(part => part.type === 'month')?.value ?? ''
+  const day = parts.find(part => part.type === 'day')?.value ?? ''
+  return `${year}${month}${day}`
 }
 
 function parseArgs(argv) {

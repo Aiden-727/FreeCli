@@ -28,6 +28,17 @@ export interface ProjectContextMenuState {
   y: number
 }
 
+export type WorkspaceListKind = 'active' | 'archived'
+
+export type WorkspaceListPlacement = 'before' | 'after'
+
+export interface WorkspaceMoveIntent {
+  workspaceId: string
+  targetList: WorkspaceListKind
+  anchorWorkspaceId: string | null
+  placement: WorkspaceListPlacement
+}
+
 export interface ProjectDeleteConfirmationState {
   workspaceId: string
   workspaceName: string

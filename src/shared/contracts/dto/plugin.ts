@@ -456,6 +456,39 @@ export interface GitWorklogAutoCandidateDto {
   detectedAt: string | null
 }
 
+export interface GitWorklogPendingImportDto {
+  workspaceId: string
+  workspaceName: string
+  workspacePath: string
+  detectedAt: string | null
+  repositories: GitWorklogAutoCandidateDto[]
+  error?: GitWorklogErrorDto | null
+  retryCount?: number
+}
+
+export interface GitWorklogDismissedImportDto {
+  workspaceId: string | null
+  workspaceName: string
+  workspacePath: string
+  dismissedAt: string | null
+}
+
+export interface RefreshGitWorklogWorkspaceInput {
+  workspacePath: string
+}
+
+export interface AcceptGitWorklogPendingImportInput {
+  workspacePath: string
+}
+
+export interface DismissGitWorklogPendingImportInput {
+  workspacePath: string
+}
+
+export interface RestoreGitWorklogDismissedImportInput {
+  workspacePath: string
+}
+
 export type GitWorklogRangeMode = 'recent_days' | 'date_range'
 
 export interface GitWorklogSettingsDto {
@@ -464,6 +497,7 @@ export interface GitWorklogSettingsDto {
   workspaceOrder: string[]
   ignoredAutoRepositoryPaths: string[]
   autoImportedWorkspacePaths: string[]
+  dismissedWorkspacePaths: string[]
   authorFilter: string
   rangeMode: GitWorklogRangeMode
   recentDays: number
@@ -681,6 +715,7 @@ export interface GitWorklogOverviewDto {
   totalCodeFiles: number
   totalCodeLines: number
   dailyPoints: GitWorklogDailyPointDto[]
+  heatmapDailyPoints: GitWorklogDailyPointDto[]
 }
 
 export interface GitWorklogDailyPointDto {
@@ -715,6 +750,7 @@ export interface GitWorklogRepoStateDto {
   totalCodeFiles: number
   totalCodeLines: number
   dailyPoints: GitWorklogDailyPointDto[]
+  heatmapDailyPoints: GitWorklogDailyPointDto[]
   lastScannedAt: string | null
   error: GitWorklogErrorDto | null
 }
@@ -730,6 +766,8 @@ export interface GitWorklogStateDto {
   overview: GitWorklogOverviewDto
   repos: GitWorklogRepoStateDto[]
   autoCandidates?: GitWorklogAutoCandidateDto[]
+  pendingImports?: GitWorklogPendingImportDto[]
+  dismissedImports?: GitWorklogDismissedImportDto[]
   availableWorkspaces?: GitWorklogWorkspaceDto[]
   lastError: GitWorklogErrorDto | null
 }
@@ -749,4 +787,39 @@ export interface ResolveGitWorklogRepositoryInput {
 export interface ResolveGitWorklogRepositoryResult {
   path: string
   label: string
+}
+
+export interface GitWorklogRepositoryRepairChangeDto {
+  repositoryId: string
+  path: string
+  changes: string[]
+}
+
+export interface GitWorklogRepositoryRepairSummaryDto {
+  duplicateIdsFixed: number
+  duplicatePathsFixed: number
+  pathsNormalized: number
+  workspaceAssignmentsFixed: number
+  labelsFixed: number
+}
+
+export interface RepairGitWorklogRepositoriesInput {
+  settings: GitWorklogSettingsDto
+  availableWorkspaces: GitWorklogWorkspaceDto[]
+}
+
+export interface RepairGitWorklogRepositoriesResultDto {
+  repairedSettings: GitWorklogSettingsDto
+  summary: GitWorklogRepositoryRepairSummaryDto
+  changedRepositories: GitWorklogRepositoryRepairChangeDto[]
+  backupAvailable: boolean
+}
+
+export interface UndoGitWorklogRepositoriesRepairInput {
+  settings: GitWorklogSettingsDto
+}
+
+export interface UndoGitWorklogRepositoriesRepairResultDto {
+  restoredSettings: GitWorklogSettingsDto
+  restored: boolean
 }

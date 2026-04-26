@@ -240,12 +240,10 @@ describe('useHydrateAppState merge behavior', () => {
 
     const spawnDeferred1 = createDeferred<{ sessionId: string }>()
     const spawnDeferred2 = createDeferred<{ sessionId: string }>()
-    const spawnDeferred3 = createDeferred<{ sessionId: string }>()
     const spawn = vi
       .fn()
       .mockImplementationOnce(() => spawnDeferred1.promise)
       .mockImplementationOnce(() => spawnDeferred2.promise)
-      .mockImplementationOnce(() => spawnDeferred3.promise)
 
     Object.defineProperty(window, 'freecliApi', {
       configurable: true,
@@ -378,11 +376,10 @@ describe('useHydrateAppState merge behavior', () => {
     })
 
     await waitFor(() => {
-      expect(spawn).toHaveBeenCalledTimes(3)
+      expect(spawn).toHaveBeenCalledTimes(2)
     })
 
     spawnDeferred2.resolve({ sessionId: 'restored-session-2' })
-    spawnDeferred3.resolve({ sessionId: 'restored-session-3' })
 
     await waitFor(() => {
       expect(screen.getByTestId('node-count-2')).toHaveTextContent('2')

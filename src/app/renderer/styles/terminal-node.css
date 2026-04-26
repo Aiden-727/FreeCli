@@ -18,6 +18,37 @@
   position: relative;
 }
 
+.terminal-node::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    height 0.18s ease;
+}
+
+.terminal-node[data-cove-label-color]:not(.terminal-node--selected-surface) {
+  border-color: color-mix(in srgb, var(--cove-node-border) 72%, var(--cove-label-color) 28%);
+  box-shadow:
+    0 10px 30px var(--cove-node-shadow-color),
+    0 0 0 1px color-mix(in srgb, var(--cove-label-color) 18%, transparent),
+    0 18px 36px color-mix(in srgb, var(--cove-label-color) 12%, transparent);
+}
+
+.terminal-node[data-cove-label-color]::before {
+  height: 3px;
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--cove-label-color) 88%, white 12%) 0%,
+    color-mix(in srgb, var(--cove-label-color) 62%, transparent) 48%,
+    transparent 100%
+  );
+}
+
 .terminal-node--selected-surface {
   border-color: var(--cove-node-selection-border);
   box-shadow: var(--cove-node-selection-shadow);
@@ -34,8 +65,31 @@
   cursor: grab;
 }
 
+.terminal-node[data-cove-label-color] .terminal-node__header {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--cove-label-color) 17%, transparent) 0%,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at left center,
+      color-mix(in srgb, var(--cove-label-color) 16%, transparent) 0%,
+      transparent 62%
+    ),
+    var(--cove-terminal-node-header-surface);
+}
+
 .terminal-node__header:active {
   cursor: grabbing;
+}
+
+.terminal-node__header .cove-label-dot {
+  width: 10px;
+  height: 10px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cove-label-color) 58%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--cove-label-color) 18%, transparent);
 }
 
 .terminal-node__title {
@@ -74,6 +128,81 @@
 .terminal-node__credential-picker {
   position: relative;
   flex: 0 0 auto;
+}
+
+.terminal-node__label-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.terminal-node__label-button {
+  border: 1px solid color-mix(in srgb, var(--cove-border-subtle) 84%, transparent);
+  background: color-mix(in srgb, var(--cove-field) 88%, transparent);
+  color: var(--cove-text-muted);
+  border-radius: 999px;
+  min-height: 26px;
+  padding: 3px 8px 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 0 color-mix(in srgb, white 7%, transparent) inset;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.terminal-node__label-button:hover,
+.terminal-node__label-button:focus-visible {
+  border-color: color-mix(in srgb, var(--cove-border) 80%, rgba(94, 156, 255, 0.35));
+  background: color-mix(in srgb, var(--cove-surface-hover) 76%, var(--cove-field));
+  color: var(--cove-text);
+  outline: none;
+}
+
+.terminal-node__label-button--active {
+  border-color: color-mix(in srgb, var(--cove-label-color) 42%, var(--cove-border-subtle));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--cove-label-color) 16%, transparent),
+      color-mix(in srgb, var(--cove-field) 84%, transparent)
+    );
+  color: var(--cove-text);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 8%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--cove-label-color) 16%, transparent);
+}
+
+.terminal-node__label-button-icon {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.terminal-node__label-button-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--cove-border);
+}
+
+.terminal-node__label-button-swatch--active {
+  background: var(--cove-label-color);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cove-label-color) 58%, transparent);
+}
+
+.terminal-node__label-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 80;
+  min-width: 220px;
+  max-width: 280px;
 }
 
 .terminal-node__credential-capsule {
@@ -189,6 +318,10 @@
   opacity: 1;
   transition: opacity 0.12s ease;
   overflow: hidden;
+}
+
+.terminal-node[data-cove-label-color] .terminal-node__terminal {
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--cove-label-color) 12%, transparent);
 }
 
 .terminal-node__terminal--hydrating {
@@ -485,17 +618,24 @@
 
 .terminal-node__title-input {
   flex: 1;
-  border: none;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  min-width: 0;
+  min-width: 180px;
+  min-height: 28px;
+  border: 1px solid color-mix(in srgb, var(--cove-border-subtle) 88%, transparent);
+  background: color-mix(in srgb, var(--cove-field) 92%, transparent);
+  border-radius: 8px;
+  padding: 4px 10px;
   font-family: inherit;
   font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.3;
   color: var(--cove-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .terminal-node__title-edit,
@@ -517,6 +657,11 @@
 
 .terminal-node__title-input:focus {
   outline: none;
+  border-color: color-mix(in srgb, var(--cove-border) 76%, rgba(94, 156, 255, 0.55));
+  background: color-mix(in srgb, var(--cove-field) 96%, var(--cove-surface-hover) 4%);
+  box-shadow:
+    0 0 0 2px rgba(94, 156, 255, 0.18),
+    inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
 }
 
 .terminal-node__header-badges {

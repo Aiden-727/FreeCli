@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { Node, ReactFlowInstance } from '@xyflow/react'
+import type { NodeLabelColorOverride } from '@shared/types/labelColor'
 import type { NodeFrame, TaskRuntimeStatus, TerminalNodeData } from '../../../types'
 import { focusNodeInViewport } from '../helpers'
 
@@ -26,6 +27,9 @@ export interface WorkspaceCanvasActionRefs {
   updateNodeScrollbackRef: React.MutableRefObject<(nodeId: string, scrollback: string) => void>
   updateTerminalTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
   renameTerminalTitleRef: React.MutableRefObject<(nodeId: string, title: string) => void>
+  setTerminalLabelColorOverrideRef: React.MutableRefObject<
+    (nodeId: string, labelColorOverride: NodeLabelColorOverride) => void
+  >
   setTerminalCredentialProfileRef: React.MutableRefObject<
     (nodeId: string, credentialProfileId: string | null) => void
   >
@@ -85,6 +89,9 @@ export function useWorkspaceCanvasActionRefs(): WorkspaceCanvasActionRefs {
   const renameTerminalTitleRef = useRef<(nodeId: string, title: string) => void>(
     (_nodeId: string, _title: string) => undefined,
   )
+  const setTerminalLabelColorOverrideRef = useRef<
+    (nodeId: string, labelColorOverride: NodeLabelColorOverride) => void
+  >((_nodeId: string, _labelColorOverride: NodeLabelColorOverride) => undefined)
   const setTerminalCredentialProfileRef = useRef<
     (nodeId: string, credentialProfileId: string | null) => void
   >((_nodeId: string, _credentialProfileId: string | null) => undefined)
@@ -121,6 +128,7 @@ export function useWorkspaceCanvasActionRefs(): WorkspaceCanvasActionRefs {
     updateNodeScrollbackRef,
     updateTerminalTitleRef,
     renameTerminalTitleRef,
+    setTerminalLabelColorOverrideRef,
     setTerminalCredentialProfileRef,
     setTerminalActiveCredentialProfileRef,
     setTerminalPersistenceModeRef,
@@ -140,6 +148,7 @@ interface SyncActionRefsParams {
   updateNodeScrollback: (nodeId: string, scrollback: string) => void
   updateTerminalTitle: (nodeId: string, title: string) => void
   renameTerminalTitle: (nodeId: string, title: string) => void
+  setTerminalLabelColorOverride: (nodeId: string, labelColorOverride: NodeLabelColorOverride) => void
   setTerminalCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
   setTerminalActiveCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
   setTerminalPersistenceMode: (
@@ -164,6 +173,7 @@ export function useWorkspaceCanvasSyncActionRefs({
   updateNodeScrollback,
   updateTerminalTitle,
   renameTerminalTitle,
+  setTerminalLabelColorOverride,
   setTerminalCredentialProfile,
   setTerminalActiveCredentialProfile,
   setTerminalPersistenceMode,
@@ -213,6 +223,12 @@ export function useWorkspaceCanvasSyncActionRefs({
       renameTerminalTitle(nodeId, title)
     }
   }, [actionRefs.renameTerminalTitleRef, renameTerminalTitle])
+
+  useLayoutEffect(() => {
+    actionRefs.setTerminalLabelColorOverrideRef.current = (nodeId, labelColorOverride) => {
+      setTerminalLabelColorOverride(nodeId, labelColorOverride)
+    }
+  }, [actionRefs.setTerminalLabelColorOverrideRef, setTerminalLabelColorOverride])
 
   useLayoutEffect(() => {
     actionRefs.setTerminalCredentialProfileRef.current = (nodeId, credentialProfileId) => {

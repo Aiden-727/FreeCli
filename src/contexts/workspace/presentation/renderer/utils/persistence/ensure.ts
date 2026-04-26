@@ -33,6 +33,10 @@ import {
   normalizeWorkspaceViewport,
 } from './normalize'
 
+function normalizeWorkspaceLifecycleState(value: unknown): 'active' | 'archived' {
+  return value === 'archived' ? 'archived' : 'active'
+}
+
 const MAX_SPACE_ARCHIVE_RECORDS = 50
 
 function ensurePersistedTaskAgentSessionRecords(value: unknown): TaskAgentSessionRecord[] {
@@ -347,6 +351,9 @@ export function ensurePersistedWorkspace(workspace: unknown): PersistedWorkspace
   const name = record.name
   const path = record.path
   const worktreesRoot = normalizeOptionalString(record.worktreesRoot) ?? ''
+  const lifecycleState = normalizeWorkspaceLifecycleState(record.lifecycleState)
+  const archivedAt =
+    lifecycleState === 'archived' ? normalizeOptionalString(record.archivedAt) : null
   const pullRequestBaseBranchOptions = normalizePullRequestBaseBranchOptions(
     record.pullRequestBaseBranchOptions,
   )
@@ -396,6 +403,8 @@ export function ensurePersistedWorkspace(workspace: unknown): PersistedWorkspace
     name,
     path,
     worktreesRoot,
+    lifecycleState,
+    archivedAt,
     pullRequestBaseBranchOptions,
     nodes: normalizedNodes,
     viewport: normalizeWorkspaceViewport(record.viewport),

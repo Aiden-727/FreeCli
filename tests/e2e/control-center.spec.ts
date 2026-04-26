@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { launchApp, seedWorkspaceState, testWorkspacePath } from './workspace-canvas.helpers'
+import {
+  dragLocatorTo,
+  launchApp,
+  seedWorkspaceState,
+  testWorkspacePath,
+} from './workspace-canvas.helpers'
 
 test.describe('Control Center', () => {
   test('opens and toggles theme, sidebar, minimap', async () => {
@@ -228,7 +233,6 @@ test.describe('Control Center', () => {
           plugins: {
             enabledIds: ['git-worklog'],
             gitWorklog: {
-              autoImportedWorkspacePaths: [testWorkspacePath],
               repositories: [
                 {
                   id: 'repo_1',
@@ -268,6 +272,89 @@ test.describe('Control Center', () => {
       await expect(
         window.locator('[data-testid="git-worklog-repository-dialog-repo_1"]'),
       ).toBeVisible()
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test('moves a git worklog repository into another stats group by drag and drop', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace_a',
+        workspaces: [
+          {
+            id: 'workspace_a',
+            name: 'Drone',
+            path: 'D:\\Project\\Drone',
+            nodes: [],
+          },
+          {
+            id: 'workspace_b',
+            name: 'Console',
+            path: 'D:\\Project\\Console',
+            nodes: [],
+          },
+        ],
+        settings: {
+          plugins: {
+            enabledIds: ['git-worklog'],
+            gitWorklog: {
+              repositories: [
+                {
+                  id: 'repo_1',
+                  label: 'Drone API',
+                  path: 'D:\\Project\\Drone\\api',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
+                },
+                {
+                  id: 'repo_2',
+                  label: 'Console Admin',
+                  path: 'D:\\Project\\Console\\admin',
+                  enabled: true,
+                  origin: 'manual',
+                  assignedWorkspaceId: null,
+                },
+              ],
+            },
+          },
+        },
+      })
+
+      const pluginsButton = window.locator('[data-testid="app-header-plugins"]')
+      await expect(pluginsButton).toBeVisible()
+      await pluginsButton.click()
+
+      await expect(window.locator('[data-testid="plugin-manager"]')).toBeVisible()
+      await window.locator('[data-testid="plugin-manager-nav-git-worklog"]').click()
+
+      await window.locator('[data-testid="git-worklog-manage-repository-repo_2"]').click()
+      await expect(window.locator('[data-testid="git-worklog-repository-dialog-repo_2"]')).toBeVisible()
+      await window
+        .locator('[data-testid="git-worklog-repository-workspace-repo_2"]')
+        .selectOption('workspace_b')
+      await window.locator('[data-testid="git-worklog-repository-dialog-close-repo_2"]').click()
+      await expect(
+        window.locator('[data-testid="git-worklog-repository-dialog-repo_2"]'),
+      ).toHaveCount(0)
+
+      const sourceRepo = window.locator('[data-testid="git-worklog-repo-card-repo_1"]')
+      const targetGroup = window.locator('[data-testid="git-worklog-workspace-card-workspace_b"]')
+      await expect(sourceRepo).toBeVisible()
+      await expect(targetGroup).toBeVisible()
+      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_2"]')).toBeVisible()
+      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_1"]')).toHaveCount(0)
+
+      await dragLocatorTo(window, sourceRepo, targetGroup.locator('.git-worklog-overview__repo-list'), {
+        sourcePosition: { x: 24, y: 24 },
+        steps: 20,
+      })
+
+      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_1"]')).toBeVisible()
+      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_2"]')).toBeVisible()
     } finally {
       await electronApp.close()
     }

@@ -1,6 +1,7 @@
 import { useWorkspaceCanvasAgentLastMessageCopy } from './useAgentLastMessageToNote'
 import { useWorkspaceCanvasSyncActionRefs, type WorkspaceCanvasActionRefs } from './useActionRefs'
 import { useWorkspaceCanvasPtyTaskCompletion } from './usePtyTaskCompletion'
+import type { NodeLabelColorOverride } from '@shared/types/labelColor'
 
 export function useWorkspaceCanvasRuntimeBindings({
   setNodes,
@@ -13,6 +14,7 @@ export function useWorkspaceCanvasRuntimeBindings({
   updateNodeScrollback,
   updateTerminalTitle,
   renameTerminalTitle,
+  setTerminalLabelColorOverride,
   setTerminalCredentialProfile,
   setTerminalActiveCredentialProfile,
   setTerminalPersistenceMode,
@@ -38,6 +40,10 @@ export function useWorkspaceCanvasRuntimeBindings({
   >[0]['updateNodeScrollback']
   updateTerminalTitle: Parameters<typeof useWorkspaceCanvasSyncActionRefs>[0]['updateTerminalTitle']
   renameTerminalTitle: Parameters<typeof useWorkspaceCanvasSyncActionRefs>[0]['renameTerminalTitle']
+  setTerminalLabelColorOverride: (
+    nodeId: string,
+    labelColorOverride: NodeLabelColorOverride,
+  ) => void
   setTerminalCredentialProfile: Parameters<
     typeof useWorkspaceCanvasSyncActionRefs
   >[0]['setTerminalCredentialProfile']
@@ -76,6 +82,7 @@ export function useWorkspaceCanvasRuntimeBindings({
     updateNodeScrollback,
     updateTerminalTitle,
     renameTerminalTitle,
+    setTerminalLabelColorOverride,
     setTerminalCredentialProfile,
     setTerminalActiveCredentialProfile,
     setTerminalPersistenceMode,

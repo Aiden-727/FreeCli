@@ -17,6 +17,26 @@ function normalizeString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback
 }
 
+function normalizeNodeTitle(value: unknown, kind: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  switch (kind) {
+    case 'task':
+      return '未命名任务'
+    case 'note':
+      return '未命名笔记'
+    case 'agent':
+      return '未命名 Agent'
+    case 'image':
+      return '未命名图片'
+    case 'terminal':
+    default:
+      return 'terminal'
+  }
+}
+
 function normalizeNullableString(value: unknown): string | null {
   return value === null ? null : typeof value === 'string' ? value : null
 }
@@ -77,6 +97,8 @@ export type NormalizedPersistedWorkspace = {
   name: string
   path: string
   worktreesRoot: string
+  lifecycleState: 'active' | 'archived'
+  archivedAt: string | null
   pullRequestBaseBranchOptions: string[]
   spaceArchiveRecords: unknown[]
   viewport: { x: number; y: number; zoom: number }
@@ -221,7 +243,7 @@ export function normalizePersistedAppState(value: unknown): NormalizedPersistedA
 
       normalizedNodes.push({
         id: nodeId,
-        title: normalizeString(node.title),
+        title: normalizeNodeTitle(node.title, node.kind),
         titlePinnedByUser: node.titlePinnedByUser === true,
         position,
         width: normalizeFiniteNumber(node.width, 0),
@@ -275,6 +297,11 @@ export function normalizePersistedAppState(value: unknown): NormalizedPersistedA
       name: normalizeString(workspace.name),
       path: normalizeString(workspace.path),
       worktreesRoot: normalizeString(workspace.worktreesRoot),
+      lifecycleState: workspace.lifecycleState === 'archived' ? 'archived' : 'active',
+      archivedAt:
+        workspace.lifecycleState === 'archived' && typeof workspace.archivedAt === 'string'
+          ? workspace.archivedAt
+          : null,
       pullRequestBaseBranchOptions: normalizeStringArray(workspace.pullRequestBaseBranchOptions),
       spaceArchiveRecords: normalizeSpaceArchiveRecords(workspace.spaceArchiveRecords),
       viewport: normalizeViewport(workspace.viewport),

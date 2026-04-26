@@ -31,12 +31,37 @@ export function createDefaultGitWorklogRepository(index = 0): GitWorklogReposito
   }
 }
 
+export function createNextGitWorklogRepositoryId(existingIds: readonly string[]): string {
+  const usedIds = new Set(existingIds)
+  let nextIndex = 1
+
+  for (const id of usedIds) {
+    const matched = /^repo_(\d+)$/.exec(id)
+    if (!matched) {
+      continue
+    }
+
+    const parsed = Number.parseInt(matched[1] ?? '', 10)
+    if (Number.isFinite(parsed) && parsed >= nextIndex) {
+      nextIndex = parsed + 1
+    }
+  }
+
+  while (usedIds.has(`repo_${nextIndex}`)) {
+    nextIndex += 1
+  }
+
+  return `repo_${nextIndex}`
+}
+
 export const DEFAULT_GIT_WORKLOG_SETTINGS: GitWorklogSettingsDto = {
   repositories: [createDefaultGitWorklogRepository()],
   repositoryOrder: ['repo_1'],
   workspaceOrder: [],
   ignoredAutoRepositoryPaths: [],
+  // Legacy fields kept for backward-compatible settings hydration only.
   autoImportedWorkspacePaths: [],
+  dismissedWorkspacePaths: [],
   authorFilter: '',
   rangeMode: 'recent_days',
   recentDays: GIT_WORKLOG_DEFAULT_RECENT_DAYS,
@@ -63,6 +88,10 @@ function normalizeWorkspaceText(value: unknown): string | null {
 
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeRepositoryPathKey(value: string): string {
+  return value.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/').toLowerCase()
 }
 
 function normalizeUniqueGitWorklogIds(value: unknown): string[] {
@@ -130,6 +159,7 @@ export function normalizeGitWorklogRepositories(value: unknown): GitWorklogRepos
 
   const normalized: GitWorklogRepositoryDto[] = []
   const seenIds = new Set<string>()
+  const seenPaths = new Set<string>()
 
   for (let index = 0; index < value.length; index += 1) {
     const item = value[index]
@@ -139,16 +169,25 @@ export function normalizeGitWorklogRepositories(value: unknown): GitWorklogRepos
 
     const record = item as Record<string, unknown>
     const fallback = createDefaultGitWorklogRepository(index)
-    const id = normalizeText(record.id, fallback.id) || fallback.id
-    if (seenIds.has(id)) {
+    const rawId = normalizeText(record.id, fallback.id) || fallback.id
+    const id = seenIds.has(rawId)
+      ? createNextGitWorklogRepositoryId([...seenIds])
+      : rawId
+
+    const path = normalizeText(record.path)
+    const normalizedPathKey = path.length > 0 ? normalizeRepositoryPathKey(path) : null
+    if (normalizedPathKey && seenPaths.has(normalizedPathKey)) {
       continue
     }
 
     seenIds.add(id)
+    if (normalizedPathKey) {
+      seenPaths.add(normalizedPathKey)
+    }
     normalized.push({
       id,
       label: normalizeText(record.label, fallback.label) || fallback.label,
-      path: normalizeText(record.path),
+      path,
       enabled: normalizeBoolean(record.enabled, fallback.enabled),
       origin: record.origin === 'auto' ? 'auto' : 'manual',
       assignedWorkspaceId: normalizeWorkspaceText(record.assignedWorkspaceId),
@@ -278,6 +317,7 @@ export function normalizeGitWorklogSettings(value: unknown): GitWorklogSettingsD
     workspaceOrder: normalizeUniqueGitWorklogIds(record.workspaceOrder),
     ignoredAutoRepositoryPaths: normalizeUniqueGitWorklogPaths(record.ignoredAutoRepositoryPaths),
     autoImportedWorkspacePaths: normalizeUniqueGitWorklogPaths(record.autoImportedWorkspacePaths),
+    dismissedWorkspacePaths: normalizeUniqueGitWorklogPaths(record.dismissedWorkspacePaths),
     authorFilter: normalizeText(record.authorFilter),
     rangeMode: isGitWorklogRangeMode(record.rangeMode)
       ? record.rangeMode

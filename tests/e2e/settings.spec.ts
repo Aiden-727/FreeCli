@@ -248,8 +248,6 @@ test.describe('Settings', () => {
       await expect(window.locator('#settings-section-task-title')).toHaveCount(0)
 
       await window.locator('.settings-panel__close').click()
-      await expect(window.locator('.workspace-sidebar__agent-provider')).toHaveText('Codex')
-      await expect(window.locator('.workspace-sidebar__agent-model')).toHaveText('gpt-5.2-codex')
 
       const readPersistedSettings = async () =>
         await window.evaluate(async () => {
@@ -322,8 +320,6 @@ test.describe('Settings', () => {
           return document.documentElement.dataset.coveTheme
         }),
       ).resolves.toBe('light')
-      await expect(window.locator('.workspace-sidebar__agent-provider')).toHaveText('Codex')
-      await expect(window.locator('.workspace-sidebar__agent-model')).toHaveText('gpt-5.2-codex')
 
       const persistedSettings = await readPersistedSettings()
 

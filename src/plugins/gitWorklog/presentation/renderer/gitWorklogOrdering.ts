@@ -5,6 +5,8 @@ import {
   reorderGitWorklogEntityOrder,
 } from '@contexts/plugins/domain/gitWorklogSettings'
 
+export const GIT_WORKLOG_EXTERNAL_WORKSPACE_ID = '__external__'
+
 export function normalizeRepoPathForCompare(value: string): string {
   return value.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/').toLowerCase()
 }
@@ -110,7 +112,7 @@ export function moveRepositoryToWorkspaceGroup(options: {
     repository.id === repositoryId
       ? {
           ...repository,
-          assignedWorkspaceId: targetWorkspaceId,
+          assignedWorkspaceId: targetWorkspaceId ?? GIT_WORKLOG_EXTERNAL_WORKSPACE_ID,
         }
       : repository,
   )

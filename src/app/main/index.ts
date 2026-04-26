@@ -14,6 +14,7 @@ import { createApprovedWorkspaceStore } from '../../contexts/workspace/infrastru
 import { createPtyRuntime } from '../../contexts/terminal/presentation/main-ipc/runtime'
 import { applyLaunchGraphicsMode, resolveLaunchGraphicsMode } from './graphicsMode'
 import { createAppRestartController } from './restartController'
+import { resolveDiagnosticLogPath, writeDiagnosticLogEntry } from './diagnostics/diagnosticLogger'
 
 let ipcDisposable: ReturnType<typeof registerIpcHandlers> | null = null
 let controlSurfaceDisposable: ReturnType<typeof registerControlSurfaceServer> | null = null
@@ -239,6 +240,49 @@ function formatDisposeError(label: string, error: unknown): string {
   return `[freecli] failed to dispose ${label}: ${detail}\n`
 }
 
+function formatErrorDetail(error: unknown): string {
+  if (error instanceof Error) {
+    if (typeof error.stack === 'string' && error.stack.trim().length > 0) {
+      return error.stack
+    }
+
+    return `${error.name}: ${error.message}`
+  }
+
+  return String(error)
+}
+
+function writeMainDiagnostic(options: {
+  source: string
+  message: string
+  detail?: string
+  level?: 'info' | 'warn' | 'error'
+}): void {
+  try {
+    const logPath = writeDiagnosticLogEntry({
+      app,
+      scope: 'main',
+      source: options.source,
+      message: options.message,
+      detail: options.detail,
+      level: options.level,
+    })
+    const prefix = `[freecli][${options.source}] ${options.message}`
+    process.stderr.write(
+      options.detail && options.detail.trim().length > 0
+        ? `${prefix}\n${options.detail}\n`
+        : `${prefix}\n`,
+    )
+    if (process.env.NODE_ENV !== 'test') {
+      process.stderr.write(`[freecli] main diagnostics log: ${logPath}\n`)
+    }
+  } catch (writeError) {
+    process.stderr.write(
+      `[freecli][diagnostics] failed to write main diagnostic log: ${formatErrorDetail(writeError)}\n`,
+    )
+  }
+}
+
 async function disposeMainRuntime(): Promise<void> {
   if (mainRuntimeDisposed) {
     return
@@ -330,6 +374,12 @@ function createWindow(): void {
     },
   })
 
+  writeMainDiagnostic({
+    source: 'window',
+    level: 'info',
+    message: `create window (userData=${app.getPath('userData')})`,
+  })
+
   const showWindow = (): void => {
     if (e2eWindowMode === 'hidden') {
       return
@@ -350,7 +400,72 @@ function createWindow(): void {
   }
 
   mainWindow.on('ready-to-show', () => {
+    writeMainDiagnostic({
+      source: 'window',
+      level: 'info',
+      message: 'ready-to-show',
+    })
     showWindow()
+  })
+
+  mainWindow.webContents.on('did-start-loading', () => {
+    writeMainDiagnostic({
+      source: 'webContents',
+      level: 'info',
+      message: 'did-start-loading',
+    })
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    writeMainDiagnostic({
+      source: 'webContents',
+      level: 'info',
+      message: 'did-finish-load',
+    })
+  })
+
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      writeMainDiagnostic({
+        source: 'webContents',
+        level: 'error',
+        message: `did-fail-load (code=${errorCode}, mainFrame=${String(isMainFrame)}, url=${validatedURL})`,
+        detail: errorDescription,
+      })
+    },
+  )
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    writeMainDiagnostic({
+      source: 'webContents',
+      level: 'error',
+      message: `render-process-gone (reason=${details.reason}, exitCode=${details.exitCode})`,
+    })
+  })
+
+  mainWindow.webContents.on('unresponsive', () => {
+    writeMainDiagnostic({
+      source: 'webContents',
+      level: 'warn',
+      message: 'renderer became unresponsive',
+    })
+  })
+
+  mainWindow.webContents.on('responsive', () => {
+    writeMainDiagnostic({
+      source: 'webContents',
+      level: 'info',
+      message: 'renderer became responsive again',
+    })
+  })
+
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    writeMainDiagnostic({
+      source: 'renderer-console',
+      level: level >= 3 ? 'error' : level === 2 ? 'warn' : 'info',
+      message: `${message} (${sourceId}:${line})`,
+    })
   })
 
   // 兜底：Electron #42409 - titleBarOverlay + show:false 时 ready-to-show 在 Windows 上可能不触发
@@ -398,6 +513,11 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(() => {
+  writeMainDiagnostic({
+    source: 'bootstrap',
+    level: 'info',
+    message: `app ready (userData=${app.getPath('userData')}, rendererLog=${resolveDiagnosticLogPath(app, 'renderer')})`,
+  })
   hydrateCliEnvironmentForAppLaunch(app.isPackaged === true)
 
   // Set app user model id for windows
@@ -474,6 +594,24 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
+  })
+})
+
+process.on('uncaughtException', error => {
+  writeMainDiagnostic({
+    source: 'process',
+    level: 'error',
+    message: 'uncaughtException',
+    detail: formatErrorDetail(error),
+  })
+})
+
+process.on('unhandledRejection', reason => {
+  writeMainDiagnostic({
+    source: 'process',
+    level: 'error',
+    message: 'unhandledRejection',
+    detail: formatErrorDetail(reason),
   })
 })
 

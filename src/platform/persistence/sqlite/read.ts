@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
-import { eq, inArray } from 'drizzle-orm'
+import { asc, eq, inArray } from 'drizzle-orm'
 import type { NormalizedPersistedAppState } from './normalize'
 import {
   normalizeLabelColor,
@@ -15,6 +15,26 @@ import {
   workspaces,
 } from './schema'
 import { safeJsonParse } from './utils'
+
+function resolvePersistedNodeTitle(title: unknown, kind: unknown): string {
+  if (typeof title === 'string') {
+    return title
+  }
+
+  switch (kind) {
+    case 'task':
+      return '未命名任务'
+    case 'note':
+      return '未命名笔记'
+    case 'agent':
+      return '未命名 Agent'
+    case 'image':
+      return '未命名图片'
+    case 'terminal':
+    default:
+      return 'terminal'
+  }
+}
 
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -47,7 +67,7 @@ export function readAppStateFromDb(db: BetterSQLite3Database): NormalizedPersist
   const settingsValue =
     typeof settingsRow?.value === 'string' ? safeJsonParse(settingsRow.value) : {}
 
-  const workspaceRows = db.select().from(workspaces).all()
+  const workspaceRows = db.select().from(workspaces).orderBy(asc(workspaces.sortOrder)).all()
   const nodeRows = db.select().from(nodes).all()
   const spaceRows = db.select().from(spaces).all()
   const spaceNodeRows = db.select().from(spaceNodes).all()
@@ -79,7 +99,7 @@ export function readAppStateFromDb(db: BetterSQLite3Database): NormalizedPersist
     workspaces: workspaceRows.map(workspace => {
       const workspaceNodes = (nodesByWorkspaceId.get(workspace.id) ?? []).map(node => ({
         id: node.id,
-        title: node.title,
+        title: resolvePersistedNodeTitle(node.title, node.kind),
         titlePinnedByUser: node.titlePinnedByUser === 1,
         position: { x: node.positionX, y: node.positionY },
         width: node.width,
@@ -137,6 +157,11 @@ export function readAppStateFromDb(db: BetterSQLite3Database): NormalizedPersist
         name: workspace.name,
         path: workspace.path,
         worktreesRoot: workspace.worktreesRoot,
+        lifecycleState: workspace.lifecycleState === 'archived' ? 'archived' : 'active',
+        archivedAt:
+          workspace.lifecycleState === 'archived' && typeof workspace.archivedAt === 'string'
+            ? workspace.archivedAt
+            : null,
         pullRequestBaseBranchOptions: normalizeStringArray(
           safeJsonParse(workspace.pullRequestBaseBranchOptionsJson),
         ),

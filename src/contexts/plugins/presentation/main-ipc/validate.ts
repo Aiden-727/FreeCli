@@ -11,13 +11,17 @@ import { normalizeSystemMonitorSettings } from '../../domain/systemMonitorSettin
 import { normalizeWorkspaceAssistantSettings } from '../../domain/workspaceAssistantSettings'
 import { normalizeBuiltinPluginIds } from '../../domain/pluginManifest'
 import type {
+  AcceptGitWorklogPendingImportInput,
+  DismissGitWorklogPendingImportInput,
   GitWorklogSettingsDto,
   GitWorklogWorkspaceDto,
   InputStatsSettingsDto,
   NotifyOssBackupPersistedSettingsInput,
   OssBackupSettingsDto,
   QuotaMonitorSettingsDto,
+  RefreshGitWorklogWorkspaceInput,
   ResolveGitWorklogRepositoryInput,
+  RestoreGitWorklogDismissedImportInput,
   SystemMonitorSettingsDto,
   SyncWorkspaceAssistantWorkspaceSnapshotInput,
   WorkspaceAssistantPromptInput,
@@ -50,8 +54,29 @@ export interface NormalizedSyncGitWorklogWorkspacesPayload {
   workspaces: GitWorklogWorkspaceDto[]
 }
 
+export interface NormalizedRepairGitWorklogRepositoriesPayload {
+  settings: GitWorklogSettingsDto
+  availableWorkspaces: GitWorklogWorkspaceDto[]
+}
+
+export interface NormalizedUndoGitWorklogRepositoriesRepairPayload {
+  settings: GitWorklogSettingsDto
+}
+
 export interface NormalizedResolveGitWorklogRepositoryPayload
   extends ResolveGitWorklogRepositoryInput {}
+
+export interface NormalizedRefreshGitWorklogWorkspacePayload
+  extends RefreshGitWorklogWorkspaceInput {}
+
+export interface NormalizedAcceptGitWorklogPendingImportPayload
+  extends AcceptGitWorklogPendingImportInput {}
+
+export interface NormalizedDismissGitWorklogPendingImportPayload
+  extends DismissGitWorklogPendingImportInput {}
+
+export interface NormalizedRestoreGitWorklogDismissedImportPayload
+  extends RestoreGitWorklogDismissedImportInput {}
 
 export interface NormalizedSyncOssBackupSettingsPayload {
   settings: OssBackupSettingsDto
@@ -158,6 +183,37 @@ export function normalizeSyncGitWorklogWorkspacesPayload(
   }
 }
 
+export function normalizeRepairGitWorklogRepositoriesPayload(
+  payload: unknown,
+): NormalizedRepairGitWorklogRepositoriesPayload {
+  if (!payload || typeof payload !== 'object') {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'Invalid payload for plugins:git-worklog:repair-repositories',
+    })
+  }
+
+  const record = payload as Record<string, unknown>
+  return {
+    settings: normalizeGitWorklogSettings(record.settings),
+    availableWorkspaces: normalizeGitWorklogWorkspaces(record.availableWorkspaces),
+  }
+}
+
+export function normalizeUndoGitWorklogRepositoriesRepairPayload(
+  payload: unknown,
+): NormalizedUndoGitWorklogRepositoriesRepairPayload {
+  if (!payload || typeof payload !== 'object') {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'Invalid payload for plugins:git-worklog:undo-repository-repair',
+    })
+  }
+
+  const record = payload as Record<string, unknown>
+  return {
+    settings: normalizeGitWorklogSettings(record.settings),
+  }
+}
+
 export function normalizeResolveGitWorklogRepositoryPayload(
   payload: unknown,
 ): NormalizedResolveGitWorklogRepositoryPayload {
@@ -176,6 +232,64 @@ export function normalizeResolveGitWorklogRepositoryPayload(
   }
 
   return { path }
+}
+
+function normalizeGitWorklogWorkspacePathPayload(
+  payload: unknown,
+  debugMessage: string,
+): { workspacePath: string } {
+  if (!payload || typeof payload !== 'object') {
+    throw createAppError('common.invalid_input', {
+      debugMessage,
+    })
+  }
+
+  const record = payload as Record<string, unknown>
+  const workspacePath =
+    typeof record.workspacePath === 'string' ? record.workspacePath.trim() : ''
+  if (workspacePath.length === 0) {
+    throw createAppError('common.invalid_input', {
+      debugMessage,
+    })
+  }
+
+  return { workspacePath }
+}
+
+export function normalizeRefreshGitWorklogWorkspacePayload(
+  payload: unknown,
+): NormalizedRefreshGitWorklogWorkspacePayload {
+  return normalizeGitWorklogWorkspacePathPayload(
+    payload,
+    'Invalid payload for plugins:git-worklog:refresh-workspace',
+  )
+}
+
+export function normalizeAcceptGitWorklogPendingImportPayload(
+  payload: unknown,
+): NormalizedAcceptGitWorklogPendingImportPayload {
+  return normalizeGitWorklogWorkspacePathPayload(
+    payload,
+    'Invalid payload for plugins:git-worklog:accept-pending-import',
+  )
+}
+
+export function normalizeDismissGitWorklogPendingImportPayload(
+  payload: unknown,
+): NormalizedDismissGitWorklogPendingImportPayload {
+  return normalizeGitWorklogWorkspacePathPayload(
+    payload,
+    'Invalid payload for plugins:git-worklog:dismiss-pending-import',
+  )
+}
+
+export function normalizeRestoreGitWorklogDismissedImportPayload(
+  payload: unknown,
+): NormalizedRestoreGitWorklogDismissedImportPayload {
+  return normalizeGitWorklogWorkspacePathPayload(
+    payload,
+    'Invalid payload for plugins:git-worklog:restore-dismissed-import',
+  )
 }
 
 export function normalizeSyncOssBackupSettingsPayload(

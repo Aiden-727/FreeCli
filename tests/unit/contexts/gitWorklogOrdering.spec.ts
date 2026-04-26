@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  GIT_WORKLOG_EXTERNAL_WORKSPACE_ID,
   appendRepositoryWithOrdering,
   moveRepositoryToWorkspaceGroup,
   reconcileGitWorklogSettingsOrdering,
@@ -133,5 +134,29 @@ describe('gitWorklogOrdering', () => {
       'workspace_b',
     )
     expect(result.repositoryOrder).toEqual(['repo_a', 'repo_c', 'repo_b'])
+  })
+
+  it('persists an explicit base repositories assignment instead of falling back to null', () => {
+    const result = moveRepositoryToWorkspaceGroup({
+      settings: {
+        ...DEFAULT_GIT_WORKLOG_SETTINGS,
+        repositories: [
+          {
+            id: 'repo_a',
+            label: 'Repo A',
+            path: 'D:\\workspace\\repo-a',
+            enabled: true,
+            origin: 'manual',
+            assignedWorkspaceId: 'workspace_a',
+          },
+        ],
+        repositoryOrder: ['repo_a'],
+      },
+      repositoryId: 'repo_a',
+      targetWorkspaceId: null,
+      anchorRepositoryId: null,
+    })
+
+    expect(result.repositories[0]?.assignedWorkspaceId).toBe(GIT_WORKLOG_EXTERNAL_WORKSPACE_ID)
   })
 })
