@@ -4,11 +4,18 @@ import {
   normalizeBuiltinPluginIds,
 } from './pluginManifest'
 
-export const OSS_BACKUP_DEFAULT_OBJECT_KEY = 'freecli/plugin-settings/latest.json'
+export const OSS_BACKUP_DEFAULT_OBJECT_KEY = 'freecli/plugin-settings'
 export const OSS_BACKUP_PROVIDERS = ['aliyun-oss'] as const
 const MIN_AUTO_BACKUP_MIN_INTERVAL_SECONDS = 60
 const MAX_AUTO_BACKUP_MIN_INTERVAL_SECONDS = 86400
 const DEFAULT_INCLUDED_PLUGIN_IDS = listBuiltinPluginCloudBackupParticipantIds()
+const LEGACY_OBJECT_FILE_NAMES = new Set([
+  'latest.json',
+  'manifest.json',
+  'input-stats-history.json',
+  'quota-monitor-history.json',
+  'git-worklog-history.json',
+])
 
 function normalizeText(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value.trim() : fallback
@@ -35,6 +42,31 @@ function normalizeIntegerInRange(value: unknown, fallback: number, min: number, 
     return max
   }
   return rounded
+}
+
+export function normalizeOssBackupObjectDirectory(value: unknown): string {
+  const normalized = normalizeText(value, OSS_BACKUP_DEFAULT_OBJECT_KEY)
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/{2,}/g, '/')
+    .replace(/\/+$/, '')
+
+  if (normalized.length === 0) {
+    return OSS_BACKUP_DEFAULT_OBJECT_KEY
+  }
+
+  const segments = normalized.split('/').filter(segment => segment.length > 0)
+  if (segments.length === 0) {
+    return OSS_BACKUP_DEFAULT_OBJECT_KEY
+  }
+
+  const lastSegment = segments.at(-1)?.toLowerCase() ?? ''
+  if (LEGACY_OBJECT_FILE_NAMES.has(lastSegment) && segments.length > 1) {
+    const legacyDirectory = segments.slice(0, -1).join('/')
+    return legacyDirectory.length > 0 ? legacyDirectory : OSS_BACKUP_DEFAULT_OBJECT_KEY
+  }
+
+  return segments.join('/')
 }
 
 function normalizeError(value: unknown): OssBackupErrorDto | null {
@@ -83,7 +115,7 @@ export function normalizeOssBackupSettings(value: unknown): OssBackupSettingsDto
   }
 
   const record = value as Record<string, unknown>
-  const objectKey = normalizeText(record.objectKey, OSS_BACKUP_DEFAULT_OBJECT_KEY)
+  const objectKey = normalizeOssBackupObjectDirectory(record.objectKey)
   const lastBackupAt = normalizeText(record.lastBackupAt)
   const lastRestoreAt = normalizeText(record.lastRestoreAt)
   const hasIncludedPluginIds = Object.prototype.hasOwnProperty.call(record, 'includedPluginIds')
@@ -99,7 +131,7 @@ export function normalizeOssBackupSettings(value: unknown): OssBackupSettingsDto
     endpoint: normalizeText(record.endpoint),
     region: normalizeText(record.region),
     bucket: normalizeText(record.bucket),
-    objectKey: objectKey.length > 0 ? objectKey : OSS_BACKUP_DEFAULT_OBJECT_KEY,
+    objectKey,
     accessKeyId: normalizeText(record.accessKeyId),
     accessKeySecret: normalizeText(record.accessKeySecret),
     autoBackupEnabled: normalizeBoolean(

@@ -17,7 +17,10 @@ type ScrollbackBuffer = {
   append: (data: string) => void
 }
 
-function resolveWideGlyphRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'>): {
+const INLINE_ACTIVE_LINE_REFRESH_MAX_CHARS = 256
+const BOTTOM_REFRESH_RISK_ROW_WINDOW = 2
+
+function resolveLocalRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'>): {
   start: number
   end: number
 } {
@@ -26,6 +29,31 @@ function resolveWideGlyphRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'
     start: Math.max(0, cursorY - 1),
     end: Math.min(terminal.rows - 1, cursorY + 1),
   }
+}
+
+function shouldScheduleLocalRefresh(
+  terminal: Pick<Terminal, 'rows' | 'buffer'>,
+  data: string,
+): boolean {
+  if (data.length === 0) {
+    return false
+  }
+
+  if (containsWideGlyphs(data)) {
+    return true
+  }
+
+  if (data.length > INLINE_ACTIVE_LINE_REFRESH_MAX_CHARS || data.includes('\n')) {
+    return false
+  }
+
+  const cursorY = terminal.buffer.active.cursorY
+  if (!Number.isFinite(cursorY)) {
+    return false
+  }
+
+  const firstRiskyRow = Math.max(0, terminal.rows - BOTTOM_REFRESH_RISK_ROW_WINDOW)
+  return cursorY >= firstRiskyRow
 }
 
 export function createTerminalOutputScheduler({
@@ -54,8 +82,8 @@ export function createTerminalOutputScheduler({
   let pendingWriteChars = 0
   let pendingWriteFrame: number | null = null
   let viewportFlushTimer: number | null = null
-  let wideGlyphRefreshFrame: number | null = null
-  let pendingWideGlyphRefreshRange: { start: number; end: number } | null = null
+  let localRefreshFrame: number | null = null
+  let pendingLocalRefreshRange: { start: number; end: number } | null = null
 
   let isDisposed = false
   let isDraining = false
@@ -112,34 +140,34 @@ export function createTerminalOutputScheduler({
     viewportFlushTimer = null
   }
 
-  const scheduleWideGlyphRefresh = (data: string): void => {
-    if (isDisposed || !containsWideGlyphs(data)) {
+  const scheduleLocalRefresh = (data: string): void => {
+    if (isDisposed || !shouldScheduleLocalRefresh(terminal, data)) {
       return
     }
 
-    const nextRange = resolveWideGlyphRefreshRange(terminal)
-    if (!pendingWideGlyphRefreshRange) {
-      pendingWideGlyphRefreshRange = nextRange
+    const nextRange = resolveLocalRefreshRange(terminal)
+    if (!pendingLocalRefreshRange) {
+      pendingLocalRefreshRange = nextRange
     } else {
-      pendingWideGlyphRefreshRange = {
-        start: Math.min(pendingWideGlyphRefreshRange.start, nextRange.start),
-        end: Math.max(pendingWideGlyphRefreshRange.end, nextRange.end),
+      pendingLocalRefreshRange = {
+        start: Math.min(pendingLocalRefreshRange.start, nextRange.start),
+        end: Math.max(pendingLocalRefreshRange.end, nextRange.end),
       }
     }
 
-    if (wideGlyphRefreshFrame !== null) {
+    if (localRefreshFrame !== null) {
       return
     }
 
-    wideGlyphRefreshFrame = window.requestAnimationFrame(() => {
-      wideGlyphRefreshFrame = null
-      const range = pendingWideGlyphRefreshRange
-      pendingWideGlyphRefreshRange = null
+    localRefreshFrame = window.requestAnimationFrame(() => {
+      localRefreshFrame = null
+      const range = pendingLocalRefreshRange
+      pendingLocalRefreshRange = null
       if (isDisposed || !range) {
         return
       }
 
-      // Some Chromium/xterm canvas paths leave stale pixels on the active CJK line
+      // Some Chromium/xterm canvas paths leave stale pixels on the active prompt line
       // until a later repaint. Refreshing a tiny local range is cheaper than a full
       // terminal redraw and fixes "text exists but only appears after Enter".
       terminal.refresh(range.start, range.end)
@@ -229,7 +257,7 @@ export function createTerminalOutputScheduler({
 
       remainingBudget -= chunk.length
       terminal.write(chunk, () => {
-        scheduleWideGlyphRefresh(chunk)
+        scheduleLocalRefresh(chunk)
         pendingWriteFrame = window.requestAnimationFrame(() => {
           pendingWriteFrame = null
           drainStep()
@@ -267,7 +295,7 @@ export function createTerminalOutputScheduler({
     }
 
     terminal.write(data, () => {
-      scheduleWideGlyphRefresh(data)
+      scheduleLocalRefresh(data)
     })
   }
 
@@ -294,11 +322,11 @@ export function createTerminalOutputScheduler({
         window.cancelAnimationFrame(pendingWriteFrame)
         pendingWriteFrame = null
       }
-      if (wideGlyphRefreshFrame !== null) {
-        window.cancelAnimationFrame(wideGlyphRefreshFrame)
-        wideGlyphRefreshFrame = null
+      if (localRefreshFrame !== null) {
+        window.cancelAnimationFrame(localRefreshFrame)
+        localRefreshFrame = null
       }
-      pendingWideGlyphRefreshRange = null
+      pendingLocalRefreshRange = null
       pendingWrites.length = 0
       pendingWritesHead = 0
       pendingWriteChars = 0

@@ -198,7 +198,13 @@ describe('workspace minimap helpers', () => {
     })
 
     expect(resolveWorkspaceMinimapNodeColor(labeledRunningTerminalNode)).toBe(
-      'var(--cove-canvas-minimap-node-terminal-running)',
+      'color-mix(in srgb, var(--cove-canvas-minimap-node-terminal-running) 68%, var(--cove-label-green) 32%)',
+    )
+    expect(resolveWorkspaceMinimapNodeHeaderColor(labeledRunningTerminalNode)).toBe(
+      'color-mix(in srgb, var(--cove-canvas-minimap-node-terminal-running-header) 56%, var(--cove-label-green) 44%)',
+    )
+    expect(resolveWorkspaceMinimapNodeStrokeColor(labeledRunningTerminalNode)).toBe(
+      'color-mix(in srgb, var(--cove-canvas-minimap-node-terminal-running-stroke) 64%, var(--cove-label-green) 36%)',
     )
     expect(resolveWorkspaceMinimapNodeLabelColor(labeledRunningTerminalNode)).toBe('green')
   })
@@ -364,6 +370,59 @@ describe('workspace minimap helpers', () => {
     expect(layout!.viewportY).toBeCloseTo(projection!.viewBounds.y, 5)
     expect(layout!.viewportWidth).toBeCloseTo(projection!.viewBounds.width, 5)
     expect(layout!.viewportHeight).toBeCloseTo(projection!.viewBounds.height, 5)
+  })
+
+  it('prefers explicit minimap bounding geometry when provided', () => {
+    const layout = resolveWorkspaceMinimapViewportWindowLayout({
+      nodes: [
+        createNode({
+          position: { x: 120, y: 120 },
+          data: {
+            title: 'terminal-a',
+            kind: 'terminal',
+            width: 420,
+            height: 300,
+          },
+        }),
+      ],
+      viewBounds: {
+        x: 240,
+        y: 300,
+        width: 960,
+        height: 720,
+      },
+      boundingRect: {
+        x: 120,
+        y: 120,
+        width: 1680,
+        height: 1260,
+      },
+      viewport: {
+        x: -120,
+        y: -80,
+        zoom: 1.25,
+      },
+      flowSize: {
+        width: 1000,
+        height: 700,
+      },
+      minimapSize: {
+        width: 200,
+        height: 136,
+      },
+      renderSize: {
+        width: 200,
+        height: 150,
+      },
+    })
+
+    expect(layout).not.toBeNull()
+    expect(layout!.viewportX).toBe(240)
+    expect(layout!.viewportY).toBe(300)
+    expect(layout!.viewportWidth).toBe(960)
+    expect(layout!.viewportHeight).toBe(720)
+    expect(layout!.viewBoxX).toBeLessThan(layout!.viewportX)
+    expect(layout!.viewBoxY).toBeLessThan(layout!.viewportY)
   })
 
   it('converts viewport mask radius from minimap pixels into the same flow-space projection', () => {

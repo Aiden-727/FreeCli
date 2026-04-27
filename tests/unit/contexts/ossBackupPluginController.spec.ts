@@ -28,7 +28,7 @@ function createConfiguredSettings(
     endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
     region: 'oss-cn-hangzhou',
     bucket: 'freecli-test',
-    objectKey: 'freecli/plugin-settings/latest.json',
+    objectKey: 'freecli/plugin-settings',
     accessKeyId: 'test-key-id',
     accessKeySecret: 'test-secret',
     ...overrides,
@@ -152,7 +152,7 @@ describe('OssBackupPluginController', () => {
       endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
       region: 'oss-cn-hangzhou',
       bucket: 'freecli-test',
-      objectKey: 'freecli/plugin-settings/latest.json',
+      objectKey: 'freecli/plugin-settings',
       autoBackupEnabled: false,
       autoBackupMinIntervalSeconds: 180,
       restoreOnStartupEnabled: false,
@@ -175,6 +175,44 @@ describe('OssBackupPluginController', () => {
     })
     expect(state.status).toBe('ready')
     expect(state.lastBackupAt).not.toBeNull()
+
+    await controller.dispose()
+  })
+
+  it('keeps the same remote object keys for legacy file-path configuration', async () => {
+    const store = createPersistenceStoreStub({
+      ossSettings: {
+        objectKey: 'freecli/legacy/latest.json',
+      },
+    })
+    const putJson = vi.fn(async () => undefined)
+    const controller = new OssBackupPluginController({
+      getPersistenceStore: async () => store,
+      appVersion: '0.0.1',
+      client: {
+        putJson,
+        getJsonIfExists: vi.fn(async () => null),
+        testConnection: vi.fn(),
+      } as unknown as OssObjectStoreClient,
+      emitState: () => undefined,
+      userDataPath: createTempUserDataPath(),
+    })
+
+    controller.syncSettings(
+      createConfiguredSettings({
+        objectKey: 'freecli/legacy/latest.json',
+      }),
+    )
+    const runtime = controller.createRuntimeFactory()()
+    await runtime.activate()
+    await controller.backupNow()
+
+    expect(putJson.mock.calls.some(call => call[1] === 'freecli/legacy/latest.json')).toBe(true)
+    expect(putJson.mock.calls.some(call => call[1] === 'freecli/legacy/manifest.json')).toBe(true)
+    const latestSnapshotCall = putJson.mock.calls.find(call => call[1] === 'freecli/legacy/latest.json')
+    expect((latestSnapshotCall?.[2] as PluginBackupSnapshotDto).plugins.ossBackup?.objectKey).toBe(
+      'freecli/legacy',
+    )
 
     await controller.dispose()
   })
@@ -526,7 +564,7 @@ describe('OssBackupPluginController', () => {
     const persisted = writeAppState.mock.calls[0]?.[0] as {
       settings?: { plugins?: { ossBackup?: { [key: string]: unknown } } }
     }
-    expect(persisted.settings?.plugins?.ossBackup?.objectKey).toBe('freecli/cloud/latest.json')
+    expect(persisted.settings?.plugins?.ossBackup?.objectKey).toBe('freecli/cloud')
     expect(persisted.settings?.plugins?.ossBackup?.restoreOnStartupEnabled).toBe(true)
     expect(persisted.settings?.plugins?.ossBackup?.backupOnExitEnabled).toBe(true)
     expect(controller.getState().lastRestoreAt).not.toBeNull()

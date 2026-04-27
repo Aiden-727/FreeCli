@@ -43,4 +43,43 @@ describe('app lifecycle IPC', () => {
     disposable.dispose()
     expect(ipcMain.removeHandler).toHaveBeenCalledWith(IPC_CHANNELS.appLifecycleRestart)
   })
+
+  it('delegates clear-user-data-and-restart to the injected owner', async () => {
+    vi.resetModules()
+
+    const { handlers, ipcMain } = createIpcHarness()
+    const app = {
+      relaunch: vi.fn(),
+      quit: vi.fn(),
+      getPath: vi.fn(() => 'C:/Users/Aiden/AppData/Roaming/freecli'),
+    }
+    const requestRestart = vi.fn(() => true)
+    const clearUserDataAndRestart = vi.fn(async () => undefined)
+
+    vi.doMock('electron', () => ({ app, ipcMain }))
+
+    const { registerAppLifecycleIpcHandlers } =
+      await import('../../../src/app/main/ipc/registerAppLifecycleIpcHandlers')
+
+    const disposable = registerAppLifecycleIpcHandlers({
+      requestRestart,
+      clearUserDataAndRestart,
+    })
+    const clearHandler = handlers.get(IPC_CHANNELS.appLifecycleClearUserDataAndRestart)
+    const infoHandler = handlers.get(IPC_CHANNELS.appLifecycleGetUserDataInfo)
+
+    await expect(invokeHandledIpc<void>(clearHandler, null)).resolves.toBeUndefined()
+    expect(clearUserDataAndRestart).toHaveBeenCalledTimes(1)
+    expect(requestRestart).not.toHaveBeenCalled()
+
+    await expect(invokeHandledIpc<{ path: string }>(infoHandler, null)).resolves.toEqual({
+      path: 'C:/Users/Aiden/AppData/Roaming/freecli',
+    })
+
+    disposable.dispose()
+    expect(ipcMain.removeHandler).toHaveBeenCalledWith(
+      IPC_CHANNELS.appLifecycleClearUserDataAndRestart,
+    )
+    expect(ipcMain.removeHandler).toHaveBeenCalledWith(IPC_CHANNELS.appLifecycleGetUserDataInfo)
+  })
 })

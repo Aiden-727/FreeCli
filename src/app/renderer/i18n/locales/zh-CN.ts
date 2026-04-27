@@ -772,7 +772,9 @@ export const zhCN = {
         endpointLabel: 'Endpoint',
         regionLabel: 'Region',
         bucketLabel: 'Bucket',
-        objectKeyLabel: '对象路径',
+        objectKeyLabel: '对象目录',
+        objectKeyHelp:
+          '这里只填写目录。系统会自动在该目录下写入 latest.json、manifest.json 和各历史数据文件。',
         accessKeyIdLabel: 'AccessKey ID',
         accessKeySecretLabel: 'AccessKey Secret',
         testConnection: '测试连接',

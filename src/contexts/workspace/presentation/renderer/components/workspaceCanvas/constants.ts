@@ -40,7 +40,8 @@ export function resolveDefaultAgentWindowSize(
 export function resolveDefaultTerminalWindowSize(
   bucket: StandardWindowSizeBucket = DEFAULT_AGENT_SETTINGS.standardWindowSizeBucket,
 ): Size {
-  return resolveCanonicalNodeSize({ kind: 'terminal', bucket })
+  void bucket
+  return { width: 1000, height: 600 }
 }
 
 export const TASK_PRIORITY_OPTIONS: Array<{ value: TaskPriority; label: string }> = [

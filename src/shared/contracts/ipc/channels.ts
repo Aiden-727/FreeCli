@@ -21,6 +21,8 @@ export const IPC_CHANNELS = {
   persistenceReadNodeScrollback: 'persistence:read-node-scrollback',
   persistenceWriteNodeScrollback: 'persistence:write-node-scrollback',
   appLifecycleRestart: 'app-lifecycle:restart',
+  appLifecycleClearUserDataAndRestart: 'app-lifecycle:clear-user-data-and-restart',
+  appLifecycleGetUserDataInfo: 'app-lifecycle:get-user-data-info',
   appLifecycleWriteDiagnosticLog: 'app-lifecycle:write-diagnostic-log',
   appUpdateGetState: 'app-update:get-state',
   appUpdateConfigure: 'app-update:configure',

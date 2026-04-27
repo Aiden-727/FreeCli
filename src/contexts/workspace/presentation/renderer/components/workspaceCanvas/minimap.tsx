@@ -27,6 +27,18 @@ export interface WorkspaceMinimapViewportWindowInput {
       data: Pick<TerminalNodeData, 'width' | 'height'>
     }
   >
+  viewBounds?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  boundingRect?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
   viewport: {
     x: number
     y: number
@@ -87,6 +99,31 @@ interface WorkspaceMinimapProjection {
 
 type WorkspaceMinimapTaskState = 'todo' | 'doing' | 'done'
 type WorkspaceMinimapRuntimeState = 'running' | 'standby' | 'inactive' | 'idle'
+
+function resolveWorkspaceMinimapNodeEffectiveLabelColor(
+  node: Node<TerminalNodeData>,
+): LabelColor | null {
+  const effectiveLabelColor = (node.data as TerminalNodeData & {
+    effectiveLabelColor?: LabelColor | null
+  }).effectiveLabelColor
+  return effectiveLabelColor ?? null
+}
+
+function resolveWorkspaceMinimapLabelColorVar(labelColor: LabelColor): string {
+  return `var(--cove-label-${labelColor})`
+}
+
+function blendWorkspaceMinimapRuntimeAndIdentity(
+  runtimeColor: string,
+  labelColor: LabelColor | null,
+  runtimeWeight: number,
+): string {
+  if (!labelColor) {
+    return runtimeColor
+  }
+
+  return `color-mix(in srgb, ${runtimeColor} ${runtimeWeight}%, ${resolveWorkspaceMinimapLabelColorVar(labelColor)} ${100 - runtimeWeight}%)`
+}
 
 function resolveWorkspaceMinimapTaskState(node: Node<TerminalNodeData>): WorkspaceMinimapTaskState {
   switch (node.data.task?.status) {
@@ -150,29 +187,45 @@ function resolveWorkspaceMinimapTaskColor(node: Node<TerminalNodeData>): string 
 }
 
 function resolveWorkspaceMinimapAgentColor(node: Node<TerminalNodeData>): string {
-  switch (resolveWorkspaceMinimapAgentState(node)) {
-    case 'running':
-      return 'var(--cove-canvas-minimap-node-agent-running)'
-    case 'standby':
-      return 'var(--cove-canvas-minimap-node-agent-standby)'
-    case 'inactive':
-    default:
-      return 'var(--cove-canvas-minimap-node-agent-inactive)'
-  }
+  const runtimeColor = (() => {
+    switch (resolveWorkspaceMinimapAgentState(node)) {
+      case 'running':
+        return 'var(--cove-canvas-minimap-node-agent-running)'
+      case 'standby':
+        return 'var(--cove-canvas-minimap-node-agent-standby)'
+      case 'inactive':
+      default:
+        return 'var(--cove-canvas-minimap-node-agent-inactive)'
+    }
+  })()
+
+  return blendWorkspaceMinimapRuntimeAndIdentity(
+    runtimeColor,
+    resolveWorkspaceMinimapNodeEffectiveLabelColor(node),
+    72,
+  )
 }
 
 function resolveWorkspaceMinimapTerminalColor(node: Node<TerminalNodeData>): string {
-  switch (resolveWorkspaceMinimapTerminalState(node)) {
-    case 'running':
-      return 'var(--cove-canvas-minimap-node-terminal-running)'
-    case 'standby':
-      return 'var(--cove-canvas-minimap-node-terminal-standby)'
-    case 'inactive':
-      return 'var(--cove-canvas-minimap-node-terminal-inactive)'
-    case 'idle':
-    default:
-      return 'var(--cove-canvas-minimap-node-terminal)'
-  }
+  const runtimeColor = (() => {
+    switch (resolveWorkspaceMinimapTerminalState(node)) {
+      case 'running':
+        return 'var(--cove-canvas-minimap-node-terminal-running)'
+      case 'standby':
+        return 'var(--cove-canvas-minimap-node-terminal-standby)'
+      case 'inactive':
+        return 'var(--cove-canvas-minimap-node-terminal-inactive)'
+      case 'idle':
+      default:
+        return 'var(--cove-canvas-minimap-node-terminal)'
+    }
+  })()
+
+  return blendWorkspaceMinimapRuntimeAndIdentity(
+    runtimeColor,
+    resolveWorkspaceMinimapNodeEffectiveLabelColor(node),
+    68,
+  )
 }
 
 function resolveWorkspaceMinimapTaskHeaderColor(node: Node<TerminalNodeData>): string {
@@ -188,29 +241,45 @@ function resolveWorkspaceMinimapTaskHeaderColor(node: Node<TerminalNodeData>): s
 }
 
 function resolveWorkspaceMinimapAgentHeaderColor(node: Node<TerminalNodeData>): string {
-  switch (resolveWorkspaceMinimapAgentState(node)) {
-    case 'running':
-      return 'var(--cove-canvas-minimap-node-agent-running-header)'
-    case 'standby':
-      return 'var(--cove-canvas-minimap-node-agent-standby-header)'
-    case 'inactive':
-    default:
-      return 'var(--cove-canvas-minimap-node-agent-inactive-header)'
-  }
+  const runtimeColor = (() => {
+    switch (resolveWorkspaceMinimapAgentState(node)) {
+      case 'running':
+        return 'var(--cove-canvas-minimap-node-agent-running-header)'
+      case 'standby':
+        return 'var(--cove-canvas-minimap-node-agent-standby-header)'
+      case 'inactive':
+      default:
+        return 'var(--cove-canvas-minimap-node-agent-inactive-header)'
+    }
+  })()
+
+  return blendWorkspaceMinimapRuntimeAndIdentity(
+    runtimeColor,
+    resolveWorkspaceMinimapNodeEffectiveLabelColor(node),
+    60,
+  )
 }
 
 function resolveWorkspaceMinimapTerminalHeaderColor(node: Node<TerminalNodeData>): string {
-  switch (resolveWorkspaceMinimapTerminalState(node)) {
-    case 'running':
-      return 'var(--cove-canvas-minimap-node-terminal-running-header)'
-    case 'standby':
-      return 'var(--cove-canvas-minimap-node-terminal-standby-header)'
-    case 'inactive':
-      return 'var(--cove-canvas-minimap-node-terminal-inactive-header)'
-    case 'idle':
-    default:
-      return 'var(--cove-canvas-minimap-node-terminal-header)'
-  }
+  const runtimeColor = (() => {
+    switch (resolveWorkspaceMinimapTerminalState(node)) {
+      case 'running':
+        return 'var(--cove-canvas-minimap-node-terminal-running-header)'
+      case 'standby':
+        return 'var(--cove-canvas-minimap-node-terminal-standby-header)'
+      case 'inactive':
+        return 'var(--cove-canvas-minimap-node-terminal-inactive-header)'
+      case 'idle':
+      default:
+        return 'var(--cove-canvas-minimap-node-terminal-header)'
+    }
+  })()
+
+  return blendWorkspaceMinimapRuntimeAndIdentity(
+    runtimeColor,
+    resolveWorkspaceMinimapNodeEffectiveLabelColor(node),
+    56,
+  )
 }
 
 export function resolveWorkspaceMinimapNodeColor(node: Node<TerminalNodeData>): string {
@@ -249,16 +318,25 @@ export function resolveWorkspaceMinimapNodeHeaderColor(node: Node<TerminalNodeDa
 
 export function resolveWorkspaceMinimapNodeStrokeColor(node: Node<TerminalNodeData>): string {
   switch (node.data.kind) {
-    case 'agent':
-      switch (resolveWorkspaceMinimapAgentState(node)) {
-        case 'running':
-          return 'var(--cove-canvas-minimap-node-agent-running-stroke)'
-        case 'standby':
-          return 'var(--cove-canvas-minimap-node-agent-standby-stroke)'
-        case 'inactive':
-        default:
-          return 'var(--cove-canvas-minimap-node-agent-inactive-stroke)'
-      }
+    case 'agent': {
+      const runtimeColor = (() => {
+        switch (resolveWorkspaceMinimapAgentState(node)) {
+          case 'running':
+            return 'var(--cove-canvas-minimap-node-agent-running-stroke)'
+          case 'standby':
+            return 'var(--cove-canvas-minimap-node-agent-standby-stroke)'
+          case 'inactive':
+          default:
+            return 'var(--cove-canvas-minimap-node-agent-inactive-stroke)'
+        }
+      })()
+
+      return blendWorkspaceMinimapRuntimeAndIdentity(
+        runtimeColor,
+        resolveWorkspaceMinimapNodeEffectiveLabelColor(node),
+        68,
+      )
+    }
     case 'task':
       switch (resolveWorkspaceMinimapTaskState(node)) {
         case 'doing':
@@ -273,28 +351,34 @@ export function resolveWorkspaceMinimapNodeStrokeColor(node: Node<TerminalNodeDa
       return 'var(--cove-canvas-minimap-node-note-stroke)'
     case 'image':
       return 'var(--cove-canvas-minimap-node-image-stroke)'
-    case 'terminal':
-      switch (resolveWorkspaceMinimapTerminalState(node)) {
-        case 'running':
-          return 'var(--cove-canvas-minimap-node-terminal-running-stroke)'
-        case 'standby':
-          return 'var(--cove-canvas-minimap-node-terminal-standby-stroke)'
-        case 'inactive':
-          return 'var(--cove-canvas-minimap-node-terminal-inactive-stroke)'
-        case 'idle':
-        default:
-          return 'var(--cove-canvas-minimap-node-terminal-stroke)'
-      }
+    case 'terminal': {
+      const runtimeColor = (() => {
+        switch (resolveWorkspaceMinimapTerminalState(node)) {
+          case 'running':
+            return 'var(--cove-canvas-minimap-node-terminal-running-stroke)'
+          case 'standby':
+            return 'var(--cove-canvas-minimap-node-terminal-standby-stroke)'
+          case 'inactive':
+            return 'var(--cove-canvas-minimap-node-terminal-inactive-stroke)'
+          case 'idle':
+          default:
+            return 'var(--cove-canvas-minimap-node-terminal-stroke)'
+        }
+      })()
+
+      return blendWorkspaceMinimapRuntimeAndIdentity(
+        runtimeColor,
+        resolveWorkspaceMinimapNodeEffectiveLabelColor(node),
+        64,
+      )
+    }
     default:
       return 'var(--cove-canvas-minimap-node-default-stroke)'
   }
 }
 
 export function resolveWorkspaceMinimapNodeLabelColor(node: Node<TerminalNodeData>): LabelColor | null {
-  const effectiveLabelColor = (node.data as TerminalNodeData & {
-    effectiveLabelColor?: LabelColor | null
-  }).effectiveLabelColor
-  return effectiveLabelColor ?? null
+  return resolveWorkspaceMinimapNodeEffectiveLabelColor(node)
 }
 
 export function resolveWorkspaceMinimapNodeClassName(node: Node<TerminalNodeData>): string {
@@ -335,6 +419,8 @@ export function resolveWorkspaceMinimapNodeAtPosition(
 
 export function resolveWorkspaceMinimapProjection({
   nodes,
+  viewBounds: explicitViewBounds,
+  boundingRect: explicitBoundingRect,
   viewport,
   flowSize,
   minimapSize,
@@ -352,40 +438,44 @@ export function resolveWorkspaceMinimapProjection({
     return null
   }
 
-  const viewBounds = {
+  const viewBounds = explicitViewBounds ?? {
     x: -viewport.x / viewport.zoom,
     y: -viewport.y / viewport.zoom,
     width: flowSize.width / viewport.zoom,
     height: flowSize.height / viewport.zoom,
   }
 
-  let minX = viewBounds.x
-  let minY = viewBounds.y
-  let maxX = viewBounds.x + viewBounds.width
-  let maxY = viewBounds.y + viewBounds.height
+  let boundingRect = explicitBoundingRect
 
-  for (const node of nodes) {
-    if (node.hidden) {
-      continue
+  if (!boundingRect) {
+    let minX = viewBounds.x
+    let minY = viewBounds.y
+    let maxX = viewBounds.x + viewBounds.width
+    let maxY = viewBounds.y + viewBounds.height
+
+    for (const node of nodes) {
+      if (node.hidden) {
+        continue
+      }
+
+      const width = Number.isFinite(node.data.width) ? node.data.width : 0
+      const height = Number.isFinite(node.data.height) ? node.data.height : 0
+      if (width <= 0 || height <= 0) {
+        continue
+      }
+
+      minX = Math.min(minX, node.position.x)
+      minY = Math.min(minY, node.position.y)
+      maxX = Math.max(maxX, node.position.x + width)
+      maxY = Math.max(maxY, node.position.y + height)
     }
 
-    const width = Number.isFinite(node.data.width) ? node.data.width : 0
-    const height = Number.isFinite(node.data.height) ? node.data.height : 0
-    if (width <= 0 || height <= 0) {
-      continue
+    boundingRect = {
+      x: minX,
+      y: minY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
     }
-
-    minX = Math.min(minX, node.position.x)
-    minY = Math.min(minY, node.position.y)
-    maxX = Math.max(maxX, node.position.x + width)
-    maxY = Math.max(maxY, node.position.y + height)
-  }
-
-  const boundingRect = {
-    x: minX,
-    y: minY,
-    width: Math.max(1, maxX - minX),
-    height: Math.max(1, maxY - minY),
   }
 
   const effectiveRenderWidth =

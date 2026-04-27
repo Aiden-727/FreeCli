@@ -631,6 +631,7 @@ export default function OssBackupSettingsSection({
                     data-testid="oss-backup-object-key"
                     type="text"
                     value={backupSettings.objectKey}
+                    placeholder="freecli/plugin-settings"
                     onChange={event => {
                       updateSettings(current => ({
                         ...current,
@@ -638,6 +639,9 @@ export default function OssBackupSettingsSection({
                       }))
                     }}
                   />
+                  <span className="plugin-manager-panel__hint">
+                    {t('pluginManager.plugins.ossBackup.objectKeyHelp')}
+                  </span>
                 </div>
               </div>
 

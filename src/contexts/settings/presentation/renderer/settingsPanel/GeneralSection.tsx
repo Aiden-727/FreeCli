@@ -80,6 +80,8 @@ export function GeneralSection(props: {
   updateChannel: AppUpdateChannel
   updateState: AppUpdateState | null
   isRestartingApp?: boolean
+  userDataPath?: string | null
+  isClearingUserData?: boolean
   onChangeLanguage: (language: UiLanguage) => void
   onChangeUiTheme: (theme: UiTheme) => void
   onChangeGraphicsMode: (mode: GraphicsMode) => void
@@ -93,6 +95,7 @@ export function GeneralSection(props: {
   onDownloadUpdate: () => void
   onInstallUpdate: () => void
   onRestartApp: () => void
+  onRequestClearUserData: () => void
 }): React.JSX.Element {
   const { t } = useTranslation()
   const {
@@ -108,6 +111,8 @@ export function GeneralSection(props: {
     updateChannel,
     updateState,
     isRestartingApp = false,
+    userDataPath = null,
+    isClearingUserData = false,
     onChangeLanguage,
     onChangeUiTheme,
     onChangeGraphicsMode,
@@ -121,6 +126,7 @@ export function GeneralSection(props: {
     onDownloadUpdate,
     onInstallUpdate,
     onRestartApp,
+    onRequestClearUserData,
   } = props
   const focusTargetZoomRangeStyle = getFocusTargetZoomRangeStyle()
   const requiresGraphicsRestart = graphicsMode !== appliedGraphicsMode
@@ -391,6 +397,39 @@ export function GeneralSection(props: {
                 {t('settingsPanel.general.updates.restartToUpdate')}
               </button>
             ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-panel__subsection" data-testid="settings-clear-user-data-section">
+        <div className="settings-panel__subsection-header">
+          <h4 className="settings-panel__section-title">
+            {t('settingsPanel.general.resetData.title')}
+          </h4>
+          <span>{t('settingsPanel.general.resetData.help')}</span>
+        </div>
+
+        <div className="settings-panel__row">
+          <div className="settings-panel__row-label">
+            <strong>{t('settingsPanel.general.resetData.scopeLabel')}</strong>
+            <span>
+              {t('settingsPanel.general.resetData.scopeHelp', {
+                path: userDataPath ?? '—',
+              })}
+            </span>
+          </div>
+          <div className="settings-panel__control" style={{ alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="cove-window__action cove-window__action--danger"
+              data-testid="settings-clear-user-data"
+              onClick={onRequestClearUserData}
+              disabled={isClearingUserData || isRestartingApp}
+            >
+              {isClearingUserData
+                ? t('settingsPanel.general.resetData.clearing')
+                : t('settingsPanel.general.resetData.action')}
+            </button>
           </div>
         </div>
       </div>

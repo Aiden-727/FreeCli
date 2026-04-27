@@ -9,12 +9,37 @@ import {
   resolveWorkspaceMinimapNodeLabelColor,
   resolveWorkspaceMinimapNodeAtPosition,
   resolveWorkspaceMinimapViewportWindowLayout,
+  type WorkspaceMinimapViewportWindowLayout,
   WorkspaceMinimapNode,
 } from '../minimap'
 
 const WORKSPACE_MINIMAP_FALLBACK_SIZE = {
   width: 200,
   height: 136,
+}
+
+interface WorkspaceMinimapLookupNode {
+  hidden?: boolean
+  measured?: {
+    width?: number
+    height?: number
+  }
+  width?: number
+  height?: number
+  initialWidth?: number
+  initialHeight?: number
+  internals?: {
+    positionAbsolute?: {
+      x: number
+      y: number
+    }
+    userNode?: {
+      width?: number
+      height?: number
+      initialWidth?: number
+      initialHeight?: number
+    }
+  }
 }
 
 interface WorkspaceMinimapDockProps {
@@ -27,16 +52,50 @@ interface WorkspaceMinimapDockProps {
   focusNodeTargetZoom: number
 }
 
-function selectViewportTransform(state: { transform: [number, number, number] }): {
-  x: number
-  y: number
-  zoom: number
-} {
-  return {
-    x: state.transform[0],
-    y: state.transform[1],
-    zoom: state.transform[2],
+function ensureWorkspaceMinimapViewportMask(
+  dockElement: HTMLDivElement,
+): SVGRectElement | null {
+  const minimapSvg = dockElement.querySelector('.react-flow__minimap-svg') as SVGSVGElement | null
+  if (!minimapSvg) {
+    return null
   }
+
+  let overlayGroup = minimapSvg.querySelector('.workspace-canvas__minimap-viewport-overlay') as
+    | SVGGElement
+    | null
+  if (!overlayGroup) {
+    overlayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    overlayGroup.setAttribute('class', 'workspace-canvas__minimap-viewport-overlay')
+    overlayGroup.setAttribute('aria-hidden', 'true')
+    overlayGroup.setAttribute('pointer-events', 'none')
+    minimapSvg.appendChild(overlayGroup)
+  } else if (overlayGroup.parentElement !== minimapSvg || overlayGroup !== minimapSvg.lastElementChild) {
+    minimapSvg.appendChild(overlayGroup)
+  }
+
+  let viewportMask = overlayGroup.querySelector('.workspace-canvas__minimap-viewport-mask') as
+    | SVGRectElement
+    | null
+  if (!viewportMask) {
+    viewportMask = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    viewportMask.setAttribute('class', 'workspace-canvas__minimap-viewport-mask')
+    viewportMask.setAttribute('pointer-events', 'none')
+    overlayGroup.appendChild(viewportMask)
+  }
+
+  return viewportMask
+}
+
+function applyWorkspaceMinimapViewportMaskLayout(
+  viewportMask: SVGRectElement,
+  layout: WorkspaceMinimapViewportWindowLayout,
+): void {
+  viewportMask.setAttribute('x', `${layout.viewportX}`)
+  viewportMask.setAttribute('y', `${layout.viewportY}`)
+  viewportMask.setAttribute('width', `${layout.viewportWidth}`)
+  viewportMask.setAttribute('height', `${layout.viewportHeight}`)
+  viewportMask.setAttribute('rx', `${layout.viewportRadiusX}`)
+  viewportMask.setAttribute('ry', `${layout.viewportRadiusY}`)
 }
 
 export function WorkspaceMinimapDock({
@@ -51,8 +110,13 @@ export function WorkspaceMinimapDock({
   const { t } = useTranslation()
   const reactFlow = useReactFlow<Node<TerminalNodeData>, Edge>()
   const dockRef = React.useRef<HTMLDivElement | null>(null)
-  const viewport = useStore(selectViewportTransform)
+  const viewport = useStore(state => ({
+    x: state.transform[0],
+    y: state.transform[1],
+    zoom: state.transform[2],
+  }))
   const nodes = useStore(state => state.nodes as Node<TerminalNodeData>[])
+  const nodeLookup = useStore(state => state.nodeLookup as Map<string, WorkspaceMinimapLookupNode>)
   const flowSize = useStore(state => ({
     width: state.width,
     height: state.height,
@@ -92,6 +156,121 @@ export function WorkspaceMinimapDock({
     return () => observer.disconnect()
   }, [isMinimapVisible])
 
+  const resolvedViewportWindow = React.useMemo(() => {
+    const viewBounds = {
+      x: -viewport.x / viewport.zoom,
+      y: -viewport.y / viewport.zoom,
+      width: flowSize.width / viewport.zoom,
+      height: flowSize.height / viewport.zoom,
+    }
+
+    let boundingRect = viewBounds
+    if (nodeLookup.size > 0) {
+      let minX = viewBounds.x
+      let minY = viewBounds.y
+      let maxX = viewBounds.x + viewBounds.width
+      let maxY = viewBounds.y + viewBounds.height
+
+      for (const node of nodeLookup.values()) {
+        if (node.hidden) {
+          continue
+        }
+
+        const positionAbsolute = node.internals?.positionAbsolute
+        if (!positionAbsolute) {
+          continue
+        }
+
+        const userNode = node.internals?.userNode
+        const width =
+          node.measured?.width ??
+          userNode?.width ??
+          userNode?.initialWidth ??
+          node.width ??
+          node.initialWidth ??
+          0
+        const height =
+          node.measured?.height ??
+          userNode?.height ??
+          userNode?.initialHeight ??
+          node.height ??
+          node.initialHeight ??
+          0
+
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+          continue
+        }
+
+        minX = Math.min(minX, positionAbsolute.x)
+        minY = Math.min(minY, positionAbsolute.y)
+        maxX = Math.max(maxX, positionAbsolute.x + width)
+        maxY = Math.max(maxY, positionAbsolute.y + height)
+      }
+
+      boundingRect = {
+        x: minX,
+        y: minY,
+        width: Math.max(1, maxX - minX),
+        height: Math.max(1, maxY - minY),
+      }
+    }
+
+    return resolveWorkspaceMinimapViewportWindowLayout({
+      nodes,
+      viewBounds,
+      boundingRect,
+      viewport,
+      flowSize,
+      minimapSize: dockSize,
+      renderSize: minimapRenderSize,
+    })
+  }, [dockSize, flowSize, minimapRenderSize, nodeLookup, nodes, viewport])
+
+  React.useLayoutEffect(() => {
+    if (!isMinimapVisible || !dockRef.current) {
+      return
+    }
+
+    const dockElement = dockRef.current
+    let frameId = 0
+
+    const syncViewportMaskPresence = () => {
+      const viewportMask = ensureWorkspaceMinimapViewportMask(dockElement)
+      if (!viewportMask || !resolvedViewportWindow) {
+        return
+      }
+
+      // Why: keep the same SVG rect node alive across viewport updates so React Flow's
+      // own animated transform can move it continuously; tearing the rect down on every
+      // jump creates a blank frame that reads as flicker.
+      applyWorkspaceMinimapViewportMaskLayout(viewportMask, resolvedViewportWindow)
+    }
+
+    const scheduleSync = () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId)
+      }
+      frameId = window.requestAnimationFrame(syncViewportMaskPresence)
+    }
+
+    const observer = new MutationObserver(scheduleSync)
+    observer.observe(dockElement, {
+      subtree: true,
+      childList: true,
+    })
+
+    scheduleSync()
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId)
+      }
+      observer.disconnect()
+      const overlayGroup = dockElement.querySelector('.workspace-canvas__minimap-viewport-overlay')
+      overlayGroup?.remove()
+    }
+  }, [isMinimapVisible, resolvedViewportWindow])
+
   const focusMinimapNode = React.useCallback(
     (node: Node<TerminalNodeData> | null) => {
       if (!node) {
@@ -105,16 +284,6 @@ export function WorkspaceMinimapDock({
     },
     [focusNodeTargetZoom, reactFlow],
   )
-
-  const resolvedViewportWindow = React.useMemo(() => {
-    return resolveWorkspaceMinimapViewportWindowLayout({
-      nodes,
-      viewport,
-      flowSize,
-      minimapSize: dockSize,
-      renderSize: minimapRenderSize,
-    })
-  }, [dockSize, flowSize, minimapRenderSize, nodes, viewport])
 
   const minimapNodesById = React.useMemo(() => {
     return new Map(nodes.map(node => [node.id, node] as const))
@@ -162,24 +331,6 @@ export function WorkspaceMinimapDock({
             }}
             ariaLabel={t('workspaceCanvas.minimapAriaLabel')}
           />
-          {resolvedViewportWindow ? (
-            <svg
-              className="workspace-canvas__minimap-viewport-overlay"
-              aria-hidden="true"
-              viewBox={`${resolvedViewportWindow.viewBoxX} ${resolvedViewportWindow.viewBoxY} ${resolvedViewportWindow.viewBoxWidth} ${resolvedViewportWindow.viewBoxHeight}`}
-              preserveAspectRatio="none"
-            >
-              <rect
-                className="workspace-canvas__minimap-viewport-mask"
-                x={resolvedViewportWindow.viewportX}
-                y={resolvedViewportWindow.viewportY}
-                width={resolvedViewportWindow.viewportWidth}
-                height={resolvedViewportWindow.viewportHeight}
-                rx={resolvedViewportWindow.viewportRadiusX}
-                ry={resolvedViewportWindow.viewportRadiusY}
-              />
-            </svg>
-          ) : null}
         </>
       ) : null}
 

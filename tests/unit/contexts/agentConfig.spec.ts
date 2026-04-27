@@ -28,7 +28,7 @@ describe('agent settings normalization', () => {
     expect(DEFAULT_AGENT_SETTINGS.uiFontSize).toBe(18)
     expect(DEFAULT_AGENT_SETTINGS.plugins.enabledIds).toEqual([])
     expect(DEFAULT_AGENT_SETTINGS.plugins.ossBackup.objectKey).toBe(
-      'freecli/plugin-settings/latest.json',
+      'freecli/plugin-settings',
     )
     expect(DEFAULT_AGENT_SETTINGS.updatePolicy).toBe('prompt')
     expect(DEFAULT_AGENT_SETTINGS.updateChannel).toBe('stable')
@@ -509,7 +509,7 @@ describe('agent settings normalization', () => {
       endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
       region: 'oss-cn-hangzhou',
       bucket: 'freecli-backup',
-      objectKey: 'freecli/custom.json',
+      objectKey: 'freecli',
       accessKeyId: 'test-id',
       accessKeySecret: 'test-secret',
       autoBackupEnabled: true,
@@ -527,5 +527,17 @@ describe('agent settings normalization', () => {
         detail: 'timeout',
       },
     })
+  })
+
+  it('migrates legacy oss object file path to object directory', () => {
+    const result = normalizeAgentSettings({
+      plugins: {
+        ossBackup: {
+          objectKey: ' freecli/plugin-settings/latest.json ',
+        },
+      },
+    })
+
+    expect(result.plugins.ossBackup.objectKey).toBe('freecli/plugin-settings')
   })
 })

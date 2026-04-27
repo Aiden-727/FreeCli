@@ -43,6 +43,8 @@ interface SettingsPanelProps {
   appliedGraphicsMode: GraphicsMode
   updateState: AppUpdateState | null
   isRestartingApp?: boolean
+  userDataPath?: string | null
+  isClearingUserData?: boolean
   modelCatalogByProvider: Record<AgentProvider, ProviderModelCatalogEntry>
   workspaces: WorkspaceState[]
   onWorkspaceWorktreesRootChange: (workspaceId: string, worktreesRoot: string) => void
@@ -54,6 +56,7 @@ interface SettingsPanelProps {
   onDownloadUpdate: () => void
   onInstallUpdate: () => void
   onRestartApp: () => void
+  onRequestClearUserData: () => void
   onClose: () => void
 }
 
@@ -97,6 +100,8 @@ export function SettingsPanel({
   appliedGraphicsMode,
   updateState,
   isRestartingApp = false,
+  userDataPath = null,
+  isClearingUserData = false,
   modelCatalogByProvider,
   workspaces,
   onWorkspaceWorktreesRootChange,
@@ -108,6 +113,7 @@ export function SettingsPanel({
   onDownloadUpdate,
   onInstallUpdate,
   onRestartApp,
+  onRequestClearUserData,
   onClose,
 }: SettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation()
@@ -398,6 +404,8 @@ export function SettingsPanel({
                 updateChannel={settings.updateChannel}
                 updateState={updateState}
                 isRestartingApp={isRestartingApp}
+                userDataPath={userDataPath}
+                isClearingUserData={isClearingUserData}
                 onChangeLanguage={updateLanguage}
                 onChangeUiTheme={updateUiTheme}
                 onChangeGraphicsMode={updateGraphicsMode}
@@ -411,6 +419,7 @@ export function SettingsPanel({
                 onDownloadUpdate={onDownloadUpdate}
                 onInstallUpdate={onInstallUpdate}
                 onRestartApp={onRestartApp}
+                onRequestClearUserData={onRequestClearUserData}
               />
             ) : null}
 

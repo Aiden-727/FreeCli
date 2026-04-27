@@ -512,7 +512,18 @@ function createWindow(): void {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    const { consumeAndResetUserDataIfNeeded } = await import('./userDataReset')
+    await consumeAndResetUserDataIfNeeded(app.getPath('userData'))
+  } catch (error) {
+    writeMainDiagnostic({
+      source: 'startup',
+      level: 'error',
+      message: 'failed to reset userData before startup',
+      detail: formatErrorDetail(error),
+    })
+  }
   writeMainDiagnostic({
     source: 'bootstrap',
     level: 'info',
@@ -577,6 +588,11 @@ app.whenReady().then(() => {
     approvedWorkspaces,
     ptyRuntime,
     requestRestart: restartController.requestRestart,
+    clearUserDataAndRestart: async () => {
+      const { writeUserDataResetMarker } = await import('./userDataReset')
+      await writeUserDataResetMarker(app.getPath('userData'))
+      restartController.requestRestart()
+    },
   })
   if (process.env.NODE_ENV !== 'test') {
     controlSurfaceDisposable = registerControlSurfaceServer({ approvedWorkspaces, ptyRuntime })

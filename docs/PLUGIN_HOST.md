@@ -447,13 +447,15 @@ Why：
 
 ### 12.4 当前 UI 与自动备份语义
 
-- `oss-backup` 自身有独立插件页，用于维护 `endpoint / region / bucket / objectKey / AccessKey`、手动备份、手动恢复和连接测试。
+- `oss-backup` 自身有独立插件页，用于维护 `endpoint / region / bucket / objectKey(对象目录) / AccessKey`、手动备份、手动恢复和连接测试。
 - OSS 连接设置已收口到弹窗；弹窗内新增三项自动化策略：`自动备份最小间隔（分钟）`、`启动时自动拉取`、`退出时自动推送`。
+- `objectKey` 当前语义已经收口为“对象目录”，例如 `freecli/plugin-settings`；程序会自动在该目录下写入 `latest.json`、`manifest.json`、`input-stats-history.json`、`quota-monitor-history.json`、`git-worklog-history.json`。旧配置若仍保存为 `.../latest.json` 这类完整文件路径，归一化时会自动迁移回对应目录，但最终访问的 OSS 对象路径保持不变。
 - 当前在 `oss-backup` 页面统一维护备份范围，`quota-monitor` 与 `git-worklog` 页面不再放置云备份入口。
 - 自动备份不会在输入中实时触发；当前只在插件设置已经成功落盘后，由 renderer 通知 Main 插件 runtime 做防抖上传，防抖窗口由 `autoBackupMinIntervalSeconds` 决定。
 - 启动自动拉取会在 `oss-backup` runtime 激活后触发一次恢复，并把恢复结果直接写回 persistence 的 `settings.plugins`，保证无 renderer 参与时也能生效。
 - 退出自动推送通过 Main 进程 `before-quit` 拦截执行一次带超时保护的备份，完成后放行退出，避免关闭流程被长期阻塞。
 - 当本地与云端发生冲突且无法安全自动决策时，renderer 会弹出选择框，由用户显式选择 `use_local` 或 `use_remote`。
+- 设置页当前新增 `清除本地数据` 危险操作：会清空**当前实例**的 `userData` 目录（包括 `freecli.db`、插件缓存、日志与本地 OSS sync-state），然后自动重启。该操作只影响本地 durable state，不会直接删除云端 OSS 对象；若清空后仍需保留当前本地为权威基线，应在重启后重新执行一次手动“立即备份”。
 
 Why：
 

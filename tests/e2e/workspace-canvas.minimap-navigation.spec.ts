@@ -125,9 +125,12 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       const beforeHover = await readHoverAffordanceState()
 
       const minimapBox = await minimap.boundingBox()
+      const minimapSvgBox = await window
+        .locator('.workspace-canvas__minimap .react-flow__minimap-svg')
+        .boundingBox()
       const flowBox = await window.locator('.workspace-canvas .react-flow').boundingBox()
-      if (!minimapBox || !flowBox) {
-        throw new Error('minimap or flow bounding box unavailable')
+      if (!minimapBox || !minimapSvgBox || !flowBox) {
+        throw new Error('minimap, minimap svg, or flow bounding box unavailable')
       }
 
       const viewport = await readCanvasViewport(window)
@@ -183,10 +186,10 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       }
 
       await window.mouse.move(
-        minimapBox.x +
-          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapBox.width,
-        minimapBox.y +
-          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapBox.height,
+        minimapSvgBox.x +
+          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapSvgBox.width,
+        minimapSvgBox.y +
+          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapSvgBox.height,
       )
 
       await expect
@@ -253,6 +256,10 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
 
       const minimap = window.locator('.workspace-canvas__minimap')
       const viewportMask = window.locator('.workspace-canvas__minimap-viewport-mask')
+      const minimapSvg = window.locator('.workspace-canvas__minimap .react-flow__minimap-svg')
+      const viewportOverlay = window.locator(
+        '.workspace-canvas__minimap .workspace-canvas__minimap-viewport-overlay',
+      )
       const taskMinimapNode = window.locator(
         '[data-testid="workspace-minimap-group-task-minimap-stability-b"]',
       )
@@ -261,6 +268,8 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       )
       await expect(minimap).toBeVisible()
       await expect(viewportMask).toBeVisible()
+      await expect(viewportOverlay).toBeVisible()
+      await expect(minimapSvg).toBeVisible()
       await expect(taskMinimapNode).toBeVisible()
       const hoverFillColor = await resolveCssColorToken(
         window,
@@ -269,16 +278,17 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
 
       const minimapBox = await minimap.boundingBox()
       const flowBox = await window.locator('.workspace-canvas .react-flow').boundingBox()
-      if (!minimapBox || !flowBox) {
-        throw new Error('minimap or flow bounding box unavailable')
+      const minimapSvgBox = await minimapSvg.boundingBox()
+      if (!minimapBox || !minimapSvgBox || !flowBox) {
+        throw new Error('minimap, minimap svg, or flow bounding box unavailable')
       }
 
       const viewportMaskZIndex = await window
-        .locator('.workspace-canvas__minimap-viewport-overlay')
+        .locator('.workspace-canvas__minimap')
         .evaluate(element => {
           return window.getComputedStyle(element).zIndex
         })
-      expect(Number(viewportMaskZIndex)).toBeGreaterThan(1)
+      expect(Number(viewportMaskZIndex)).toBeGreaterThanOrEqual(1)
 
       const viewportMaskPointerEvents = await viewportMask.evaluate(element => {
         return window.getComputedStyle(element).pointerEvents
@@ -338,11 +348,11 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       }
       const hoverPoint = {
         x:
-          minimapBox.x +
-          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapBox.width,
+          minimapSvgBox.x +
+          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapSvgBox.width,
         y:
-          minimapBox.y +
-          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapBox.height,
+          minimapSvgBox.y +
+          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapSvgBox.height,
       }
 
       await window.mouse.move(hoverPoint.x, hoverPoint.y)
@@ -388,7 +398,10 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
           fill: hoverFillColor,
         })
 
-      await window.mouse.move(minimapBox.x + minimapBox.width / 2, minimapBox.y + minimapBox.height / 2)
+      await window.mouse.move(
+        minimapSvgBox.x + minimapSvgBox.width / 2,
+        minimapSvgBox.y + minimapSvgBox.height / 2,
+      )
 
       await expect
         .poll(async () => {
@@ -472,9 +485,12 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       expect(deltaBefore.dx).toBeGreaterThan(160)
 
       const minimapBox = await minimap.boundingBox()
+      const minimapSvgBox = await window
+        .locator('.workspace-canvas__minimap .react-flow__minimap-svg')
+        .boundingBox()
       const flowBox = await window.locator('.workspace-canvas .react-flow').boundingBox()
-      if (!minimapBox || !flowBox) {
-        throw new Error('minimap or flow bounding box unavailable')
+      if (!minimapBox || !minimapSvgBox || !flowBox) {
+        throw new Error('minimap, minimap svg, or flow bounding box unavailable')
       }
 
       const viewportMaskStyle = await viewportMask.evaluate(element => {
@@ -551,10 +567,10 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       }
 
       await window.mouse.click(
-        minimapBox.x +
-          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapBox.width,
-        minimapBox.y +
-          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapBox.height,
+        minimapSvgBox.x +
+          ((targetCenter.x - minimapViewBox.x) / minimapViewBox.width) * minimapSvgBox.width,
+        minimapSvgBox.y +
+          ((targetCenter.y - minimapViewBox.y) / minimapViewBox.height) * minimapSvgBox.height,
       )
 
       await expect

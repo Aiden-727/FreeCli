@@ -1,4 +1,11 @@
 import type { OssBackupSettingsDto, PluginBackupSnapshotDto } from '@shared/contracts/dto'
+import { normalizeOssBackupObjectDirectory } from '@contexts/plugins/domain/ossBackupSettings'
+
+const OSS_PLUGIN_SETTINGS_FILE_NAME = 'latest.json'
+
+function resolvePluginSettingsObjectKey(objectDirectory: string): string {
+  return `${normalizeOssBackupObjectDirectory(objectDirectory)}/${OSS_PLUGIN_SETTINGS_FILE_NAME}`
+}
 
 export class OssObjectStoreClient {
   private ossModulePromise: Promise<typeof import('ali-oss')> | null = null
@@ -33,11 +40,11 @@ export class OssObjectStoreClient {
     settings: OssBackupSettingsDto,
     snapshot: PluginBackupSnapshotDto,
   ): Promise<void> {
-    await this.putJson(settings, settings.objectKey, snapshot)
+    await this.putJson(settings, resolvePluginSettingsObjectKey(settings.objectKey), snapshot)
   }
 
   public async downloadSnapshot(settings: OssBackupSettingsDto): Promise<unknown> {
-    return await this.getJson(settings, settings.objectKey)
+    return await this.getJson(settings, resolvePluginSettingsObjectKey(settings.objectKey))
   }
 
   public async putJson(

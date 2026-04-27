@@ -26,6 +26,7 @@ import type {
   RemoveAgentMcpServerInput,
   CreateAgentSkillInput,
   CreateAgentSkillResult,
+  AppUserDataInfo,
   ListTerminalProfilesResult,
   ReadAgentLastMessageInput,
   ReadAgentLastMessageResult,
@@ -120,6 +121,8 @@ export interface FreeCliApi {
   }
   appLifecycle: {
     restart: () => Promise<void>
+    clearUserDataAndRestart: () => Promise<void>
+    getUserDataInfo: () => Promise<AppUserDataInfo>
     writeDiagnosticLog: (payload: WriteDiagnosticLogInput) => Promise<void>
   }
   windowChrome: {

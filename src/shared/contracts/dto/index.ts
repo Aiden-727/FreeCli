@@ -1,4 +1,5 @@
 export * from './agent'
+export * from './appLifecycle'
 export * from './agentExtensions'
 export * from './clipboard'
 export * from './controlSurface'

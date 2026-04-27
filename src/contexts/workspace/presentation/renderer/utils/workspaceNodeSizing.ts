@@ -38,7 +38,7 @@ const MIN_SIZE_BY_KIND: Record<TerminalNodeData['kind'], Size> = {
 }
 
 const MAX_SIZE_BY_KIND: Record<TerminalNodeData['kind'], Size> = {
-  terminal: { width: 720, height: 520 },
+  terminal: { width: 1200, height: 800 },
   task: { width: 360, height: 520 },
   agent: { width: 720, height: 1040 },
   note: { width: 360, height: 260 },

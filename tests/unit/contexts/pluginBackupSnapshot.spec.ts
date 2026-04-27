@@ -34,7 +34,7 @@ describe('plugin backup snapshot', () => {
           endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
           region: 'oss-cn-hangzhou',
           bucket: 'freecli',
-          objectKey: 'freecli/latest.json',
+          objectKey: 'freecli',
           accessKeyId: 'id',
           accessKeySecret: 'secret',
           autoBackupEnabled: true,
@@ -62,7 +62,7 @@ describe('plugin backup snapshot', () => {
       endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
       region: 'oss-cn-hangzhou',
       bucket: 'freecli',
-      objectKey: 'freecli/latest.json',
+      objectKey: 'freecli',
       autoBackupEnabled: true,
       autoBackupMinIntervalSeconds: 12,
       restoreOnStartupEnabled: true,
@@ -143,7 +143,7 @@ describe('plugin backup snapshot', () => {
     expect(merged.systemMonitor).toEqual(DEFAULT_AGENT_SETTINGS.plugins.systemMonitor)
     expect(merged.quotaMonitor.apiBaseUrl).toBe('https://quota.example.test')
     expect(merged.quotaMonitor.keyProfiles[0]?.apiKey).toBe('')
-    expect(merged.ossBackup.objectKey).toBe('freecli/latest.json')
+    expect(merged.ossBackup.objectKey).toBe('freecli')
     expect(merged.ossBackup.accessKeySecret).toBe('')
     expect(merged.ossBackup.autoBackupMinIntervalSeconds).toBe(120)
     expect(merged.ossBackup.restoreOnStartupEnabled).toBe(true)

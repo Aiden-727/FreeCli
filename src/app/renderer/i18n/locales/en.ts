@@ -815,7 +815,9 @@ export const en = {
         endpointLabel: 'Endpoint',
         regionLabel: 'Region',
         bucketLabel: 'Bucket',
-        objectKeyLabel: 'Object Key',
+        objectKeyLabel: 'Object Directory',
+        objectKeyHelp:
+          'Enter a directory only. FreeCli will create latest.json, manifest.json, and history files inside it.',
         accessKeyIdLabel: 'AccessKey ID',
         accessKeySecretLabel: 'AccessKey Secret',
         testConnection: 'Test Connection',

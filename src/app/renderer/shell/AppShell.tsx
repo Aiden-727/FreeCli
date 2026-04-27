@@ -14,6 +14,7 @@ import { DeleteProjectDialog } from './components/DeleteProjectDialog'
 import { ProjectContextMenu } from './components/ProjectContextMenu'
 import { Sidebar } from './components/Sidebar'
 import { SpaceArchiveRecordsWindow } from './components/SpaceArchiveRecordsWindow'
+import { WarningDialog } from '@app/renderer/components/WarningDialog'
 import { WorkspaceMain } from './components/WorkspaceMain'
 import { WorkspaceSearchOverlay } from './components/WorkspaceSearchOverlay'
 import { useHydrateAppState } from './hooks/useHydrateAppState'
@@ -184,6 +185,9 @@ export default function App(): React.JSX.Element {
   const [isSpaceArchivesOpen, setIsSpaceArchivesOpen] = useState(false)
   const [isPluginManagerOpen, setIsPluginManagerOpen] = useState(false)
   const [isRestartingApp, setIsRestartingApp] = useState(false)
+  const [isClearingUserData, setIsClearingUserData] = useState(false)
+  const [isClearUserDataDialogOpen, setIsClearUserDataDialogOpen] = useState(false)
+  const [userDataPath, setUserDataPath] = useState<string | null>(null)
   const [pluginManagerInitialPageId, setPluginManagerInitialPageId] = useState<
     'general' | BuiltinPluginId
   >('general')
@@ -197,6 +201,9 @@ export default function App(): React.JSX.Element {
   const [hasCapturedAppliedGraphicsMode, setHasCapturedAppliedGraphicsMode] = useState(false)
   const [projectPathOpeners, setProjectPathOpeners] = useState<WorkspacePathOpener[]>([])
   const [isProjectPathOpenersLoading, setIsProjectPathOpenersLoading] = useState(false)
+  const userDataPathLabel =
+    userDataPath ??
+    (window.freecliApi?.meta?.isDev ? '当前开发实例的 userData 目录' : '当前应用实例的 userData 目录')
   const pluginHostSyncSignatureRef = React.useRef(new Map<PluginHostDiagnosticCode, string>())
   const workspacePluginSyncItems = useMemo(
     () =>
@@ -356,6 +363,21 @@ export default function App(): React.JSX.Element {
       openWorkspaceSearch()
     },
   })
+
+  useEffect(() => {
+    const getter = window.freecliApi?.appLifecycle?.getUserDataInfo
+    if (typeof getter !== 'function') {
+      return
+    }
+
+    void getter()
+      .then(info => {
+        setUserDataPath(info.path)
+      })
+      .catch(() => {
+        setUserDataPath(null)
+      })
+  }, [])
 
   useEffect(() => {
     if (!isSettingsOpen && !isPluginManagerOpen && projectDeleteConfirmation === null) {
@@ -742,6 +764,28 @@ export default function App(): React.JSX.Element {
     }
   }, [flushPersistNow, handleShowMessage, isRestartingApp, t])
 
+  const handleConfirmClearUserData = useCallback(async (): Promise<void> => {
+    if (isClearingUserData || isRestartingApp) {
+      return
+    }
+
+    setIsClearingUserData(true)
+
+    try {
+      await flushPersistNow()
+      await window.freecliApi.appLifecycle.clearUserDataAndRestart()
+    } catch (error) {
+      setIsClearingUserData(false)
+      setIsClearUserDataDialogOpen(false)
+      handleShowMessage(
+        t('settingsPanel.general.resetData.failed', {
+          message: toErrorMessage(error),
+        }),
+        'error',
+      )
+    }
+  }, [flushPersistNow, handleShowMessage, isClearingUserData, isRestartingApp, t])
+
   return (
     <>
       <div
@@ -993,6 +1037,8 @@ export default function App(): React.JSX.Element {
           appliedGraphicsMode={appliedGraphicsMode}
           updateState={updateState}
           isRestartingApp={isRestartingApp}
+          userDataPath={userDataPathLabel}
+          isClearingUserData={isClearingUserData}
           modelCatalogByProvider={providerModelCatalog}
           workspaces={workspaces}
           onWorkspaceWorktreesRootChange={(id, root) => {
@@ -1016,11 +1062,69 @@ export default function App(): React.JSX.Element {
           onRestartApp={() => {
             void handleRestartApp()
           }}
+          onRequestClearUserData={() => {
+            setIsClearUserDataDialogOpen(true)
+          }}
           onClose={() => {
             flushPersistNow()
             setIsFocusNodeTargetZoomPreviewing(false)
             setIsSettingsOpen(false)
           }}
+        />
+      ) : null}
+      {isClearUserDataDialogOpen ? (
+        <WarningDialog
+          dataTestId="settings-clear-user-data-dialog"
+          title={t('settingsPanel.general.resetData.dialogTitle')}
+          summary={t('settingsPanel.general.resetData.dialogSummary')}
+          statusLabel={t('common.warning')}
+          statusAriaLabel={t('common.warning')}
+          lead={
+            <div className="workspace-warning-dialog__message">
+              <p>{t('settingsPanel.general.resetData.dialogLead')}</p>
+              <p>
+                {t('settingsPanel.general.resetData.scopeHelp', {
+                  path: userDataPathLabel,
+                })}
+              </p>
+            </div>
+          }
+          actions={
+            <>
+              <button
+                type="button"
+                className="cove-window__action workspace-task-creator__action"
+                onClick={() => {
+                  if (isClearingUserData) {
+                    return
+                  }
+                  setIsClearUserDataDialogOpen(false)
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="cove-window__action cove-window__action--danger workspace-task-creator__action workspace-task-creator__action--danger"
+                data-testid="settings-clear-user-data-confirm"
+                onClick={() => {
+                  void handleConfirmClearUserData()
+                }}
+                disabled={isClearingUserData}
+              >
+                {isClearingUserData
+                  ? t('settingsPanel.general.resetData.clearing')
+                  : t('settingsPanel.general.resetData.confirmAction')}
+              </button>
+            </>
+          }
+          onBackdropClick={() => {
+            if (isClearingUserData) {
+              return
+            }
+            setIsClearUserDataDialogOpen(false)
+          }}
+          disableBackdropDismiss={isClearingUserData}
         />
       ) : null}
       <PluginManagerPanel

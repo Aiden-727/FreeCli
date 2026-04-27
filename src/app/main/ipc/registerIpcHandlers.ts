@@ -23,6 +23,7 @@ import { registerPersistenceIpcHandlers } from '../../../platform/persistence/sq
 import { registerWindowChromeIpcHandlers } from './registerWindowChromeIpcHandlers'
 import { registerWindowMetricsIpcHandlers } from './registerWindowMetricsIpcHandlers'
 import { registerAppLifecycleIpcHandlers } from './registerAppLifecycleIpcHandlers'
+import { writeUserDataResetMarker } from '../userDataReset'
 
 export type { IpcRegistrationDisposable } from './types'
 
@@ -44,6 +45,7 @@ export function registerIpcHandlers(deps?: {
   ptyRuntime?: ReturnType<typeof createPtyRuntime>
   approvedWorkspaces?: ReturnType<typeof createApprovedWorkspaceStore>
   requestRestart?: () => boolean
+  clearUserDataAndRestart?: () => Promise<void>
 }): IpcRegistrationDisposable {
   const ptyRuntime = deps?.ptyRuntime ?? createPtyRuntime()
   const approvedWorkspaces = deps?.approvedWorkspaces ?? createApprovedWorkspaceStore()
@@ -74,7 +76,15 @@ export function registerIpcHandlers(deps?: {
 
   const disposables: IpcRegistrationDisposable[] = [
     registerClipboardIpcHandlers(),
-    registerAppLifecycleIpcHandlers({ requestRestart: deps?.requestRestart }),
+    registerAppLifecycleIpcHandlers({
+      requestRestart: deps?.requestRestart,
+      clearUserDataAndRestart:
+        deps?.clearUserDataAndRestart ??
+        (async () => {
+          await writeUserDataResetMarker(app.getPath('userData'))
+          ;(deps?.requestRestart ?? (() => false))()
+        }),
+    }),
     registerAppUpdateIpcHandlers(appUpdateService),
     registerReleaseNotesIpcHandlers(releaseNotesService),
     registerWorkspaceIpcHandlers(approvedWorkspaces),

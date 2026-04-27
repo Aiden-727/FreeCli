@@ -53,6 +53,7 @@ const AUTO_BACKUP_RETRY_JITTER_MAX = 1.15
 const OSS_SYNC_STATE_SCHEMA = 1
 const OSS_MANIFEST_SCHEMA = 1
 const OSS_SYNC_STATE_FILE_NAME = 'sync-state.json'
+const OSS_PLUGIN_SETTINGS_FILE_NAME = 'latest.json'
 const OSS_MANIFEST_FILE_NAME = 'manifest.json'
 const INPUT_STATS_HISTORY_FILE_NAME = 'input-stats-history.json'
 const QUOTA_MONITOR_HISTORY_FILE_NAME = 'quota-monitor-history.json'
@@ -189,19 +190,18 @@ function normalizeObjectKey(value: string): string {
     .replace(/\\/g, '/')
     .replace(/^\/+/, '')
     .replace(/\/{2,}/g, '/')
+    .replace(/\/+$/, '')
 }
 
 function deriveObjectKeys(settings: OssBackupSettingsDto): OssObjectKeys {
-  const pluginSettingsObjectKey = normalizeObjectKey(settings.objectKey)
-  const slashIndex = pluginSettingsObjectKey.lastIndexOf('/')
-  const basePrefix = slashIndex >= 0 ? pluginSettingsObjectKey.slice(0, slashIndex) : ''
+  const basePrefix = normalizeObjectKey(settings.objectKey)
   const resolveInPrefix = (fileName: string): string =>
     basePrefix.length > 0 ? `${basePrefix}/${fileName}` : fileName
 
   return {
     manifestKey: resolveInPrefix(OSS_MANIFEST_FILE_NAME),
     datasetObjectKeys: {
-      'plugin-settings': pluginSettingsObjectKey,
+      'plugin-settings': resolveInPrefix(OSS_PLUGIN_SETTINGS_FILE_NAME),
       'input-stats-history': resolveInPrefix(INPUT_STATS_HISTORY_FILE_NAME),
       'quota-monitor-history': resolveInPrefix(QUOTA_MONITOR_HISTORY_FILE_NAME),
       'git-worklog-history': resolveInPrefix(GIT_WORKLOG_HISTORY_FILE_NAME),

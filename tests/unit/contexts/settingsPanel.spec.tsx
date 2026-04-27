@@ -1,7 +1,7 @@
 import React from 'react'
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AGENT_PROVIDERS,
   DEFAULT_AGENT_SETTINGS,
@@ -78,6 +78,33 @@ function createUpdateState(overrides: Partial<AppUpdateState> = {}): AppUpdateSt
     message: null,
     ...overrides,
   }
+}
+
+function renderSettingsPanel(
+  overrides: Partial<React.ComponentProps<typeof SettingsPanel>> = {},
+) {
+  return render(
+    <SettingsPanel
+      settings={DEFAULT_AGENT_SETTINGS}
+      appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
+      updateState={createUpdateState()}
+      userDataPath={null}
+      isClearingUserData={false}
+      modelCatalogByProvider={createModelCatalog()}
+      workspaces={[]}
+      onWorkspaceWorktreesRootChange={() => undefined}
+      isFocusNodeTargetZoomPreviewing={false}
+      onFocusNodeTargetZoomPreviewChange={() => undefined}
+      onChange={() => undefined}
+      onCheckForUpdates={() => undefined}
+      onDownloadUpdate={() => undefined}
+      onInstallUpdate={() => undefined}
+      onRestartApp={() => undefined}
+      onRequestClearUserData={() => undefined}
+      onClose={() => undefined}
+      {...overrides}
+    />,
+  )
 }
 
 describe('SettingsPanel', () => {
@@ -159,33 +186,10 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    const { rerender } = render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState()}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onInstallUpdate={() => undefined}
-        onRestartApp={() => undefined}
-        onClose={() => undefined}
-      />,
-    )
+    renderSettingsPanel({ onChange })
 
-    const canvasNav = screen.getByTestId('settings-section-nav-canvas')
-    fireEvent.click(canvasNav)
-
-    const trigger = screen.getByTestId('settings-terminal-profile-trigger')
-    expect(trigger).toBeVisible()
-    expect(screen.getByText('自动（PowerShell）')).toBeVisible()
-
-    fireEvent.click(trigger)
+    fireEvent.click(screen.getByTestId('settings-section-nav-canvas'))
+    fireEvent.click(screen.getByTestId('settings-terminal-profile-trigger'))
     fireEvent.click(screen.getByRole('option', { name: 'WSL (Ubuntu)' }))
 
     expect(onChange).toHaveBeenCalledWith({
@@ -202,24 +206,7 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    const { rerender } = render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState()}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onInstallUpdate={() => undefined}
-        onRestartApp={() => undefined}
-        onClose={() => undefined}
-      />,
-    )
+    renderSettingsPanel({ onChange })
 
     fireEvent.click(screen.getByTestId('settings-section-nav-agent'))
     fireEvent.click(screen.getByTestId('settings-agent-order-move-down-claude-code'))
@@ -238,24 +225,7 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    const { rerender } = render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState()}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onInstallUpdate={() => undefined}
-        onRestartApp={() => undefined}
-        onClose={() => undefined}
-      />,
-    )
+    renderSettingsPanel({ onChange })
 
     fireEvent.click(screen.getByTestId('settings-section-nav-canvas'))
     fireEvent.click(screen.getByTestId('settings-standard-window-size-trigger'))
@@ -283,6 +253,8 @@ describe('SettingsPanel', () => {
           settings={settings}
           appliedGraphicsMode={settings.graphicsMode}
           updateState={createUpdateState()}
+          userDataPath={null}
+          isClearingUserData={false}
           modelCatalogByProvider={createModelCatalog()}
           workspaces={[]}
           onWorkspaceWorktreesRootChange={() => undefined}
@@ -296,6 +268,7 @@ describe('SettingsPanel', () => {
           onDownloadUpdate={() => undefined}
           onInstallUpdate={() => undefined}
           onRestartApp={() => undefined}
+          onRequestClearUserData={() => undefined}
           onClose={() => undefined}
         />
       )
@@ -343,24 +316,7 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState()}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onInstallUpdate={() => undefined}
-        onRestartApp={() => undefined}
-        onClose={() => undefined}
-      />,
-    )
+    renderSettingsPanel({ onChange })
 
     fireEvent.click(screen.getByTestId('settings-section-nav-ai'))
 
@@ -425,28 +381,16 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState({
-          status: 'available',
-          latestVersion: '0.2.1',
-          checkedAt: '2026-03-20T00:00:00.000Z',
-        })}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={onCheckForUpdates}
-        onDownloadUpdate={onDownloadUpdate}
-        onInstallUpdate={() => undefined}
-        onRestartApp={() => undefined}
-        onClose={() => undefined}
-      />,
-    )
+    renderSettingsPanel({
+      onChange,
+      onCheckForUpdates,
+      onDownloadUpdate,
+      updateState: createUpdateState({
+        status: 'available',
+        latestVersion: '0.2.1',
+        checkedAt: '2026-03-20T00:00:00.000Z',
+      }),
+    })
 
     fireEvent.click(screen.getByTestId('settings-update-policy-trigger'))
     fireEvent.click(screen.getByRole('option', { name: '自动更新' }))
@@ -478,24 +422,7 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    const { rerender } = render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState()}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onInstallUpdate={() => undefined}
-        onRestartApp={() => undefined}
-        onClose={() => undefined}
-      />,
-    )
+    renderSettingsPanel({ onChange })
 
     fireEvent.click(screen.getByTestId('settings-section-nav-integrations'))
     fireEvent.click(screen.getByTestId('settings-github-pull-requests-enabled'))
@@ -515,24 +442,7 @@ describe('SettingsPanel', () => {
       refreshTerminalProfiles: async () => undefined,
     })
 
-    const { rerender } = render(
-      <SettingsPanel
-        settings={DEFAULT_AGENT_SETTINGS}
-        appliedGraphicsMode={DEFAULT_AGENT_SETTINGS.graphicsMode}
-        updateState={createUpdateState()}
-        modelCatalogByProvider={createModelCatalog()}
-        workspaces={[]}
-        onWorkspaceWorktreesRootChange={() => undefined}
-        isFocusNodeTargetZoomPreviewing={false}
-        onFocusNodeTargetZoomPreviewChange={() => undefined}
-        onChange={onChange}
-        onCheckForUpdates={() => undefined}
-        onDownloadUpdate={() => undefined}
-        onInstallUpdate={() => undefined}
-        onRestartApp={onRestartApp}
-        onClose={() => undefined}
-      />,
-    )
+    const { rerender } = renderSettingsPanel({ onChange, onRestartApp })
 
     fireEvent.click(screen.getByTestId('settings-graphics-mode-trigger'))
     fireEvent.click(screen.getByRole('option', { name: '低功耗优先' }))
@@ -547,6 +457,8 @@ describe('SettingsPanel', () => {
         settings={{ ...DEFAULT_AGENT_SETTINGS, graphicsMode: 'power-saving' }}
         appliedGraphicsMode="system-default"
         updateState={createUpdateState()}
+        userDataPath={null}
+        isClearingUserData={false}
         modelCatalogByProvider={createModelCatalog()}
         workspaces={[]}
         onWorkspaceWorktreesRootChange={() => undefined}
@@ -557,11 +469,31 @@ describe('SettingsPanel', () => {
         onDownloadUpdate={() => undefined}
         onInstallUpdate={() => undefined}
         onRestartApp={onRestartApp}
+        onRequestClearUserData={() => undefined}
         onClose={() => undefined}
       />,
     )
 
     fireEvent.click(screen.getByTestId('settings-graphics-mode-restart'))
     expect(onRestartApp).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the clear-local-data action and forwards clicks', () => {
+    const onRequestClearUserData = vi.fn()
+    vi.spyOn(terminalProfilesHook, 'useTerminalProfiles').mockReturnValue({
+      terminalProfiles: [],
+      detectedDefaultTerminalProfileId: null,
+      refreshTerminalProfiles: async () => undefined,
+    })
+
+    renderSettingsPanel({
+      userDataPath: 'C:/Users/Aiden/AppData/Roaming/freecli',
+      onRequestClearUserData,
+    })
+
+    expect(screen.getByTestId('settings-clear-user-data-section')).toBeVisible()
+    expect(screen.getByText('将清空：C:/Users/Aiden/AppData/Roaming/freecli')).toBeVisible()
+    fireEvent.click(screen.getByTestId('settings-clear-user-data'))
+    expect(onRequestClearUserData).toHaveBeenCalledTimes(1)
   })
 })

@@ -24,6 +24,7 @@ import type {
   RemoveAgentMcpServerInput,
   CreateAgentSkillInput,
   CreateAgentSkillResult,
+  AppUserDataInfo,
   ListGitBranchesInput,
   ListGitBranchesResult,
   ListGitWorktreesInput,
@@ -128,6 +129,10 @@ const freecliApi = {
   },
   appLifecycle: {
     restart: (): Promise<void> => invokeIpc(IPC_CHANNELS.appLifecycleRestart),
+    clearUserDataAndRestart: (): Promise<void> =>
+      invokeIpc(IPC_CHANNELS.appLifecycleClearUserDataAndRestart),
+    getUserDataInfo: (): Promise<AppUserDataInfo> =>
+      invokeIpc(IPC_CHANNELS.appLifecycleGetUserDataInfo),
     writeDiagnosticLog: (payload: WriteDiagnosticLogInput): Promise<void> =>
       invokeIpc(IPC_CHANNELS.appLifecycleWriteDiagnosticLog, payload),
   },

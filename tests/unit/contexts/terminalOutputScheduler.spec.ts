@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createTerminalOutputScheduler } from '../../../src/contexts/workspace/presentation/renderer/components/terminalNode/outputScheduler'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('terminal output scheduler', () => {
   it('refreshes a tiny local range after wide-glyph writes', () => {
@@ -38,7 +42,43 @@ describe('terminal output scheduler', () => {
     expect(requestAnimationFrameSpy).toHaveBeenCalled()
   })
 
-  it('does not force an extra refresh for plain ascii writes', () => {
+  it('refreshes the active bottom prompt line for short ascii writes', () => {
+    const refresh = vi.fn()
+    const write = vi.fn((_: string, callback?: () => void) => {
+      callback?.()
+    })
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(callback => {
+        callback(16)
+        return 1
+      })
+
+    const scheduler = createTerminalOutputScheduler({
+      terminal: {
+        write,
+        refresh,
+        rows: 24,
+        buffer: {
+          active: {
+            cursorY: 23,
+          },
+        },
+      } as never,
+      scrollbackBuffer: {
+        append: vi.fn(),
+      },
+      markScrollbackDirty: vi.fn(),
+    })
+
+    scheduler.handleChunk('plain ascii')
+
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalledWith(22, 23)
+    expect(requestAnimationFrameSpy).toHaveBeenCalled()
+  })
+
+  it('does not force an extra refresh for plain ascii writes away from the bottom prompt line', () => {
     const refresh = vi.fn()
     const write = vi.fn((_: string, callback?: () => void) => {
       callback?.()

@@ -8,10 +8,10 @@ import {
 import { resolveNodePlacementAnchorFromViewportCenter } from '../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/helpers'
 
 describe('workspace canvas default sizing', () => {
-  it('resolves canonical window sizes from the selected bucket', () => {
+  it('keeps terminal default size fixed while other node types still follow the selected bucket', () => {
     expect(resolveDefaultTerminalWindowSize('large')).toEqual({
-      width: 564,
-      height: 388,
+      width: 1000,
+      height: 600,
     })
 
     expect(resolveDefaultTaskWindowSize('large')).toEqual({
@@ -30,10 +30,10 @@ describe('workspace canvas default sizing', () => {
     })
   })
 
-  it('keeps compact bucket sizes on the canonical grid', () => {
+  it('keeps terminal default size fixed for compact buckets too', () => {
     expect(resolveDefaultTerminalWindowSize('compact')).toEqual({
-      width: 468,
-      height: 324,
+      width: 1000,
+      height: 600,
     })
 
     expect(resolveDefaultAgentWindowSize('compact')).toEqual({
@@ -44,8 +44,8 @@ describe('workspace canvas default sizing', () => {
 
   it('defaults to the regular bucket when none is provided', () => {
     expect(resolveDefaultTerminalWindowSize()).toEqual({
-      width: 516,
-      height: 356,
+      width: 1000,
+      height: 600,
     })
 
     expect(resolveDefaultAgentWindowSize()).toEqual({
