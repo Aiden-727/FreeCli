@@ -70,7 +70,7 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "pnpm build:system-monitor-helper && electron-vite dev",
     "build": "electron-vite build",
     "check": "tsc -b tsconfig.node.json tsconfig.web.json --noEmit",
     "preview": "electron-vite preview",

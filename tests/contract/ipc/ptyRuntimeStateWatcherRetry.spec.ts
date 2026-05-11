@@ -24,14 +24,21 @@ describe('Pty runtime session state watcher', () => {
 
     class MockSessionTurnStateWatcher {
       private readonly onState: (sessionId: string, state: 'working' | 'standby') => void
+      private readonly onAttention?: (
+        sessionId: string,
+        reason: 'approval' | 'input' | 'recovery',
+      ) => void
 
       public constructor(options: {
         onState: (sessionId: string, state: 'working' | 'standby') => void
+        onAttention?: (sessionId: string, reason: 'approval' | 'input' | 'recovery') => void
       }) {
         this.onState = options.onState
+        this.onAttention = options.onAttention
       }
 
       public start(): void {
+        this.onAttention?.('session-1', 'input')
         this.onState('session-1', 'working')
       }
 
@@ -88,6 +95,7 @@ describe('Pty runtime session state watcher', () => {
 
     runtime.startSessionStateWatcher({
       sessionId: 'session-1',
+      bindingId: 'binding-1',
       provider: 'codex',
       cwd: '/tmp',
       launchMode: 'new',
@@ -112,7 +120,17 @@ describe('Pty runtime session state watcher', () => {
         ([channel, payload]) =>
           channel === IPC_CHANNELS.ptySessionMetadata &&
           payload.sessionId === 'session-1' &&
+          payload.bindingId === 'binding-1' &&
           payload.resumeSessionId === 'resume-1',
+      ),
+    ).toBe(true)
+    expect(
+      send.mock.calls.some(
+        ([channel, payload]) =>
+          channel === IPC_CHANNELS.ptyAttention &&
+          payload.sessionId === 'session-1' &&
+          payload.bindingId === 'binding-1' &&
+          payload.reason === 'input',
       ),
     ).toBe(true)
     expect(
@@ -120,6 +138,7 @@ describe('Pty runtime session state watcher', () => {
         ([channel, payload]) =>
           channel === IPC_CHANNELS.ptyState &&
           payload.sessionId === 'session-1' &&
+          payload.bindingId === 'binding-1' &&
           payload.state === 'working',
       ),
     ).toBe(true)
@@ -199,6 +218,7 @@ describe('Pty runtime session state watcher', () => {
 
     runtime.startSessionStateWatcher({
       sessionId: 'session-1',
+      bindingId: 'binding-1',
       provider: 'codex',
       cwd: '/tmp',
       launchMode: 'resume',
@@ -213,6 +233,7 @@ describe('Pty runtime session state watcher', () => {
         ([channel, payload]) =>
           channel === IPC_CHANNELS.ptySessionMetadata &&
           payload.sessionId === 'session-1' &&
+          payload.bindingId === 'binding-1' &&
           payload.resumeSessionId === 'resume-1',
       ),
     ).toBe(true)
@@ -221,6 +242,7 @@ describe('Pty runtime session state watcher', () => {
         return (
           channel === IPC_CHANNELS.ptyState &&
           payload.sessionId === 'session-1' &&
+          payload.bindingId === 'binding-1' &&
           payload.state === 'standby'
         )
       }),

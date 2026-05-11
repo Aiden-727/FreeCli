@@ -334,13 +334,14 @@
   animation: app-header-update-spin 1.2s linear infinite;
 }
 
-.app-header__quota-button {
-  width: 36px;
+.app-header__quota-button,
+.app-header__eye-care-button {
+  min-width: 36px;
   height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0 10px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -352,15 +353,18 @@
     transform 0.15s ease;
 }
 
-.app-header__quota-button:hover {
+.app-header__quota-button:hover,
+.app-header__eye-care-button:hover {
   background: color-mix(in srgb, var(--cove-surface-hover) 72%, transparent);
 }
 
-.app-header__quota-button:active {
+.app-header__quota-button:active,
+.app-header__eye-care-button:active {
   transform: translateY(1px);
 }
 
-.app-header__quota-button:focus-visible {
+.app-header__quota-button:focus-visible,
+.app-header__eye-care-button:focus-visible {
   outline: 2px solid rgba(94, 156, 255, 0.85);
   outline-offset: 2px;
 }
@@ -520,6 +524,117 @@
   font-variant-numeric: tabular-nums;
 }
 
+.app-header__eye-care-shell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  -webkit-app-region: no-drag;
+}
+
+.app-header__eye-care-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  min-width: 5.3ch;
+  justify-content: center;
+}
+
+.app-header__eye-care-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.3ch;
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--cove-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-header__eye-care-loading {
+  position: relative;
+  display: inline-flex;
+  width: 5.3ch;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.2) 18%,
+      rgba(255, 255, 255, 0.08) 42%,
+      rgba(255, 255, 255, 0.08) 100%
+    );
+  background-size: 220% 100%;
+  animation: app-header-eye-care-loading 1.15s ease-in-out infinite;
+}
+
+.app-header__eye-care-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  transform: translateX(-4px);
+  transition:
+    opacity 160ms ease,
+    max-width 160ms ease,
+    transform 160ms ease;
+}
+
+.app-header__eye-care-shell:hover .app-header__eye-care-actions,
+.app-header__eye-care-shell:focus-within .app-header__eye-care-actions {
+  opacity: 1;
+  max-width: 80px;
+  transform: translateX(0);
+}
+
+.app-header__eye-care-action {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.96);
+  -webkit-app-region: no-drag;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease,
+    opacity 150ms ease;
+}
+
+.app-header__eye-care-action:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.app-header__eye-care-action:active {
+  transform: translateY(0);
+}
+
+.app-header__eye-care-action:focus-visible {
+  outline: 2px solid rgba(94, 156, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.app-header__eye-care-action--pause,
+.app-header__eye-care-action--stop {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.96), rgba(220, 38, 38, 0.96));
+  box-shadow: 0 8px 14px rgba(220, 38, 38, 0.22);
+}
+
+.app-header__eye-care-action--resume {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.96), rgba(22, 163, 74, 0.96));
+  box-shadow: 0 8px 14px rgba(22, 163, 74, 0.2);
+}
+
 .app-header__icon-button:hover {
   background: var(--cove-surface-hover);
   color: var(--cove-text);
@@ -566,5 +681,21 @@
 
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes app-header-eye-care-loading {
+  0% {
+    background-position: 100% 50%;
+    opacity: 0.76;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.76;
   }
 }

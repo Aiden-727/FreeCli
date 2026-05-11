@@ -25,10 +25,12 @@ describe('SystemMonitorPluginController', () => {
 
     const helperClient = {
       configure: vi.fn().mockResolvedValue({
-        requestedEnabled: true,
-        visible: true,
-        embedded: true,
-        error: null,
+        taskbarWidgetStatus: {
+          requestedEnabled: false,
+          visible: false,
+          embedded: false,
+          error: null,
+        },
       }),
       getSnapshot: vi.fn().mockImplementation(async () => {
         nowRef.value += 220
@@ -41,12 +43,6 @@ describe('SystemMonitorPluginController', () => {
           cpuUsagePercent: 31,
           memoryUsagePercent: 52,
           gpuUsagePercent: null,
-          taskbarWidgetStatus: {
-            requestedEnabled: false,
-            visible: false,
-            embedded: false,
-            error: null,
-          },
         }
       }),
       stop: vi.fn().mockResolvedValue(undefined),
@@ -105,10 +101,12 @@ describe('SystemMonitorPluginController', () => {
   it('moves to error state with helper diagnostics when the first snapshot fails', async () => {
     const helperClient = {
       configure: vi.fn().mockResolvedValue({
-        requestedEnabled: false,
-        visible: false,
-        embedded: false,
-        error: null,
+        taskbarWidgetStatus: {
+          requestedEnabled: false,
+          visible: false,
+          embedded: false,
+          error: null,
+        },
       }),
       getSnapshot: vi
         .fn()

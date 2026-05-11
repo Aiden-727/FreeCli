@@ -76,3 +76,26 @@
   - Renderer 会显示一次性恢复提示（提示原因：`corrupt_db` / `migration_failed`）。
 
 以上机制保证“应用可启动”，但 **不等于迁移可以随意失败**。Schema 变更仍需严格测试与回归覆盖。
+
+## 5) App-State 兼容迁移（非 SQLite Schema 变更）
+
+并非所有“持久化结构变化”都会触发 SQLite schema migration。
+
+对于 renderer `app state / workspace state` 这类 JSON durable state，本仓允许在 **读取归一化阶段** 做兼容迁移，只要同时满足：
+
+- 不涉及 SQLite 表结构、索引或 `user_version`。
+- 可以在 `normalize / ensure` 阶段为旧数据补出新字段。
+- 旧数据补全后能立即被最新恢复模型消费。
+
+典型例子：
+
+- 为旧 `agent node / hosted terminal / task session record` 补出 durable `bindingId`
+- 为旧 task 补出 `linkedAgentBindingId`
+- 把旧的“按 `sessionId` 猜归属”恢复为“按 `bindingId` 明确归属”
+
+这种场景下必须遵守：
+
+1. 在读取层做幂等补全，不能要求用户手动清库。
+2. 在对应恢复文档中明确新旧语义差异与 owner。
+3. 至少补 `unit / integration` 回归，证明旧 payload 读入后会得到完整新字段。
+4. 明确说明“这是 app-state 兼容迁移，不是 SQLite schema migration”，避免误触发 `DB_SCHEMA_VERSION` 升级。

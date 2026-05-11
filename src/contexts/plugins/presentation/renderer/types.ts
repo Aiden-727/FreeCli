@@ -3,6 +3,7 @@ import type { BuiltinPluginId } from '../../domain/pluginManifest'
 
 export type PluginHostDiagnosticCode =
   | 'runtime_sync'
+  | 'eye_care_sync'
   | 'input_stats_sync'
   | 'system_monitor_sync'
   | 'quota_monitor_sync'

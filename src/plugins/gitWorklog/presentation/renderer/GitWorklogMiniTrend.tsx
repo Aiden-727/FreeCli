@@ -1,7 +1,10 @@
 import React from 'react'
 import type { GitWorklogDailyPointDto } from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
-import { formatGitWorklogCount, getGitWorklogRecentPoints } from './gitWorklogFormatting'
+import {
+  formatGitWorklogCount,
+  getGitWorklogCalendarWindowPoints,
+} from './gitWorklogFormatting'
 import { createGitWorklogPlotPoints, createGitWorklogSmoothPath } from './gitWorklogTrendPaths'
 
 const REPO_TREND_WINDOWS = [7, 15, 30] as const
@@ -12,29 +15,31 @@ const MINI_PADDING_RIGHT = 8
 const MINI_PADDING_TOP = 10
 const MINI_PADDING_BOTTOM = 22
 const MINI_GRID_LINES = 4
+const MINI_TREND_TRANSITION_MS = 220
 
-type RepoTrendWindow = (typeof REPO_TREND_WINDOWS)[number]
+export type GitWorklogMiniTrendWindow = (typeof REPO_TREND_WINDOWS)[number]
 
-export function GitWorklogMiniTrend({
-  points,
-  repoId,
-}: {
-  points: GitWorklogDailyPointDto[]
-  repoId: string
-}): React.JSX.Element | null {
-  const { t } = useTranslation()
-  const [windowSize, setWindowSize] = React.useState<RepoTrendWindow>(7)
-  const displayPoints = React.useMemo(
-    () => getGitWorklogRecentPoints(points, windowSize),
-    [points, windowSize],
-  )
+type MiniTrendChartModel = {
+  displayPoints: GitWorklogDailyPointDto[]
+  tickValues: number[]
+  additionsPath: string
+  deletionsPath: string
+  totalChangedLines: number
+}
 
-  if (displayPoints.length === 0) {
-    return null
+function buildMiniTrendChartModel(points: GitWorklogDailyPointDto[]): MiniTrendChartModel {
+  if (points.length === 0) {
+    return {
+      displayPoints: [],
+      tickValues: [],
+      additionsPath: '',
+      deletionsPath: '',
+      totalChangedLines: 0,
+    }
   }
 
-  const additions = displayPoints.map(point => point.additions)
-  const deletions = displayPoints.map(point => point.deletions)
+  const additions = points.map(point => point.additions)
+  const deletions = points.map(point => point.deletions)
   const maxValue = Math.max(1, ...additions, ...deletions)
   const additionsPath = createGitWorklogSmoothPath(
     createGitWorklogPlotPoints(
@@ -65,7 +70,90 @@ export function GitWorklogMiniTrend({
     const ratio = (MINI_GRID_LINES - 1 - index) / (MINI_GRID_LINES - 1)
     return Math.round(maxValue * ratio)
   })
-  const totalChangedLines = displayPoints.reduce((sum, point) => sum + point.changedLines, 0)
+
+  return {
+    displayPoints: points,
+    tickValues,
+    additionsPath,
+    deletionsPath,
+    totalChangedLines: points.reduce((sum, point) => sum + point.changedLines, 0),
+  }
+}
+
+function renderMiniTrendSvg(model: MiniTrendChartModel, className?: string): React.JSX.Element {
+  const additionsClassName = className
+    ? `git-worklog-mini-trend__path git-worklog-mini-trend__path--additions ${className}`
+    : 'git-worklog-mini-trend__path git-worklog-mini-trend__path--additions'
+  const deletionsClassName = className
+    ? `git-worklog-mini-trend__path git-worklog-mini-trend__path--deletions ${className}`
+    : 'git-worklog-mini-trend__path git-worklog-mini-trend__path--deletions'
+  const plotHeight = MINI_HEIGHT - MINI_PADDING_TOP - MINI_PADDING_BOTTOM
+  const maxValue = Math.max(...model.tickValues, 1)
+
+  return (
+    <svg
+      className="git-worklog-mini-trend__svg"
+      viewBox={`0 0 ${MINI_WIDTH} ${MINI_HEIGHT}`}
+      preserveAspectRatio="none"
+    >
+      {model.tickValues.map((value, index) => {
+        const ratio = value / maxValue
+        const y = MINI_PADDING_TOP + plotHeight - ratio * plotHeight
+        return (
+          <line
+            key={`grid-${index}`}
+            x1={MINI_PADDING_LEFT}
+            y1={y}
+            x2={MINI_WIDTH - MINI_PADDING_RIGHT}
+            y2={y}
+            className="git-worklog-mini-trend__grid-line"
+          />
+        )
+      })}
+      <path d={model.additionsPath} className={additionsClassName} />
+      <path d={model.deletionsPath} className={deletionsClassName} />
+    </svg>
+  )
+}
+
+export function GitWorklogMiniTrend({
+  points,
+  anchorDay,
+  repoId,
+  windowSize,
+  onWindowSizeChange,
+}: {
+  points: GitWorklogDailyPointDto[]
+  anchorDay?: string | null
+  repoId: string
+  windowSize?: GitWorklogMiniTrendWindow
+  onWindowSizeChange?: (nextWindow: GitWorklogMiniTrendWindow) => void
+}): React.JSX.Element | null {
+  const { t } = useTranslation()
+  const [internalWindowSize, setInternalWindowSize] = React.useState<GitWorklogMiniTrendWindow>(7)
+  const [transitionChart, setTransitionChart] = React.useState<{
+    previous: MiniTrendChartModel
+    current: MiniTrendChartModel
+  } | null>(null)
+  const transitionTimerRef = React.useRef<number | null>(null)
+  const activeWindowSize = windowSize ?? internalWindowSize
+  const displayPoints = React.useMemo(
+    () => getGitWorklogCalendarWindowPoints(points, activeWindowSize, anchorDay),
+    [activeWindowSize, anchorDay, points],
+  )
+  const chartModel = React.useMemo(() => buildMiniTrendChartModel(displayPoints), [displayPoints])
+
+  React.useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current)
+      }
+    }
+  }, [])
+
+  if (chartModel.displayPoints.length === 0) {
+    return null
+  }
 
   return (
     <div
@@ -78,7 +166,7 @@ export function GitWorklogMiniTrend({
           <span>{t('pluginManager.plugins.gitWorklog.repoTrendTitle')}</span>
           <strong>
             {t('pluginManager.plugins.gitWorklog.repoTrendSummary', {
-              days: displayPoints.length,
+              days: chartModel.displayPoints.length,
             })}
           </strong>
         </div>
@@ -88,12 +176,36 @@ export function GitWorklogMiniTrend({
               key={range}
               type="button"
               className={`git-worklog-mini-trend__range-button${
-                windowSize === range ? ' git-worklog-mini-trend__range-button--active' : ''
+                activeWindowSize === range ? ' git-worklog-mini-trend__range-button--active' : ''
               }`}
               data-testid={`git-worklog-mini-trend-range-${repoId}-${range}`}
-              aria-pressed={windowSize === range}
+              aria-pressed={activeWindowSize === range}
+              onMouseDown={event => {
+                // 仓库卡支持拖拽重排，这里必须先拦住 mousedown，避免时间切换按钮被父级误判为拖拽起点。
+                event.stopPropagation()
+              }}
               onClick={() => {
-                setWindowSize(range)
+                if (range === activeWindowSize) {
+                  return
+                }
+
+                const nextDisplayPoints = getGitWorklogCalendarWindowPoints(points, range, anchorDay)
+                const nextChartModel = buildMiniTrendChartModel(nextDisplayPoints)
+                if (transitionTimerRef.current !== null) {
+                  window.clearTimeout(transitionTimerRef.current)
+                }
+                setTransitionChart({
+                  previous: chartModel,
+                  current: nextChartModel,
+                })
+                transitionTimerRef.current = window.setTimeout(() => {
+                  setTransitionChart(null)
+                  transitionTimerRef.current = null
+                }, MINI_TREND_TRANSITION_MS)
+                if (windowSize === undefined) {
+                  setInternalWindowSize(range)
+                }
+                onWindowSizeChange?.(range)
               }}
             >
               {t(`pluginManager.plugins.inputStats.range${range}Days`)}
@@ -113,43 +225,31 @@ export function GitWorklogMiniTrend({
         </span>
       </div>
 
-      <svg
-        className="git-worklog-mini-trend__svg"
-        viewBox={`0 0 ${MINI_WIDTH} ${MINI_HEIGHT}`}
-        preserveAspectRatio="none"
-      >
-        {tickValues.map((value, index) => {
-          const ratio = value / maxValue
-          const y = MINI_PADDING_TOP + plotHeight - ratio * plotHeight
-          return (
-            <line
-              key={`grid-${index}`}
-              x1={MINI_PADDING_LEFT}
-              y1={y}
-              x2={MINI_WIDTH - MINI_PADDING_RIGHT}
-              y2={y}
-              className="git-worklog-mini-trend__grid-line"
-            />
-          )
-        })}
-        <path
-          d={additionsPath}
-          className="git-worklog-mini-trend__path git-worklog-mini-trend__path--additions"
-        />
-        <path
-          d={deletionsPath}
-          className="git-worklog-mini-trend__path git-worklog-mini-trend__path--deletions"
-        />
-      </svg>
+      <div className="git-worklog-mini-trend__chart-stack">
+        {transitionChart ? (
+          <>
+            <div className="git-worklog-mini-trend__chart-layer git-worklog-mini-trend__chart-layer--previous">
+              {renderMiniTrendSvg(transitionChart.previous)}
+            </div>
+            <div className="git-worklog-mini-trend__chart-layer git-worklog-mini-trend__chart-layer--current">
+              {renderMiniTrendSvg(transitionChart.current)}
+            </div>
+          </>
+        ) : (
+          <div className="git-worklog-mini-trend__chart-layer">
+            {renderMiniTrendSvg(chartModel)}
+          </div>
+        )}
+      </div>
 
       <div className="git-worklog-mini-trend__footer">
-        <span>{displayPoints[0]?.label}</span>
+        <span>{chartModel.displayPoints[0]?.label}</span>
         <span>
           {t('pluginManager.plugins.gitWorklog.repoTrendTotal', {
-            value: formatGitWorklogCount(totalChangedLines),
+            value: formatGitWorklogCount(chartModel.totalChangedLines),
           })}
         </span>
-        <span>{displayPoints.at(-1)?.label}</span>
+        <span>{chartModel.displayPoints.at(-1)?.label}</span>
       </div>
     </div>
   )

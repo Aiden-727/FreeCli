@@ -29,6 +29,7 @@ export interface ListAgentModelsResult {
 }
 
 export interface LaunchAgentInput {
+  bindingId?: string
   provider: AgentProviderId
   cwd: string
   prompt: string

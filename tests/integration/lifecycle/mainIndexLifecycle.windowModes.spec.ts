@@ -8,6 +8,8 @@ function createMockApp() {
   return {
     whenReady: vi.fn(() => Promise.resolve()),
     getPath: vi.fn((_name: string) => '/tmp/freecli-test-userdata'),
+    setPath: vi.fn(),
+    isPackaged: false,
     commandLine: {
       appendSwitch: vi.fn(),
     },
@@ -22,6 +24,9 @@ function createMockApp() {
       handlers.forEach(handler => handler(...args))
     },
     quit: vi.fn(),
+    dock: {
+      setIcon: vi.fn(),
+    },
   }
 }
 
@@ -53,6 +58,12 @@ async function withProcessEnv(
   }
 }
 
+async function flushAsyncWork(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
 function createBrowserWindowMock() {
   class BrowserWindow {
     public static windows: BrowserWindow[] = []
@@ -65,6 +76,9 @@ function createBrowserWindowMock() {
     }
 
     public webContents = {
+      isDestroyed: vi.fn(() => false),
+      getType: vi.fn(() => 'window'),
+      send: vi.fn(),
       setWindowOpenHandler: vi.fn(),
       on: vi.fn(),
     }
@@ -107,6 +121,22 @@ function mockMainIndexDependencies(params: {
       openExternal: vi.fn(),
     },
     BrowserWindow: params.BrowserWindow,
+    ipcMain: {
+      on: vi.fn(),
+      removeListener: vi.fn(),
+    },
+    Tray: class Tray {
+      public setToolTip = vi.fn()
+      public addListener = vi.fn()
+      public setContextMenu = vi.fn()
+      public destroy = vi.fn()
+    },
+    Menu: {
+      buildFromTemplate: vi.fn(() => ({})),
+    },
+    nativeImage: {
+      createFromPath: vi.fn(() => null),
+    },
   }))
 
   vi.doMock('@electron-toolkit/utils', () => ({
@@ -124,11 +154,22 @@ function mockMainIndexDependencies(params: {
   vi.doMock('../../../src/app/main/ipc/registerIpcHandlers', () => ({
     registerIpcHandlers: () => ({ dispose: params.dispose }),
   }))
+
+  vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
+    createPtyRuntime: () => ({
+      deactivateTransientSessions: vi.fn(),
+      dispose: vi.fn(),
+    }),
+  }))
+
+  vi.doMock('../../../src/app/main/controlSurface/registerControlSurfaceServer', () => ({
+    registerControlSurfaceServer: () => ({ dispose: vi.fn() }),
+  }))
 }
 
 async function importMainIndex(): Promise<void> {
   await import('../../../src/app/main/index')
-  await Promise.resolve()
+  await flushAsyncWork()
 }
 
 describe('main process lifecycle window modes', () => {

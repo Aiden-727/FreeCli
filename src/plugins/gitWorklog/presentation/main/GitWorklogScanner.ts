@@ -15,7 +15,9 @@ import {
   buildGitWorklogCodeCacheKey,
   buildGitWorklogHeatmapCacheKey,
   buildGitWorklogRangeCacheKey,
+  type GitWorklogCachedDailyHistory,
   type GitWorklogCodeCacheValidation,
+  type GitWorklogRefSnapshotEntry,
   type GitWorklogHeatmapCacheValidation,
   type GitWorklogHistoryStore,
   type GitWorklogRangeCacheValidation,
@@ -157,6 +159,19 @@ interface MutableAggregate {
   files: Set<string>
 }
 
+interface CommitScanAggregate {
+  dayBuckets: Map<string, MutableAggregate>
+}
+
+interface CommitLogScanOptions {
+  authorFilter: string
+  since?: string[]
+  until?: string[]
+  excludeOids?: string[]
+}
+
+type DailyHistoryPoint = GitWorklogCachedDailyHistory['dailyPoints'][number]
+
 type GitCommandResult =
   | { ok: true; stdout: string; stderr: string }
   | { ok: false; error: GitWorklogErrorDto }
@@ -258,6 +273,131 @@ function parseNumstatValue(raw: string): number {
 
   const parsed = Number.parseInt(trimmed, 10)
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+}
+
+function createMutableAggregate(): MutableAggregate {
+  return {
+    commitCount: 0,
+    additions: 0,
+    deletions: 0,
+    files: new Set<string>(),
+  }
+}
+
+function cloneDailyPoint(point: GitWorklogDailyPointDto): GitWorklogDailyPointDto {
+  return {
+    day: point.day,
+    label: point.label,
+    commitCount: point.commitCount,
+    filesChanged: point.filesChanged,
+    additions: point.additions,
+    deletions: point.deletions,
+    changedLines: point.changedLines,
+  }
+}
+
+function buildDailyPoint(day: string, aggregate: MutableAggregate): GitWorklogDailyPointDto {
+  return {
+    day,
+    label: formatDayLabel(day),
+    commitCount: aggregate.commitCount,
+    filesChanged: aggregate.files.size,
+    additions: aggregate.additions,
+    deletions: aggregate.deletions,
+    changedLines: aggregate.additions + aggregate.deletions,
+  }
+}
+
+function aggregateToDailyPoints(dayBuckets: Map<string, MutableAggregate>): DailyHistoryPoint[] {
+  return [...dayBuckets.entries()]
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([day, aggregate]) => ({
+      ...buildDailyPoint(day, aggregate),
+      files: [...aggregate.files].sort((left, right) => left.localeCompare(right)),
+    }))
+}
+
+function mergeDailyPoints(
+  base: DailyHistoryPoint[],
+  appended: DailyHistoryPoint[],
+): DailyHistoryPoint[] {
+  const merged = new Map<string, MutableAggregate>()
+
+  for (const point of base) {
+    const bucket = createMutableAggregate()
+    bucket.commitCount = point.commitCount
+    bucket.additions = point.additions
+    bucket.deletions = point.deletions
+    bucket.files = new Set(point.files)
+    merged.set(point.day, bucket)
+  }
+
+  for (const point of appended) {
+    const bucket = merged.get(point.day) ?? createMutableAggregate()
+    bucket.commitCount += point.commitCount
+    bucket.additions += point.additions
+    bucket.deletions += point.deletions
+    point.files.forEach(file => bucket.files.add(file))
+    merged.set(point.day, bucket)
+  }
+
+  return aggregateToDailyPoints(merged)
+}
+
+function buildRangeStatsFromDailyHistory(
+  historyPoints: DailyHistoryPoint[],
+  range: ResolvedRange,
+): RepoRangeStats {
+  const pointsByDay = new Map(historyPoints.map(point => [point.day, point]))
+  const inRange = createMutableAggregate()
+  const today = createMutableAggregate()
+
+  for (const day of range.dayKeys) {
+    const point = pointsByDay.get(day)
+    if (!point) {
+      continue
+    }
+
+    inRange.commitCount += point.commitCount
+    inRange.additions += point.additions
+    inRange.deletions += point.deletions
+    point.files.forEach(file => inRange.files.add(file))
+
+    if (day === range.todayKey) {
+      today.commitCount += point.commitCount
+      today.additions += point.additions
+      today.deletions += point.deletions
+      today.files = new Set(point.files)
+    }
+  }
+
+  return {
+    commitCountToday: today.commitCount,
+    filesChangedToday: today.files.size,
+    additionsToday: today.additions,
+    deletionsToday: today.deletions,
+    changedLinesToday: today.additions + today.deletions,
+    netLinesToday: today.additions - today.deletions,
+    commitCountInRange: inRange.commitCount,
+    filesChangedInRange: inRange.files.size,
+    additionsInRange: inRange.additions,
+    deletionsInRange: inRange.deletions,
+    changedLinesInRange: inRange.additions + inRange.deletions,
+    dailyPoints: range.dayKeys.map(day => {
+      const point = pointsByDay.get(day)
+      return point
+        ? cloneDailyPoint(point)
+        : {
+            day,
+            label: formatDayLabel(day),
+            commitCount: 0,
+            filesChanged: 0,
+            additions: 0,
+            deletions: 0,
+            changedLines: 0,
+          }
+    }),
+  }
 }
 
 export function isTrackableGitWorklogFilePath(relativePath: string): boolean {
@@ -483,6 +623,15 @@ export class GitWorklogScanner {
     authorFilter: string,
     range: ResolvedRange,
   ): Promise<RepoRangeStats | { error: GitWorklogErrorDto }> {
+    if (authorFilter.trim().length === 0 && this.historyStore) {
+      const history = await this.ensureDailyHistory(repoPath)
+      if ('error' in history) {
+        return { error: history.error }
+      }
+
+      return buildRangeStatsFromDailyHistory(history.dailyPoints, range)
+    }
+
     const rangeValidation = await this.buildRangeCacheValidation(repoPath, authorFilter, range)
     if (rangeValidation && this.historyStore) {
       const key = buildGitWorklogRangeCacheKey(rangeValidation)
@@ -716,6 +865,17 @@ export class GitWorklogScanner {
     repoPath: string,
     authorFilter: string,
   ): Promise<RepoHeatmapStats | { error: GitWorklogErrorDto }> {
+    if (authorFilter.trim().length === 0 && this.historyStore) {
+      const history = await this.ensureDailyHistory(repoPath)
+      if ('error' in history) {
+        return { error: history.error }
+      }
+
+      return {
+        dailyPoints: history.dailyPoints.map(point => cloneDailyPoint(point)),
+      }
+    }
+
     const heatmapValidation = await this.buildHeatmapCacheValidation(repoPath, authorFilter)
     if (heatmapValidation && this.historyStore) {
       const key = buildGitWorklogHeatmapCacheKey(heatmapValidation)
@@ -893,6 +1053,230 @@ export class GitWorklogScanner {
 
   private hashContent(value: string): string {
     return createHash('sha256').update(value, 'utf8').digest('hex')
+  }
+
+  private async ensureDailyHistory(
+    repoPath: string,
+  ): Promise<GitWorklogCachedDailyHistory | { error: GitWorklogErrorDto }> {
+    const currentRefs = await this.readRefsSnapshot(repoPath)
+    if ('error' in currentRefs) {
+      return { error: currentRefs.error }
+    }
+
+    const cached = await this.historyStore?.getDailyHistory(repoPath)
+    if (!cached || cached.refsSnapshot.length === 0) {
+      return await this.rebuildDailyHistory(repoPath, currentRefs)
+    }
+
+    const canAppend = await this.canAppendIncrementally(repoPath, cached.refsSnapshot, currentRefs)
+    if (!canAppend.ok) {
+      return await this.rebuildDailyHistory(repoPath, currentRefs)
+    }
+
+    if (!canAppend.hasNewCommits) {
+      return cached
+    }
+
+    const appended = await this.scanCommitDailyHistory(repoPath, {
+      authorFilter: '',
+      excludeOids: cached.refsSnapshot.map(entry => entry.oid),
+    })
+    if ('error' in appended) {
+      return { error: appended.error }
+    }
+
+    const mergedPoints = mergeDailyPoints(cached.dailyPoints, appended.dailyPoints)
+    await this.historyStore?.saveDailyHistory({
+      repoPath,
+      refsSnapshot: currentRefs,
+      dailyPoints: mergedPoints,
+      builtAt: cached.builtAt,
+    })
+
+    return (await this.historyStore?.getDailyHistory(repoPath)) ?? {
+      refsSnapshot: currentRefs,
+      dailyPoints: mergedPoints,
+      builtAt: cached.builtAt,
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  private async rebuildDailyHistory(
+    repoPath: string,
+    refsSnapshot: GitWorklogRefSnapshotEntry[],
+  ): Promise<GitWorklogCachedDailyHistory | { error: GitWorklogErrorDto }> {
+    const scanned = await this.scanCommitDailyHistory(repoPath, {
+      authorFilter: '',
+    })
+    if ('error' in scanned) {
+      return { error: scanned.error }
+    }
+
+    await this.historyStore?.saveDailyHistory({
+      repoPath,
+      refsSnapshot,
+      dailyPoints: scanned.dailyPoints,
+    })
+
+    return (await this.historyStore?.getDailyHistory(repoPath)) ?? {
+      refsSnapshot,
+      dailyPoints: scanned.dailyPoints,
+      builtAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  private async scanCommitDailyHistory(
+    repoPath: string,
+    options: CommitLogScanOptions,
+  ): Promise<{ dailyPoints: DailyHistoryPoint[] } | { error: GitWorklogErrorDto }> {
+    const args = [
+      '-C',
+      repoPath,
+      'log',
+      '--all',
+      '--no-merges',
+      '--date=iso-strict',
+      `--pretty=format:${COMMIT_PREFIX}%H%x09%ad`,
+      '--numstat',
+    ]
+
+    for (const sinceArg of options.since ?? []) {
+      args.push(sinceArg)
+    }
+    for (const untilArg of options.until ?? []) {
+      args.push(untilArg)
+    }
+    if (options.authorFilter.trim().length > 0) {
+      args.push(`--author=${options.authorFilter.trim()}`)
+    }
+    for (const excluded of options.excludeOids ?? []) {
+      args.push(`^${excluded}`)
+    }
+
+    const result = await this.runGitCommand(args, '读取 Git 提交记录失败')
+    if (!result.ok) {
+      return { error: result.error }
+    }
+
+    const scanned = this.parseCommitLogOutput(result.stdout)
+    return {
+      dailyPoints: aggregateToDailyPoints(scanned.dayBuckets),
+    }
+  }
+
+  private parseCommitLogOutput(stdout: string): CommitScanAggregate {
+    const dayBuckets = new Map<string, MutableAggregate>()
+    let commitTime: Date | null = null
+    let commitAdditions = 0
+    let commitDeletions = 0
+    let commitFiles = new Set<string>()
+
+    const flushCommit = (): void => {
+      if (!commitTime) {
+        return
+      }
+
+      const commitDayKey = dayKey(commitTime)
+      const bucket = dayBuckets.get(commitDayKey) ?? createMutableAggregate()
+      bucket.commitCount += 1
+      bucket.additions += commitAdditions
+      bucket.deletions += commitDeletions
+      commitFiles.forEach(file => bucket.files.add(file))
+      dayBuckets.set(commitDayKey, bucket)
+    }
+
+    for (const rawLine of stdout.split(/\r?\n/)) {
+      const line = rawLine.trimEnd()
+      if (line.length === 0) {
+        continue
+      }
+
+      if (line.startsWith(COMMIT_PREFIX)) {
+        flushCommit()
+        commitTime = this.parseCommitTime(line)
+        commitAdditions = 0
+        commitDeletions = 0
+        commitFiles = new Set<string>()
+        continue
+      }
+
+      if (!commitTime) {
+        continue
+      }
+
+      const parts = line.split('\t')
+      if (parts.length < 3) {
+        continue
+      }
+
+      const filePath = parts.slice(2).join('\t').trim()
+      if (filePath.length === 0 || !isTrackableGitWorklogFilePath(filePath)) {
+        continue
+      }
+
+      commitAdditions += parseNumstatValue(parts[0] ?? '')
+      commitDeletions += parseNumstatValue(parts[1] ?? '')
+      commitFiles.add(filePath)
+    }
+
+    flushCommit()
+    return { dayBuckets }
+  }
+
+  private async readRefsSnapshot(
+    repoPath: string,
+  ): Promise<GitWorklogRefSnapshotEntry[] | { error: GitWorklogErrorDto }> {
+    const refs = await this.runGitCommand(['-C', repoPath, 'show-ref'], '读取仓库引用失败')
+    if (!refs.ok) {
+      return { error: refs.error }
+    }
+
+    return refs.stdout
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const [oid, refName] = line.split(' ')
+        return {
+          oid: oid?.trim() ?? '',
+          refName: refName?.trim() ?? '',
+        }
+      })
+      .filter(entry => entry.oid.length > 0 && entry.refName.length > 0)
+      .sort((left, right) => left.refName.localeCompare(right.refName))
+  }
+
+  private async canAppendIncrementally(
+    repoPath: string,
+    previousRefs: GitWorklogRefSnapshotEntry[],
+    currentRefs: GitWorklogRefSnapshotEntry[],
+  ): Promise<{ ok: true; hasNewCommits: boolean } | { ok: false }> {
+    const currentByRef = new Map(currentRefs.map(entry => [entry.refName, entry.oid]))
+    let hasNewCommits = currentRefs.length !== previousRefs.length
+
+    for (const previous of previousRefs) {
+      const currentOid = currentByRef.get(previous.refName)
+      if (!currentOid) {
+        return { ok: false }
+      }
+
+      if (currentOid !== previous.oid) {
+        hasNewCommits = true
+        const result = await this.runGitCommand(
+          ['-C', repoPath, 'merge-base', '--is-ancestor', previous.oid, currentOid],
+          '校验 Git 增量历史失败',
+        )
+        if (!result.ok) {
+          return { ok: false }
+        }
+      }
+    }
+
+    return {
+      ok: true,
+      hasNewCommits,
+    }
   }
 
   private parseCommitTime(line: string): Date | null {

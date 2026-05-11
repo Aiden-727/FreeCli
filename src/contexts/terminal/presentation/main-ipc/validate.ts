@@ -161,6 +161,7 @@ function normalizeHostedLaunchMode(value: unknown): AgentLaunchMode {
 export function normalizeTrackHostedAgentPayload(payload: unknown): TrackHostedTerminalAgentInput {
   const sessionId = normalizeSessionId(payload, 'pty:track-hosted-agent')
   const record = payload as Record<string, unknown>
+  const bindingId = typeof record.bindingId === 'string' ? record.bindingId.trim() : ''
   const provider = normalizeHostedProvider(record.provider)
   const cwd = typeof record.cwd === 'string' ? record.cwd.trim() : ''
   const startedAt = typeof record.startedAt === 'string' ? record.startedAt.trim() : ''
@@ -179,8 +180,15 @@ export function normalizeTrackHostedAgentPayload(payload: unknown): TrackHostedT
     })
   }
 
+  if (bindingId.length === 0) {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'pty:track-hosted-agent requires a bindingId',
+    })
+  }
+
   return {
     sessionId,
+    bindingId,
     provider,
     cwd,
     launchMode: normalizeHostedLaunchMode(record.launchMode),

@@ -2194,6 +2194,60 @@
   height: 112px;
 }
 
+.git-worklog-mini-trend__chart-stack {
+  position: relative;
+  width: 100%;
+  height: 112px;
+}
+
+.git-worklog-mini-trend__chart-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.git-worklog-mini-trend__chart-layer--previous {
+  animation: git-worklog-mini-trend-fade-out 220ms ease forwards;
+}
+
+.git-worklog-mini-trend__chart-layer--current {
+  animation: git-worklog-mini-trend-fade-in 220ms ease forwards;
+}
+
+@keyframes git-worklog-mini-trend-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+    filter: saturate(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+}
+
+@keyframes git-worklog-mini-trend-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+    filter: saturate(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .git-worklog-mini-trend__chart-layer--previous,
+  .git-worklog-mini-trend__chart-layer--current {
+    animation: none;
+  }
+}
+
 .git-worklog-mini-trend__grid-line {
   stroke: color-mix(in srgb, var(--cove-border) 82%, transparent);
   stroke-width: 1;
@@ -2371,6 +2425,8 @@
   justify-content: space-between;
   gap: 14px;
   padding-bottom: 4px;
+  cursor: grab;
+  user-select: none;
 }
 
 .git-worklog-overview__workspace-copy {
@@ -2504,6 +2560,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  cursor: grab;
+  user-select: none;
 }
 
 .git-worklog-overview__repo-main {
@@ -3827,10 +3885,61 @@
   gap: 14px;
 }
 
+.plugin-manager-panel__compact-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--cove-quota-subcard-border);
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-quota-subcard-surface) 98%, white 2%) 0%,
+    color-mix(in srgb, var(--cove-quota-subcard-surface) 94%, var(--cove-quota-card-surface-alt) 6%) 100%
+  );
+  box-shadow:
+    0 18px 34px color-mix(in srgb, var(--cove-quota-card-shadow) 28%, transparent),
+    0 8px 18px color-mix(in srgb, var(--cove-quota-card-shadow) 12%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.plugin-manager-panel__compact-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.plugin-manager-panel__compact-board-pill {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--cove-accent) 18%, var(--cove-quota-pill-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cove-accent) 10%, var(--cove-quota-pill-surface));
+  color: color-mix(in srgb, var(--cove-accent) 68%, var(--cove-text));
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.plugin-manager-panel__compact-board-hint {
+  min-width: 0;
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  line-height: 1.35;
+  color: var(--cove-text-faint);
+  text-align: right;
+}
+
 .input-stats-config__settings-grid .plugin-manager-panel__field-stack {
   gap: 6px;
   min-width: 0;
-  padding: 14px 15px;
+  min-height: 72px;
+  padding: 12px 14px;
   border: 1px solid var(--cove-quota-subcard-border);
   border-radius: 18px;
   background: linear-gradient(
@@ -3838,12 +3947,20 @@
     color-mix(in srgb, var(--cove-quota-subcard-surface) 97%, white 3%) 0%,
     var(--cove-quota-subcard-surface) 100%
   );
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--cove-quota-card-shadow) 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
 }
 
 .input-stats-config__settings-grid .plugin-manager-panel__field-stack label {
   font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 600;
   color: var(--cove-text-muted);
+}
+
+.input-stats-config__grid {
+  display: grid;
+  gap: 14px;
 }
 
 .system-monitor-config {
@@ -4090,10 +4207,74 @@
   font-size: calc(24px * var(--cove-ui-font-scale));
 }
 
+.system-monitor-overview__taskbar-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.system-monitor-overview__taskbar-diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.system-monitor-overview__taskbar-diagnostics-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 78px;
+  padding: 14px 16px;
+  border: 1px solid var(--cove-quota-subcard-border);
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-quota-subcard-surface) 98%, white 2%) 0%,
+    var(--cove-quota-subcard-surface) 100%
+  );
+}
+
+.system-monitor-overview__taskbar-diagnostics-item span,
+.system-monitor-overview__taskbar-diagnostics-message span {
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--cove-text-muted);
+}
+
+.system-monitor-overview__taskbar-diagnostics-item strong,
+.system-monitor-overview__taskbar-diagnostics-message strong {
+  font-size: calc(16px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  color: var(--cove-text);
+}
+
+.system-monitor-overview__taskbar-diagnostics-item--ok strong {
+  color: var(--cove-positive);
+}
+
+.system-monitor-overview__taskbar-diagnostics-item--warn strong {
+  color: var(--cove-warning);
+}
+
+.system-monitor-overview__taskbar-diagnostics-item--error strong {
+  color: var(--cove-danger);
+}
+
+.system-monitor-overview__taskbar-diagnostics-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--cove-danger) 18%, var(--cove-quota-subcard-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--cove-danger) 6%, var(--cove-quota-subcard-surface));
+}
+
 .system-monitor-config__settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .system-monitor-config__board {
@@ -4121,7 +4302,8 @@
 .system-monitor-config__field-card {
   gap: 6px;
   min-width: 0;
-  padding: 14px 15px;
+  min-height: 72px;
+  padding: 12px 14px;
 }
 
 .system-monitor-config__field-card label,
@@ -4154,15 +4336,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  min-height: 70px;
-  padding: 16px 18px;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 14px;
 }
 
 .system-monitor-config__toggle-label {
-  font-size: calc(13px * var(--cove-ui-font-scale));
+  font-size: calc(12px * var(--cove-ui-font-scale));
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.35;
   color: var(--cove-text);
 }
 
@@ -4173,8 +4355,8 @@
 .system-monitor-config__display-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 18px 18px;
+  gap: 10px;
+  padding: 14px;
 }
 
 .system-monitor-config__display-items {
@@ -4188,8 +4370,8 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  min-height: 52px;
-  padding: 12px 14px;
+  min-height: 46px;
+  padding: 10px 12px;
   border: 1px solid var(--cove-quota-subcard-border);
   border-radius: 16px;
   background: linear-gradient(
@@ -4883,6 +5065,337 @@
   line-height: 1.1;
   color: var(--cove-text);
   white-space: nowrap;
+}
+
+.eye-care-overview {
+  display: grid;
+  gap: 16px;
+}
+
+.eye-care-overview__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr);
+  gap: 14px;
+}
+
+.eye-care-overview__hero-copy,
+.eye-care-overview__hero-timer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 18px;
+  border: 1px solid var(--cove-quota-card-border);
+  border-radius: 24px;
+  background: linear-gradient(
+    180deg,
+    var(--cove-quota-card-surface-alt) 0%,
+    var(--cove-quota-card-surface) 100%
+  );
+  box-shadow:
+    0 24px 46px color-mix(in srgb, var(--cove-quota-card-shadow) 60%, transparent),
+    0 10px 24px color-mix(in srgb, var(--cove-quota-card-shadow) 24%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+}
+
+.eye-care-overview__kicker,
+.eye-care-overview__hero-timer span {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  line-height: 1.45;
+  color: var(--cove-text-muted);
+}
+
+.eye-care-overview__hero-copy strong,
+.eye-care-overview__hero-timer strong {
+  font-size: calc(28px * var(--cove-ui-font-scale));
+  line-height: 1.05;
+  color: var(--cove-text);
+  letter-spacing: -0.03em;
+}
+
+.eye-care-overview__hero-copy p {
+  margin: 0;
+  font-size: calc(13px * var(--cove-ui-font-scale));
+  line-height: 1.6;
+  color: var(--cove-text-muted);
+}
+
+.eye-care-overview__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.eye-care-config__grid {
+  display: grid;
+  gap: 14px;
+}
+
+.eye-care-config__cluster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.eye-care-config__cluster--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.eye-care-config .system-monitor-config__field-card,
+.eye-care-config .system-monitor-config__toggle-card {
+  min-height: 74px;
+  border-color: var(--cove-quota-subcard-border);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cove-quota-subcard-surface) 97%, white 3%) 0%,
+    var(--cove-quota-subcard-surface) 100%
+  );
+  box-shadow:
+    0 18px 34px color-mix(in srgb, var(--cove-quota-card-shadow) 32%, transparent),
+    0 6px 16px color-mix(in srgb, var(--cove-quota-card-shadow) 16%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+}
+
+.eye-care-config .system-monitor-config__field-card {
+  justify-content: flex-start;
+}
+
+.eye-care-config .system-monitor-config__field-card label,
+.eye-care-config .system-monitor-config__toggle-label {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--cove-text);
+}
+
+.eye-care-config .system-monitor-config__field-card .cove-field {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--cove-quota-pill-border) 84%, white 16%);
+  background: color-mix(in srgb, var(--cove-quota-card-surface) 92%, white 8%);
+}
+
+.eye-care-config .system-monitor-config__toggle-card {
+  padding: 12px 14px;
+}
+
+.eye-care-config__action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.eye-care-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.eye-care-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(171, 207, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 76% 28%, rgba(255, 255, 255, 0.08), transparent 20%),
+    radial-gradient(circle at 50% 78%, rgba(135, 166, 255, 0.1), transparent 26%),
+    linear-gradient(
+      180deg,
+      rgba(10, 18, 36, 0.14) 0%,
+      rgba(12, 20, 40, 0.2) 100%
+    );
+  backdrop-filter: blur(30px) saturate(118%);
+  -webkit-backdrop-filter: blur(30px) saturate(118%);
+}
+
+.eye-care-overlay__panel {
+  position: relative;
+  z-index: 1;
+  width: min(760px, calc(100vw - 40px));
+  display: grid;
+  gap: 32px;
+  padding: 40px 36px 34px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 36px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%),
+    rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 44px 120px rgba(12, 20, 42, 0.18),
+    0 16px 44px rgba(12, 20, 42, 0.1);
+  backdrop-filter: blur(38px) saturate(138%);
+  -webkit-backdrop-filter: blur(38px) saturate(138%);
+}
+
+.eye-care-overlay__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+}
+
+.eye-care-overlay__eyebrow {
+  margin: 0;
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cove-eye-care-overlay-text-muted);
+}
+
+.eye-care-overlay__title {
+  margin: 0;
+  font-size: clamp(34px, 4.8vw, 52px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  color: var(--cove-eye-care-overlay-title);
+  text-shadow: 0 10px 28px rgba(24, 45, 95, 0.16);
+}
+
+.eye-care-overlay__summary {
+  margin: 0;
+  max-width: 38rem;
+  font-size: calc(15px * var(--cove-ui-font-scale));
+  line-height: 1.75;
+  color: var(--cove-eye-care-overlay-text);
+}
+
+.eye-care-overlay__countdown-shell {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  padding: 34px 24px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(255, 255, 255, 0.18), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 20px 48px rgba(12, 20, 42, 0.1);
+}
+
+.eye-care-overlay__countdown-label {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cove-eye-care-overlay-text-muted);
+}
+
+.eye-care-overlay__timer {
+  font-size: clamp(88px, 16vw, 156px);
+  line-height: 0.88;
+  font-weight: 800;
+  letter-spacing: -0.09em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cove-eye-care-overlay-title);
+  text-shadow: var(--cove-eye-care-overlay-timer-shadow);
+}
+
+.eye-care-overlay__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+.eye-care-overlay__action-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.eye-care-overlay__action-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.eye-care-overlay__actions .cove-window__action {
+  min-height: 54px;
+  padding: 0 20px;
+  border-radius: 18px;
+  border-color: rgba(255, 255, 255, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.06);
+  color: var(--cove-eye-care-overlay-button-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 14px 28px rgba(12, 20, 42, 0.1);
+  font-size: calc(14px * var(--cove-ui-font-scale));
+  font-weight: 600;
+  gap: 10px;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.eye-care-overlay__actions .cove-window__action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 20px 36px rgba(12, 20, 42, 0.14);
+}
+
+.eye-care-overlay__actions .cove-window__action--secondary {
+  background:
+    linear-gradient(180deg, rgba(116, 165, 255, 0.18), rgba(88, 132, 224, 0.08)),
+    rgba(88, 132, 224, 0.08);
+}
+
+@media (max-width: 760px) {
+  .eye-care-overlay {
+    padding: 16px;
+  }
+
+  .eye-care-overlay__panel {
+    gap: 24px;
+    padding: 28px 22px 24px;
+    border-radius: 28px;
+  }
+
+  .eye-care-overlay__title {
+    font-size: clamp(28px, 9vw, 42px);
+  }
+
+  .eye-care-overlay__summary {
+    font-size: calc(14px * var(--cove-ui-font-scale));
+  }
+
+  .eye-care-overlay__countdown-shell {
+    padding: 24px 16px 22px;
+    border-radius: 24px;
+  }
+
+  .eye-care-overlay__timer {
+    font-size: clamp(72px, 22vw, 116px);
+  }
+
+  .eye-care-overlay__actions {
+    gap: 10px;
+  }
+
+  .eye-care-overlay__actions .cove-window__action {
+    min-height: 50px;
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .quota-monitor-overview__panel {
@@ -6422,6 +6935,31 @@
 
   .quota-monitor-overview__summary-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .plugin-manager-panel__compact-board-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .plugin-manager-panel__compact-board-hint {
+    text-align: left;
+  }
+
+  .eye-care-overview__hero,
+  .eye-care-config__cluster {
+    grid-template-columns: 1fr;
+  }
+
+  .eye-care-config__cluster--triple,
+  .input-stats-config__settings-grid,
+  .system-monitor-config__settings-grid,
+  .system-monitor-config__settings-grid--toggles {
+    grid-template-columns: 1fr;
+  }
+
+  .eye-care-overview__summary-grid {
+    grid-template-columns: 1fr;
   }
 
   .quota-monitor-overview__trend-grid {

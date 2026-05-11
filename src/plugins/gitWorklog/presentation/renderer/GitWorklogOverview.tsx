@@ -7,9 +7,9 @@ import type {
 } from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
 import { GitWorklogHeatmap } from './GitWorklogHeatmap'
-import { GitWorklogMiniTrend } from './GitWorklogMiniTrend'
+import { GitWorklogMiniTrend, type GitWorklogMiniTrendWindow } from './GitWorklogMiniTrend'
 import { GitWorklogSummaryTrend } from './GitWorklogSummaryTrend'
-import { formatGitWorklogCount } from './gitWorklogFormatting'
+import { formatGitWorklogCount, getGitWorklogCalendarWindowPoints } from './gitWorklogFormatting'
 import {
   GIT_WORKLOG_EXTERNAL_WORKSPACE_ID,
   normalizeRepoPathForCompare,
@@ -19,6 +19,7 @@ import {
 } from './gitWorklogOrdering'
 
 const REPO_DRAG_START_DISTANCE_PX = 8
+const DEFAULT_REPO_TREND_WINDOW: GitWorklogMiniTrendWindow = 7
 
 function formatDisplayPath(value: string): string {
   return value.trim().replaceAll('\\', '/').replaceAll(/\/+/g, '/')
@@ -560,6 +561,9 @@ export function GitWorklogOverview({
   const [draggedEntity, setDraggedEntity] = React.useState<DragEntity | null>(null)
   const [dragTarget, setDragTarget] = React.useState<DragTarget | null>(null)
   const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 })
+  const [repoTrendWindows, setRepoTrendWindows] = React.useState<
+    Partial<Record<string, GitWorklogMiniTrendWindow>>
+  >({})
   const pendingPointerDownRef = React.useRef<{
     entity: DragEntity
     startX: number
@@ -955,18 +959,20 @@ export function GitWorklogOverview({
                         } as React.CSSProperties)
                       : undefined
                   }
-                  onMouseDown={event => {
-                    handlePointerDown(
-                      {
-                        kind: 'workspace',
-                        id: group.id,
-                        groupId: group.id,
-                      },
-                      event,
-                    )
-                  }}
                 >
-                  <div className="git-worklog-overview__workspace-head">
+                  <div
+                    className="git-worklog-overview__workspace-head"
+                    onMouseDown={event => {
+                      handlePointerDown(
+                        {
+                          kind: 'workspace',
+                          id: group.id,
+                          groupId: group.id,
+                        },
+                        event,
+                      )
+                    }}
+                  >
                     <div className="git-worklog-overview__workspace-copy">
                       {group.path ? (
                         <span className="git-worklog-overview__workspace-eyebrow">
@@ -1015,6 +1021,21 @@ export function GitWorklogOverview({
                         const hasError = repo.error !== null
                         const errorMessage = repo.error?.message ?? ''
                         const configuredRepositoryId = repo.configuredRepositoryId
+                        const activeTrendWindow =
+                          repoTrendWindows[repo.repoId] ?? DEFAULT_REPO_TREND_WINDOW
+                        const trendSourcePoints =
+                          repo.heatmapDailyPoints.length > 0
+                            ? repo.heatmapDailyPoints
+                            : repo.dailyPoints
+                        const trendPoints = getGitWorklogCalendarWindowPoints(
+                          trendSourcePoints,
+                          activeTrendWindow,
+                          repo.dailyPoints.at(-1)?.day ?? repo.lastScannedAt,
+                        )
+                        const trendChangedLinesTotal = trendPoints.reduce(
+                          (sum, point) => sum + point.changedLines,
+                          0,
+                        )
                         const repoOriginLabel =
                           repo.origin === 'auto'
                             ? t('pluginManager.plugins.gitWorklog.repoOriginAuto')
@@ -1036,17 +1057,6 @@ export function GitWorklogOverview({
                                 : ''
                             }`}
                             data-testid={`git-worklog-repo-card-${repo.repoId}`}
-                            onMouseDown={event => {
-                              event.stopPropagation()
-                              handlePointerDown(
-                                {
-                                  kind: 'repo',
-                                  id: repo.repoId,
-                                  groupId: group.id,
-                                },
-                                event,
-                              )
-                            }}
                             style={
                               draggedEntity?.kind === 'repo' && draggedEntity.id === repo.repoId
                                 ? ({
@@ -1056,7 +1066,20 @@ export function GitWorklogOverview({
                                 : undefined
                             }
                           >
-                            <div className="git-worklog-overview__repo-top">
+                            <div
+                              className="git-worklog-overview__repo-top"
+                              onMouseDown={event => {
+                                event.stopPropagation()
+                                handlePointerDown(
+                                  {
+                                    kind: 'repo',
+                                    id: repo.repoId,
+                                    groupId: group.id,
+                                  },
+                                  event,
+                                )
+                              }}
+                            >
                               <div className="git-worklog-overview__repo-main">
                                 <div className="git-worklog-overview__repo-copy">
                                   <div className="git-worklog-overview__repo-title-row">
@@ -1217,14 +1240,25 @@ export function GitWorklogOverview({
                                   label={t(
                                     'pluginManager.plugins.gitWorklog.repoMetrics.changedLinesInRange',
                                   )}
-                                  value={formatRepoMetricValue(repo.changedLinesInRange, {
+                                  value={formatRepoMetricValue(trendChangedLinesTotal, {
                                     hasError,
                                     hasRuntimeData: repo.hasRuntimeData,
                                   })}
                                 />
                               </div>
 
-                              <GitWorklogMiniTrend points={repo.dailyPoints} repoId={repo.repoId} />
+                              <GitWorklogMiniTrend
+                                points={trendSourcePoints}
+                                anchorDay={repo.dailyPoints.at(-1)?.day ?? repo.lastScannedAt}
+                                repoId={repo.repoId}
+                                windowSize={activeTrendWindow}
+                                onWindowSizeChange={nextWindow => {
+                                  setRepoTrendWindows(current => ({
+                                    ...current,
+                                    [repo.repoId]: nextWindow,
+                                  }))
+                                }}
+                              />
                             </div>
 
                             {hasError ? (

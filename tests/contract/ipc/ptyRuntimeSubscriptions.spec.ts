@@ -163,6 +163,70 @@ describe('Pty runtime subscriptions', () => {
     vi.useRealTimers()
   })
 
+  it('suppresses exit broadcast for window-close runtime deactivation', async () => {
+    vi.useFakeTimers()
+    vi.resetModules()
+
+    const send = vi.fn()
+    const kill = vi.fn()
+    const content = {
+      isDestroyed: () => false,
+      getType: () => 'window',
+      send,
+      once: vi.fn(),
+    }
+
+    let onExitHandler: PtyExitHandler | null = null
+
+    class MockPtyHostSupervisor {
+      public write = vi.fn()
+      public resize = vi.fn()
+      public kill = kill
+      public dispose = vi.fn()
+      public crash = vi.fn()
+      public spawn = vi.fn(async () => ({ sessionId: 'session-1' }))
+
+      public onData(_handler: PtyDataHandler): void {}
+
+      public onExit(handler: PtyExitHandler): void {
+        onExitHandler = handler
+      }
+    }
+
+    vi.doMock('electron', () => ({
+      app: {
+        getPath: vi.fn(() => '/tmp/freecli-test-userdata'),
+      },
+      utilityProcess: {
+        fork: vi.fn(),
+      },
+      webContents: {
+        getAllWebContents: () => [content],
+        fromId: (id: number) => (id === 1 ? content : null),
+      },
+    }))
+
+    vi.doMock('../../../src/platform/process/ptyHost/supervisor', () => ({
+      PtyHostSupervisor: MockPtyHostSupervisor,
+    }))
+
+    const { createPtyRuntime } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/runtime')
+
+    const runtime = createPtyRuntime()
+    const { sessionId } = await runtime.spawnSession({ cwd: '/tmp', cols: 80, rows: 24 })
+
+    runtime.deactivateTransientSessions()
+    expect(kill).toHaveBeenCalledWith(sessionId)
+
+    onExitHandler?.({ sessionId, exitCode: 0 })
+
+    expect(send.mock.calls.some(([channel]) => channel === IPC_CHANNELS.ptyExit)).toBe(false)
+
+    runtime.dispose()
+    vi.useRealTimers()
+  })
+
   it('restores probe fallback after the last subscriber detaches', async () => {
     vi.useFakeTimers()
     vi.resetModules()

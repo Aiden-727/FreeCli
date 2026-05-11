@@ -23,27 +23,76 @@ export interface SystemMonitorRawSample {
   cpuUsagePercent: number
   memoryUsagePercent: number
   gpuUsagePercent: number | null
-  taskbarWidgetStatus: SystemMonitorTaskbarWidgetRuntimeStatus
+  taskbarWidgetStatus: TaskbarWidgetRuntimeStatus
 }
 
-export interface SystemMonitorTaskbarWidgetRuntimeStatus {
+export interface TaskbarWidgetRuntimeStatus {
   requestedEnabled: boolean
   visible: boolean
   embedded: boolean
   error: string | null
+  debug: {
+    sessionHidden: boolean | null
+    hasLatestSnapshot: boolean | null
+    hasLayout: boolean | null
+    handleCreated: boolean | null
+    stage: string | null
+    parentWindowClass: string | null
+    bounds: string | null
+    backgroundColor: string | null
+    foregroundColor: string | null
+    anchorRect: string | null
+    notifyRect: string | null
+    taskbarRect: string | null
+  }
+}
+
+const DISABLED_TASKBAR_WIDGET_STATUS: TaskbarWidgetRuntimeStatus = {
+  requestedEnabled: false,
+  visible: false,
+  embedded: false,
+  error: null,
+  debug: {
+    sessionHidden: null,
+    hasLatestSnapshot: null,
+    hasLayout: null,
+    handleCreated: null,
+    stage: null,
+    parentWindowClass: null,
+    bounds: null,
+    backgroundColor: null,
+    foregroundColor: null,
+    anchorRect: null,
+    notifyRect: null,
+    taskbarRect: null,
+  },
 }
 
 interface HelperEnvelope {
   ok?: boolean
   result?: {
     configured?: boolean
-    taskbarWidgetStatus?: {
-      requestedEnabled?: boolean
-      visible?: boolean
-      embedded?: boolean
-      error?: string | null
-    }
     stopping?: boolean
+      taskbarWidgetStatus?: {
+        requestedEnabled?: boolean
+        visible?: boolean
+        embedded?: boolean
+        error?: string | null
+        debug?: {
+          sessionHidden?: boolean | null
+          hasLatestSnapshot?: boolean | null
+          hasLayout?: boolean | null
+          handleCreated?: boolean | null
+          stage?: string | null
+          parentWindowClass?: string | null
+          bounds?: string | null
+          backgroundColor?: string | null
+          foregroundColor?: string | null
+          anchorRect?: string | null
+          notifyRect?: string | null
+          taskbarRect?: string | null
+        }
+      }
     snapshot?: {
       recordedAt?: string
       uploadBytesTotal?: number
@@ -53,12 +102,6 @@ interface HelperEnvelope {
       cpuUsagePercent?: number
       memoryUsagePercent?: number
       gpuUsagePercent?: number | null
-    }
-    taskbarWidgetStatus?: {
-      requestedEnabled?: boolean
-      visible?: boolean
-      embedded?: boolean
-      error?: string | null
     }
   }
   error?: string
@@ -71,24 +114,6 @@ function clampNonNegative(value: unknown): number {
 
 function clampPercent(value: unknown): number {
   return Math.min(100, Math.max(0, Math.round(clampNonNegative(value))))
-}
-
-function normalizeTaskbarWidgetStatus(
-  rawStatus: HelperEnvelope['result'] extends infer TResult
-    ? TResult extends { taskbarWidgetStatus?: infer TStatus }
-      ? TStatus
-      : never
-    : never,
-): SystemMonitorTaskbarWidgetRuntimeStatus {
-  return {
-    requestedEnabled: rawStatus?.requestedEnabled === true,
-    visible: rawStatus?.visible === true,
-    embedded: rawStatus?.embedded === true,
-    error:
-      typeof rawStatus?.error === 'string' && rawStatus.error.trim().length > 0
-        ? rawStatus.error
-        : null,
-  }
 }
 
 function normalizeEnvelope(rawLine: string): HelperEnvelope {
@@ -240,7 +265,7 @@ export class SystemMonitorHelperClient {
     gpuMode: SystemMonitorGpuMode
     taskbarWidgetEnabled: boolean
     taskbarWidget: SystemMonitorTaskbarWidgetSettingsDto
-  }): Promise<SystemMonitorTaskbarWidgetRuntimeStatus> {
+  }): Promise<{ taskbarWidgetStatus: TaskbarWidgetRuntimeStatus }> {
     await this.ensureStarted()
     const envelope = await this.sendCommand({
       type: 'configure',
@@ -250,7 +275,9 @@ export class SystemMonitorHelperClient {
         taskbarWidget: options.taskbarWidget,
       },
     })
-    return normalizeTaskbarWidgetStatus(envelope.result?.taskbarWidgetStatus)
+    return {
+      taskbarWidgetStatus: this.normalizeTaskbarWidgetStatus(envelope.result?.taskbarWidgetStatus),
+    }
   }
 
   public async getSnapshot(): Promise<SystemMonitorRawSample> {
@@ -276,7 +303,7 @@ export class SystemMonitorHelperClient {
         typeof snapshot?.gpuUsagePercent === 'number' && Number.isFinite(snapshot.gpuUsagePercent)
           ? clampPercent(snapshot.gpuUsagePercent)
           : null,
-      taskbarWidgetStatus: normalizeTaskbarWidgetStatus(envelope.result?.taskbarWidgetStatus),
+      taskbarWidgetStatus: this.normalizeTaskbarWidgetStatus(envelope.result?.taskbarWidgetStatus),
     }
   }
 
@@ -529,5 +556,54 @@ export class SystemMonitorHelperClient {
 
   private markProcessExitAsExpected(process: ChildProcessWithoutNullStreams): void {
     this.expectedExitProcess = process
+  }
+
+  private normalizeTaskbarWidgetStatus(
+    value: HelperEnvelope['result'] extends infer R
+      ? R extends { taskbarWidgetStatus?: infer S }
+        ? S
+        : never
+      : never,
+  ): TaskbarWidgetRuntimeStatus {
+    if (!value) {
+      return DISABLED_TASKBAR_WIDGET_STATUS
+    }
+
+    const normalized: TaskbarWidgetRuntimeStatus = {
+      requestedEnabled: Boolean(value.requestedEnabled),
+      visible: Boolean(value.visible),
+      embedded: Boolean(value.embedded),
+      error: typeof value.error === 'string' ? value.error : null,
+      debug: {
+        sessionHidden:
+          typeof value.debug?.sessionHidden === 'boolean' ? value.debug.sessionHidden : null,
+        hasLatestSnapshot:
+          typeof value.debug?.hasLatestSnapshot === 'boolean'
+            ? value.debug.hasLatestSnapshot
+            : null,
+        hasLayout: typeof value.debug?.hasLayout === 'boolean' ? value.debug.hasLayout : null,
+        handleCreated:
+          typeof value.debug?.handleCreated === 'boolean' ? value.debug.handleCreated : null,
+        stage: typeof value.debug?.stage === 'string' ? value.debug.stage : null,
+        parentWindowClass:
+          typeof value.debug?.parentWindowClass === 'string'
+            ? value.debug.parentWindowClass
+            : null,
+        bounds: typeof value.debug?.bounds === 'string' ? value.debug.bounds : null,
+        backgroundColor:
+          typeof value.debug?.backgroundColor === 'string' ? value.debug.backgroundColor : null,
+        foregroundColor:
+          typeof value.debug?.foregroundColor === 'string' ? value.debug.foregroundColor : null,
+        anchorRect: typeof value.debug?.anchorRect === 'string' ? value.debug.anchorRect : null,
+        notifyRect: typeof value.debug?.notifyRect === 'string' ? value.debug.notifyRect : null,
+        taskbarRect: typeof value.debug?.taskbarRect === 'string' ? value.debug.taskbarRect : null,
+      },
+    }
+
+    if (normalized.requestedEnabled && !normalized.embedded && !normalized.error) {
+      normalized.error = '任务栏窗口未嵌入，但 helper 未返回明确失败原因。'
+    }
+
+    return normalized
   }
 }

@@ -36,6 +36,10 @@ import {
   type WorkspaceAssistantSettingsDto,
 } from '@contexts/plugins/domain/workspaceAssistantSettings'
 import {
+  DEFAULT_EYE_CARE_SETTINGS,
+  normalizeEyeCareSettings,
+} from '@contexts/plugins/domain/eyeCareSettings'
+import {
   EMPTY_TERMINAL_CREDENTIAL_DEFAULTS,
   normalizeTerminalCredentialsSettings,
   type TerminalCredentialsSettings,
@@ -56,6 +60,7 @@ import {
   normalizeTaskPromptTemplatesByWorkspaceId,
 } from './taskPromptTemplates'
 import type {
+  EyeCareSettingsDto,
   GitWorklogSettingsDto,
   InputStatsSettingsDto,
   OssBackupSettingsDto,
@@ -135,6 +140,7 @@ export type AgentCustomModelOptionsByProvider = {
 
 export interface PluginSettings {
   enabledIds: BuiltinPluginId[]
+  eyeCare: EyeCareSettingsDto
   inputStats: InputStatsSettingsDto
   systemMonitor: SystemMonitorSettingsDto
   quotaMonitor: QuotaMonitorSettingsDto
@@ -237,6 +243,7 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   terminalCredentials: EMPTY_TERMINAL_CREDENTIAL_DEFAULTS,
   plugins: {
     enabledIds: getDefaultEnabledPluginIds(),
+    eyeCare: DEFAULT_EYE_CARE_SETTINGS,
     inputStats: DEFAULT_INPUT_STATS_SETTINGS,
     systemMonitor: DEFAULT_SYSTEM_MONITOR_SETTINGS,
     quotaMonitor: DEFAULT_QUOTA_MONITOR_SETTINGS,
@@ -520,6 +527,7 @@ export function normalizeAgentSettings(value: unknown): AgentSettings {
     enabledIds: normalizeBuiltinPluginIds(
       Array.isArray(pluginSource.enabledIds) ? pluginSource.enabledIds : value.enabledPluginIds,
     ),
+    eyeCare: normalizeEyeCareSettings(pluginSource.eyeCare),
     inputStats: normalizeInputStatsSettings(pluginSource.inputStats),
     systemMonitor: normalizeSystemMonitorSettings(pluginSource.systemMonitor),
     quotaMonitor: normalizeQuotaMonitorSettings(pluginSource.quotaMonitor),

@@ -2,6 +2,7 @@ import type {
   SystemMonitorGpuMode,
   SystemMonitorHistoryRangeDays,
   SystemMonitorTaskbarDisplayItem,
+  SystemMonitorTaskbarWidgetSettingsDto,
   SystemMonitorSettingsDto,
 } from '@shared/contracts/dto'
 import { isRecord, normalizeIntegerInRange } from '@contexts/settings/domain/settingsNormalization'
@@ -27,6 +28,8 @@ export const SYSTEM_MONITOR_TASKBAR_DISPLAY_ITEM_OPTIONS = [
 export const SYSTEM_MONITOR_MIN_TASKBAR_FONT_SIZE = 8
 export const SYSTEM_MONITOR_MAX_TASKBAR_FONT_SIZE = 18
 export const SYSTEM_MONITOR_DEFAULT_TASKBAR_FONT_SIZE = 9
+export const SYSTEM_MONITOR_MIN_TASKBAR_DIGITS = 3
+export const SYSTEM_MONITOR_MAX_TASKBAR_DIGITS = 6
 
 function isSystemMonitorHistoryRangeDays(value: unknown): value is SystemMonitorHistoryRangeDays {
   return (
@@ -66,6 +69,106 @@ function normalizeTaskbarDisplayItems(value: unknown): SystemMonitorTaskbarDispl
     : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.displayItems
 }
 
+function normalizeTaskbarWidgetSettings(
+  value: unknown,
+  legacyNotifyIconEnabled: boolean | null,
+): SystemMonitorTaskbarWidgetSettingsDto {
+  const source = isRecord(value) ? value : {}
+
+  return {
+    notifyIconEnabled:
+      source.notifyIconEnabled !== undefined
+        ? normalizeBoolean(
+            source.notifyIconEnabled,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.notifyIconEnabled,
+          )
+        : legacyNotifyIconEnabled ??
+          DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.notifyIconEnabled,
+    compactModeEnabled:
+      source.compactModeEnabled !== undefined
+        ? normalizeBoolean(
+            source.compactModeEnabled,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.compactModeEnabled,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.compactModeEnabled,
+    alwaysOnTop:
+      source.alwaysOnTop !== undefined
+        ? normalizeBoolean(
+            source.alwaysOnTop,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.alwaysOnTop,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.alwaysOnTop,
+    fontSize:
+      source.fontSize !== undefined
+        ? normalizeIntegerInRange(
+            source.fontSize,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.fontSize,
+            SYSTEM_MONITOR_MIN_TASKBAR_FONT_SIZE,
+            SYSTEM_MONITOR_MAX_TASKBAR_FONT_SIZE,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.fontSize,
+    displayItems:
+      source.displayItems !== undefined
+        ? normalizeTaskbarDisplayItems(source.displayItems)
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.displayItems,
+    followSystemTheme:
+      source.followSystemTheme !== undefined
+        ? normalizeBoolean(
+            source.followSystemTheme,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.followSystemTheme,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.followSystemTheme,
+    speedShortModeEnabled:
+      source.speedShortModeEnabled !== undefined
+        ? normalizeBoolean(
+            source.speedShortModeEnabled,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.speedShortModeEnabled,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.speedShortModeEnabled,
+    separateValueUnitWithSpace:
+      source.separateValueUnitWithSpace !== undefined
+        ? normalizeBoolean(
+            source.separateValueUnitWithSpace,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.separateValueUnitWithSpace,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.separateValueUnitWithSpace,
+    useByteUnit:
+      source.useByteUnit !== undefined
+        ? normalizeBoolean(
+            source.useByteUnit,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.useByteUnit,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.useByteUnit,
+    hideUnit:
+      source.hideUnit !== undefined
+        ? normalizeBoolean(source.hideUnit, DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.hideUnit)
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.hideUnit,
+    hidePercent:
+      source.hidePercent !== undefined
+        ? normalizeBoolean(
+            source.hidePercent,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.hidePercent,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.hidePercent,
+    valueRightAligned:
+      source.valueRightAligned !== undefined
+        ? normalizeBoolean(
+            source.valueRightAligned,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.valueRightAligned,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.valueRightAligned,
+    digitsNumber:
+      source.digitsNumber !== undefined
+        ? normalizeIntegerInRange(
+            source.digitsNumber,
+            DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.digitsNumber,
+            SYSTEM_MONITOR_MIN_TASKBAR_DIGITS,
+            SYSTEM_MONITOR_MAX_TASKBAR_DIGITS,
+          )
+        : DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.digitsNumber,
+  }
+}
+
 export const DEFAULT_SYSTEM_MONITOR_SETTINGS: SystemMonitorSettingsDto = {
   pollIntervalMs: SYSTEM_MONITOR_DEFAULT_POLL_INTERVAL_MS,
   backgroundPollIntervalMs: SYSTEM_MONITOR_DEFAULT_BACKGROUND_POLL_INTERVAL_MS,
@@ -79,6 +182,14 @@ export const DEFAULT_SYSTEM_MONITOR_SETTINGS: SystemMonitorSettingsDto = {
     alwaysOnTop: true,
     fontSize: SYSTEM_MONITOR_DEFAULT_TASKBAR_FONT_SIZE,
     displayItems: ['download', 'upload', 'cpu'],
+    followSystemTheme: true,
+    speedShortModeEnabled: false,
+    separateValueUnitWithSpace: true,
+    useByteUnit: true,
+    hideUnit: false,
+    hidePercent: false,
+    valueRightAligned: true,
+    digitsNumber: 4,
   },
 }
 
@@ -88,9 +199,12 @@ export function normalizeSystemMonitorSettings(value: unknown): SystemMonitorSet
   }
 
   const legacyGpuMonitoringEnabled = normalizeBoolean(value.gpuMonitoringEnabled, false)
-  const taskbarWidgetSource = isRecord(value.taskbarWidget) ? value.taskbarWidget : {}
   const legacyNotifyIconEnabled = normalizeBoolean(value.notifyIconEnabled, false)
   const legacyTaskbarDisplayItems = normalizeTaskbarDisplayItems(value.taskbarDisplayItems)
+  const taskbarWidgetSource = normalizeTaskbarWidgetSettings(
+    value.taskbarWidget,
+    legacyNotifyIconEnabled,
+  )
 
   return {
     pollIntervalMs: normalizeIntegerInRange(
@@ -119,32 +233,14 @@ export function normalizeSystemMonitorSettings(value: unknown): SystemMonitorSet
       : legacyGpuMonitoringEnabled
         ? 'total'
         : DEFAULT_SYSTEM_MONITOR_SETTINGS.gpuMode,
-    taskbarWidgetEnabled: normalizeBoolean(
-      value.taskbarWidgetEnabled,
-      DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidgetEnabled,
-    ),
+    // The Windows taskbar widget is intentionally retired for now.
+    // Keep the setting shape for forward compatibility, but force the runtime flag off.
+    taskbarWidgetEnabled: false,
     taskbarWidget: {
-      notifyIconEnabled: normalizeBoolean(
-        taskbarWidgetSource.notifyIconEnabled,
-        legacyNotifyIconEnabled ?? DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.notifyIconEnabled,
-      ),
-      compactModeEnabled: normalizeBoolean(
-        taskbarWidgetSource.compactModeEnabled,
-        DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.compactModeEnabled,
-      ),
-      alwaysOnTop: normalizeBoolean(
-        taskbarWidgetSource.alwaysOnTop,
-        DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.alwaysOnTop,
-      ),
-      fontSize: normalizeIntegerInRange(
-        taskbarWidgetSource.fontSize,
-        DEFAULT_SYSTEM_MONITOR_SETTINGS.taskbarWidget.fontSize,
-        SYSTEM_MONITOR_MIN_TASKBAR_FONT_SIZE,
-        SYSTEM_MONITOR_MAX_TASKBAR_FONT_SIZE,
-      ),
+      ...taskbarWidgetSource,
       displayItems:
-        taskbarWidgetSource.displayItems !== undefined
-          ? normalizeTaskbarDisplayItems(taskbarWidgetSource.displayItems)
+        taskbarWidgetSource.displayItems.length > 0
+          ? taskbarWidgetSource.displayItems
           : legacyTaskbarDisplayItems,
     },
   }

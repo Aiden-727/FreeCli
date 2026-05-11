@@ -5,6 +5,7 @@ export type HostedTerminalAgentProvider = Extract<AgentProviderId, 'claude-code'
 export type HostedTerminalAgentState = 'active' | 'inactive' | 'unavailable'
 
 export interface HostedTerminalAgent {
+  bindingId?: string
   provider: HostedTerminalAgentProvider
   launchMode: AgentLaunchMode
   resumeSessionId: string | null

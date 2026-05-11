@@ -1,6 +1,9 @@
 import { createAppError } from '../../../../shared/errors/appError'
 import type { BuiltinPluginId } from '../../domain/pluginManifest'
 import {
+  normalizeEyeCareSettings,
+} from '../../domain/eyeCareSettings'
+import {
   normalizeGitWorklogSettings,
   normalizeGitWorklogWorkspaces,
 } from '../../domain/gitWorklogSettings'
@@ -11,6 +14,7 @@ import { normalizeSystemMonitorSettings } from '../../domain/systemMonitorSettin
 import { normalizeWorkspaceAssistantSettings } from '../../domain/workspaceAssistantSettings'
 import { normalizeBuiltinPluginIds } from '../../domain/pluginManifest'
 import type {
+  EyeCareSettingsDto,
   AcceptGitWorklogPendingImportInput,
   DismissGitWorklogPendingImportInput,
   GitWorklogSettingsDto,
@@ -36,6 +40,10 @@ export interface NormalizedSyncPluginRuntimeStatePayload {
 
 export interface NormalizedSyncQuotaMonitorSettingsPayload {
   settings: QuotaMonitorSettingsDto
+}
+
+export interface NormalizedSyncEyeCareSettingsPayload {
+  settings: EyeCareSettingsDto
 }
 
 export interface NormalizedSyncInputStatsSettingsPayload {
@@ -120,6 +128,21 @@ export function normalizeSyncQuotaMonitorSettingsPayload(
   const record = payload as Record<string, unknown>
   return {
     settings: normalizeQuotaMonitorSettings(record.settings),
+  }
+}
+
+export function normalizeSyncEyeCareSettingsPayload(
+  payload: unknown,
+): NormalizedSyncEyeCareSettingsPayload {
+  if (!payload || typeof payload !== 'object') {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'Invalid payload for plugins:eye-care:sync-settings',
+    })
+  }
+
+  const record = payload as Record<string, unknown>
+  return {
+    settings: normalizeEyeCareSettings(record.settings),
   }
 }
 

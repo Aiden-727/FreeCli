@@ -1,6 +1,7 @@
 import React from 'react'
-import { Bot, X } from 'lucide-react'
+import { Bot, CircleAlert, TerminalSquare, X } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
+import type { TerminalSessionAttentionReason } from '@shared/contracts/dto'
 
 export type AgentStandbyNotificationGitContext =
   | { kind: 'branch'; name: string }
@@ -13,9 +14,11 @@ export type AgentStandbyNotificationPullRequest = {
 }
 
 export type AgentStandbyNotification = {
-  kind: 'agent-standby'
+  kind: 'agent-attention'
   id: string
   sessionId: string
+  bindingId: string | null
+  attentionReason: TerminalSessionAttentionReason
   workspaceId: string
   workspaceName: string
   workspacePath: string
@@ -32,7 +35,30 @@ export type AgentStandbyNotification = {
   createdAt: number
 }
 
-export type AppNotification = AgentStandbyNotification
+export type RecoveryNotification = {
+  kind: 'agent-recovery'
+  id: string
+  sessionId: string
+  bindingId: string | null
+  attentionReason: 'recovery'
+  workspaceId: string
+  workspaceName: string
+  workspacePath: string
+  nodeId: string
+  title: string
+  taskId: string | null
+  taskTitle: string | null
+  spaceId: string | null
+  spaceName: string | null
+  spaceDirectoryPath: string | null
+  executionDirectory: string
+  message: string
+  gitContext: AgentStandbyNotificationGitContext | null
+  pullRequest: AgentStandbyNotificationPullRequest | null
+  createdAt: number
+}
+
+export type AppNotification = AgentStandbyNotification | RecoveryNotification
 
 export function AppNotifications({
   notifications,
@@ -64,7 +90,12 @@ export function AppNotifications({
   return (
     <div className="app-notifications" data-testid="app-notifications" role="status">
       {notifications.map(notification => {
-        const status = t('agentRuntime.standby')
+        const status =
+          notification.attentionReason === 'approval'
+            ? t('notifications.agentAttention.reasonApproval')
+            : notification.attentionReason === 'recovery'
+              ? t('notifications.agentAttention.reasonRecovery')
+              : t('notifications.agentAttention.reasonInput')
         const subtitle = notification.workspaceName
           ? `${status} · ${notification.workspaceName}`
           : status
@@ -72,6 +103,15 @@ export function AppNotifications({
         const spaceKindLabel = t('commandCenter.sections.spaces')
         const branchKindLabel = t('worktree.branch')
         const detachedKindLabel = t('worktree.detached')
+
+        const icon =
+          notification.attentionReason === 'recovery' ? (
+            <TerminalSquare size={18} />
+          ) : notification.attentionReason === 'approval' ? (
+            <CircleAlert size={18} />
+          ) : (
+            <Bot size={18} />
+          )
 
         return (
           <div
@@ -94,11 +134,14 @@ export function AppNotifications({
             }}
           >
             <span className="app-notification__icon" aria-hidden="true">
-              <Bot size={18} />
+              {icon}
             </span>
             <span className="app-notification__content">
               <span className="app-notification__title">{notification.title}</span>
               <span className="app-notification__subtitle">{subtitle}</span>
+              {notification.kind === 'agent-recovery' ? (
+                <span className="app-notification__message">{notification.message}</span>
+              ) : null}
               {contextVisibility.showTask ||
               contextVisibility.showSpace ||
               contextVisibility.showBranch ||

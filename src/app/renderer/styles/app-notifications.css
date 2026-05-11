@@ -94,6 +94,16 @@
   text-overflow: ellipsis;
 }
 
+.app-notification__message {
+  font-size: calc(11px * var(--cove-ui-font-scale));
+  color: var(--cove-text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
 .app-notification__context {
   display: flex;
   flex-wrap: wrap;

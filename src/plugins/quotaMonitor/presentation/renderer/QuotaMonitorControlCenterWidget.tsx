@@ -75,7 +75,32 @@ export default function QuotaMonitorControlCenterWidget({
         <span className="control-center-tile__label">
           {t('pluginManager.plugins.quotaMonitor.title')}
         </span>
-        <span className="control-center-tile__subtitle">{subtitle}</span>
+        <span className="control-center-tile__subtitle control-center-tile__plugin-lines">
+          {hasSnapshot ? (
+            <>
+              <span className="control-center-tile__plugin-line">
+                <span className="control-center-tile__eye-care-countdown-value">
+                  {remainDisplay}
+                </span>
+                <span className="control-center-tile__data-pill-label">剩余额度</span>
+              </span>
+              <span className="control-center-tile__plugin-line">
+                <span className="control-center-tile__eye-care-phase-pill">
+                  {healthyProfiles[0]?.estimatedRemainingTimeLabel ?? '--'}
+                </span>
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="control-center-tile__plugin-line">
+                <span className="control-center-tile__eye-care-phase-pill">{subtitle}</span>
+              </span>
+              <span className="control-center-tile__plugin-line">
+                <span className="control-center-tile__eye-care-countdown-value">--</span>
+              </span>
+            </>
+          )}
+        </span>
       </span>
     </button>
   )

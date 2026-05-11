@@ -265,4 +265,134 @@ describe('TerminalNode paste indicator', () => {
       expect(container.querySelector('.terminal-node__paste-indicator')).toBeNull()
     })
   })
+
+  it('defers Enter until an async clipboard paste has finished resolving', async () => {
+    const clipboardDeferred = createDeferred<string>()
+    const writeDeferred = createDeferred<void>()
+    const writeCalls: Array<{ sessionId: string; data: string }> = []
+
+    Object.defineProperty(window, 'freecliApi', {
+      configurable: true,
+      writable: true,
+      value: {
+        meta: {
+          isTest: true,
+          platform: 'win32',
+        },
+        clipboard: {
+          readText: vi.fn(() => clipboardDeferred.promise),
+        },
+        pty: {
+          attach: vi.fn(async () => undefined),
+          detach: vi.fn(async () => undefined),
+          snapshot: vi.fn(async () => ({ data: '' })),
+          onData: vi.fn(() => () => undefined),
+          onExit: vi.fn(() => () => undefined),
+          write: vi.fn((payload: { sessionId: string; data: string }) => {
+            writeCalls.push(payload)
+            return writeDeferred.promise
+          }),
+          resize: vi.fn(async () => undefined),
+        },
+        workspace: {},
+      },
+    })
+
+    const { TerminalNode } =
+      await import('../../../src/contexts/workspace/presentation/renderer/components/TerminalNode')
+
+    render(
+      <TerminalNode
+        nodeId="node-paste-enter-order"
+        sessionId="session-paste-enter-order"
+        title="paste-enter-order"
+        kind="terminal"
+        status={null}
+        lastError={null}
+        position={{ x: 0, y: 0 }}
+        width={520}
+        height={360}
+        terminalFontSize={13}
+        scrollback={null}
+        persistenceMode="persistent"
+        onClose={() => undefined}
+        onResize={() => undefined}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(window.freecliApi.pty.snapshot).toHaveBeenCalledTimes(1)
+    })
+
+    const { __getLastTerminal } = await import('@xterm/xterm')
+    const terminal = __getLastTerminal()
+    if (!terminal) {
+      throw new Error('terminal instance missing')
+    }
+
+    const pasteEvent = {
+      type: 'keydown',
+      key: 'v',
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as KeyboardEvent
+
+    terminal.dispatchCustomKey(pasteEvent)
+
+    const enterEvent = {
+      type: 'keydown',
+      key: 'Enter',
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      metaKey: false,
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+    } as unknown as KeyboardEvent
+
+    terminal.dispatchCustomKey(enterEvent)
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(writeCalls).toEqual([])
+
+    clipboardDeferred.resolve('clipboard-image-path')
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(writeCalls).toEqual([
+        {
+          sessionId: 'session-paste-enter-order',
+          data: 'clipboard-image-path',
+        },
+      ])
+    })
+
+    writeDeferred.resolve()
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(writeCalls).toEqual([
+        {
+          sessionId: 'session-paste-enter-order',
+          data: 'clipboard-image-path',
+        },
+        {
+          sessionId: 'session-paste-enter-order',
+          data: '\r',
+        },
+      ])
+    })
+  })
 })

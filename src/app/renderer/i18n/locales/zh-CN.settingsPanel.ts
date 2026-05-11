@@ -159,8 +159,8 @@ export const zhCNSettingsPanel = {
   notifications: {
     title: '通知',
     agentStandbyBanner: {
-      enabledLabel: 'Agent 完成提醒',
-      enabledHelp: '当 Agent 从工作状态变为待命时，在右上角显示提醒横幅。',
+      enabledLabel: 'Agent 需要处理提醒',
+      enabledHelp: '当 Agent 等待批准、输入，或恢复失败时，在右上角显示提醒横幅。',
       contextTitle: '横幅信息',
       contextHelp: '控制右上角提醒横幅中显示的上下文信息。',
       showTask: '显示任务',

@@ -1,5 +1,6 @@
 import { resolveAgentModel } from '@contexts/settings/domain/agentSettings'
 import { resolveTaskExecutionContext } from '@contexts/session/application/resolveTaskExecutionContext'
+import { generateSessionBindingId } from '@contexts/session/domain/sessionBindingId'
 import { clearResumeSessionBinding } from '../../../utils/agentResumeBinding'
 import { toErrorMessage } from '../helpers'
 import {
@@ -37,6 +38,7 @@ function reuseLinkedAgentForTask({
   })
 
   const now = new Date().toISOString()
+  const linkedAgentBindingId = linkedAgentNode.data.agent.bindingId
 
   context.setNodes(prevNodes =>
     prevNodes.map(node => {
@@ -74,6 +76,7 @@ function reuseLinkedAgentForTask({
               ...node.data.task,
               status: 'doing',
               linkedAgentNodeId,
+              linkedAgentBindingId,
               lastRunAt: now,
               updatedAt: now,
             },
@@ -138,11 +141,13 @@ export async function runTaskAgentAction(
   }
 
   const provider = context.agentSettings.defaultProvider
+  const bindingId = generateSessionBindingId()
   const model = resolveAgentModel(context.agentSettings, provider)
   const taskSpace = findTaskSpace(taskNodeId, context.spacesRef)
 
   try {
     const launched = await window.freecliApi.agent.launch({
+      bindingId,
       provider,
       cwd: taskDirectory,
       prompt: requirement,
@@ -163,6 +168,7 @@ export async function runTaskAgentAction(
         preferredDirection: 'right',
       },
       agent: {
+        bindingId,
         provider,
         prompt: requirement,
         model,
@@ -203,6 +209,7 @@ export async function runTaskAgentAction(
               ...node.data.task,
               status: 'doing',
               linkedAgentNodeId: createdAgentNode.id,
+              linkedAgentBindingId: bindingId,
               lastRunAt: now,
               updatedAt: now,
             },

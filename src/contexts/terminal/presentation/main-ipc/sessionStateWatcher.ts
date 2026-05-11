@@ -2,6 +2,7 @@ import { IPC_CHANNELS } from '../../../../shared/contracts/ipc'
 import type {
   AgentLaunchMode,
   AgentProviderId,
+  TerminalSessionAttentionEvent,
   TerminalSessionMetadataEvent,
   TerminalSessionStateEvent,
 } from '../../../../shared/contracts/dto'
@@ -26,6 +27,7 @@ const SESSION_STATE_WATCHER_RESUME_STANDBY_FALLBACK_MS = 2_500
 
 export interface SessionStateWatcherStartInput {
   sessionId: string
+  bindingId?: string
   provider: AgentProviderId
   cwd: string
   launchMode: AgentLaunchMode
@@ -72,6 +74,10 @@ export function createSessionStateWatcherController({
   const stateWatcherLastBroadcastResumeSessionIdBySession = new Map<string, string>()
   const stateWatcherLastRuntimeMetadataBySession = new Map<string, SessionRuntimeMetadata>()
   const stateWatcherLastBroadcastStateBySession = new Map<string, 'working' | 'standby'>()
+  const stateWatcherLastAttentionReasonBySession = new Map<
+    string,
+    TerminalSessionAttentionEvent['reason']
+  >()
   const geminiDiscoveryCursorBySession = new Map<string, GeminiSessionDiscoveryCursor>()
   const geminiDiscoveryCursorPendingSessionIds = new Set<string>()
   const stateWatcherPendingImmediateRetryBySession = new Set<string>()
@@ -115,8 +121,10 @@ export function createSessionStateWatcherController({
     sessionId: string,
     payload: Omit<TerminalSessionMetadataEvent, 'sessionId'>,
   ): void => {
+    const bindingId = stateWatcherStartInputBySession.get(sessionId)?.bindingId ?? null
     const eventPayload: TerminalSessionMetadataEvent = {
       sessionId,
+      bindingId,
       ...payload,
     }
     sendToAllWindows(IPC_CHANNELS.ptySessionMetadata, eventPayload)
@@ -145,6 +153,7 @@ export function createSessionStateWatcherController({
       stateWatcherLastBroadcastResumeSessionIdBySession.delete(sessionId)
       stateWatcherLastRuntimeMetadataBySession.delete(sessionId)
       stateWatcherLastBroadcastStateBySession.delete(sessionId)
+      stateWatcherLastAttentionReasonBySession.delete(sessionId)
       geminiDiscoveryCursorBySession.delete(sessionId)
       geminiDiscoveryCursorPendingSessionIds.delete(sessionId)
       stateWatcherPendingImmediateRetryBySession.delete(sessionId)
@@ -214,12 +223,32 @@ export function createSessionStateWatcherController({
   const broadcastSessionState = (sessionId: string, state: 'working' | 'standby'): void => {
     cancelResumeStandbyFallback(sessionId)
     stateWatcherLastBroadcastStateBySession.set(sessionId, state)
+    const bindingId = stateWatcherStartInputBySession.get(sessionId)?.bindingId ?? null
 
     const eventPayload: TerminalSessionStateEvent = {
       sessionId,
+      bindingId,
       state,
     }
     sendToAllWindows(IPC_CHANNELS.ptyState, eventPayload)
+  }
+
+  const broadcastSessionAttention = (
+    sessionId: string,
+    reason: TerminalSessionAttentionEvent['reason'],
+  ): void => {
+    if (stateWatcherLastAttentionReasonBySession.get(sessionId) === reason) {
+      return
+    }
+
+    stateWatcherLastAttentionReasonBySession.set(sessionId, reason)
+    const bindingId = stateWatcherStartInputBySession.get(sessionId)?.bindingId ?? null
+    const eventPayload: TerminalSessionAttentionEvent = {
+      sessionId,
+      bindingId,
+      reason,
+    }
+    sendToAllWindows(IPC_CHANNELS.ptyAttention, eventPayload)
   }
 
   const scheduleResumeStandbyFallback = (
@@ -398,6 +427,7 @@ export function createSessionStateWatcherController({
             sessionId,
             filePath: sessionFilePath,
             onState: broadcastSessionState,
+            onAttention: broadcastSessionAttention,
             onMetadata: (_watchedSessionId, runtimeMetadata) => {
               broadcastRuntimeMetadata(sessionId, resolvedSessionId, runtimeMetadata)
             },
@@ -551,6 +581,7 @@ export function createSessionStateWatcherController({
     stateWatcherLastBroadcastResumeSessionIdBySession.clear()
     stateWatcherLastRuntimeMetadataBySession.clear()
     stateWatcherLastBroadcastStateBySession.clear()
+    stateWatcherLastAttentionReasonBySession.clear()
     geminiDiscoveryCursorBySession.clear()
     geminiDiscoveryCursorPendingSessionIds.clear()
     stateWatcherPendingImmediateRetryBySession.clear()

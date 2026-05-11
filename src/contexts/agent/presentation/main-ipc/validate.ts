@@ -6,6 +6,7 @@ import type {
   ResolveAgentResumeSessionInput,
 } from '../../../../shared/contracts/dto'
 import { normalizeProvider } from '../../../../app/main/ipc/normalize'
+import { execFileSync } from 'node:child_process'
 import { isAbsolute } from 'node:path'
 import { createAppError } from '../../../../shared/errors/appError'
 
@@ -108,7 +109,7 @@ export function resolveAgentTestStub(
 
   if (sessionScenario.length > 0 && stubScriptPath.length > 0) {
     return {
-      command: process.execPath,
+      command: resolveTestNodeCommand(),
       args: [
         stubScriptPath,
         provider,
@@ -142,6 +143,31 @@ export function resolveAgentTestStub(
   }
 }
 
+function resolveTestNodeCommand(): string {
+  const explicitNodeBinary = process.env['FREECLI_TEST_NODE_BINARY']?.trim()
+  if (explicitNodeBinary) {
+    return explicitNodeBinary
+  }
+
+  try {
+    const resolvedPath = execFileSync(process.platform === 'win32' ? 'where.exe' : 'which', ['node'], {
+      encoding: 'utf8',
+      windowsHide: true,
+    })
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(line => line.length > 0)
+
+    if (resolvedPath) {
+      return resolvedPath
+    }
+  } catch {
+    // Fall back to the generic node command name below.
+  }
+
+  return process.platform === 'win32' ? 'node.exe' : 'node'
+}
+
 export function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput {
   if (!payload || typeof payload !== 'object') {
     throw createAppError('common.invalid_input', {
@@ -150,6 +176,7 @@ export function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput 
   }
 
   const record = payload as Record<string, unknown>
+  const bindingId = typeof record.bindingId === 'string' ? record.bindingId.trim() : ''
   const provider = normalizeProvider(record.provider)
   const cwd = typeof record.cwd === 'string' ? record.cwd.trim() : ''
   const prompt = typeof record.prompt === 'string' ? record.prompt.trim() : ''
@@ -183,7 +210,14 @@ export function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput 
     })
   }
 
+  if (bindingId.length === 0) {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'agent:launch requires a bindingId',
+    })
+  }
+
   return {
+    bindingId,
     provider,
     cwd,
     prompt,

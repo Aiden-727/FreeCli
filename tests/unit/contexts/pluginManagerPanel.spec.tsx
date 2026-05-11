@@ -2260,6 +2260,128 @@ describe('PluginManagerPanel', () => {
     expect(totalTokenValue).toBeVisible()
   })
 
+  it('renders all persisted quota monitor model records and keeps zero-today models visible', async () => {
+    installQuotaMonitorApiMock({
+      status: 'ready',
+      lastUpdatedAt: '2026-04-02T09:30:00.000Z',
+      configuredProfileCount: 1,
+      successfulProfileCount: 1,
+      profiles: [
+        createQuotaProfileState({
+          modelUsageSummary: {
+            totalCalls: 41,
+            totalTokens: 5600,
+            todayTokens: 860,
+            activeDays: 12,
+            averageDailyTokens: 466.67,
+            latestRequestTime: '2026-04-02T09:30:00.000Z',
+            models: [
+              {
+                modelName: 'gpt-4.1',
+                calls: 12,
+                todayTokens: 320,
+                totalTokens: 1800,
+                activeDays: 10,
+                averageDailyTokens: 180,
+              },
+              {
+                modelName: 'claude-3.7',
+                calls: 9,
+                todayTokens: 280,
+                totalTokens: 1400,
+                activeDays: 8,
+                averageDailyTokens: 175,
+              },
+              {
+                modelName: 'gpt-5.2',
+                calls: 7,
+                todayTokens: 0,
+                totalTokens: 900,
+                activeDays: 7,
+                averageDailyTokens: 128.57,
+              },
+              {
+                modelName: 'gemini-2.5-pro',
+                calls: 5,
+                todayTokens: 140,
+                totalTokens: 700,
+                activeDays: 5,
+                averageDailyTokens: 140,
+              },
+              {
+                modelName: 'deepseek-r1',
+                calls: 4,
+                todayTokens: 60,
+                totalTokens: 400,
+                activeDays: 4,
+                averageDailyTokens: 100,
+              },
+              {
+                modelName: 'qwen-max',
+                calls: 3,
+                todayTokens: 40,
+                totalTokens: 250,
+                activeDays: 3,
+                averageDailyTokens: 83.33,
+              },
+              {
+                modelName: 'o3',
+                calls: 1,
+                todayTokens: 20,
+                totalTokens: 150,
+                activeDays: 1,
+                averageDailyTokens: 150,
+              },
+            ],
+          },
+        }),
+      ],
+    })
+
+    render(
+      <PluginManagerPanel
+        isOpen
+        settings={{
+          ...DEFAULT_AGENT_SETTINGS,
+          plugins: {
+            ...DEFAULT_AGENT_SETTINGS.plugins,
+            enabledIds: ['quota-monitor'],
+          },
+        }}
+        onChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('plugin-manager-nav-quota-monitor'))
+
+    const overview = await screen.findByTestId('quota-monitor-overview')
+    const modelTable = overview.querySelector('.quota-monitor-overview__model-table')
+    expect(modelTable).not.toBeNull()
+    expect(within(modelTable as HTMLElement).getByText('gpt-4.1')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('claude-3.7')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('gpt-5.2')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('gemini-2.5-pro')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('deepseek-r1')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('qwen-max')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('o3')).toBeVisible()
+    expect(within(modelTable as HTMLElement).getByText('0')).toBeVisible()
+
+    const modelNames = Array.from(
+      overview.querySelectorAll('.quota-monitor-overview__model-row:not(.quota-monitor-overview__model-row--head) span:first-child'),
+    ).map(node => node.textContent?.trim())
+
+    expect(modelNames).toEqual([
+      'gpt-4.1',
+      'claude-3.7',
+      'gpt-5.2',
+      'gemini-2.5-pro',
+      'deepseek-r1',
+      'qwen-max',
+      'o3',
+    ])
+  })
+
   it('toggles api key visibility inside quota monitor key profiles', async () => {
     installQuotaMonitorApiMock()
 

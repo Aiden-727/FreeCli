@@ -1,8 +1,14 @@
 import { useEffect, useRef } from 'react'
-import type { TerminalSessionState, TerminalSessionStateEvent } from '@shared/contracts/dto'
+import type {
+  TerminalSessionAttentionEvent,
+  TerminalSessionAttentionReason,
+  TerminalSessionState,
+  TerminalSessionStateEvent,
+} from '@shared/contracts/dto'
 import type { AgentRuntimeStatus } from '@contexts/agent/domain/types'
 import { useAppStore } from '../store/useAppStore'
 import { getPtyEventHub } from '../utils/ptyEventHub'
+import { matchesTerminalRuntimeEvent } from '@contexts/workspace/presentation/renderer/utils/terminalBindingMatch'
 
 function normalizeSessionId(rawValue: unknown): string | null {
   if (typeof rawValue !== 'string') {
@@ -13,7 +19,19 @@ function normalizeSessionId(rawValue: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
-function resolveAgentNodeForSessionId(sessionId: string): {
+function normalizeBindingId(rawValue: unknown): string | null {
+  if (typeof rawValue !== 'string') {
+    return null
+  }
+
+  const trimmed = rawValue.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function resolveAgentNodeForRuntimeEvent(event: {
+  sessionId: string
+  bindingId?: string | null
+}): {
   workspaceId: string
   workspaceName: string
   workspacePath: string
@@ -27,7 +45,7 @@ function resolveAgentNodeForSessionId(sessionId: string): {
 
   for (const workspace of state.workspaces) {
     for (const node of workspace.nodes) {
-      if (node.data.kind !== 'agent' || node.data.sessionId !== sessionId) {
+      if (node.data.kind !== 'agent' || !matchesTerminalRuntimeEvent(node.data, event)) {
         continue
       }
 
@@ -52,7 +70,9 @@ function resolveAgentNodeForSessionId(sessionId: string): {
 }
 
 export type AgentStandbyNotificationPayload = {
+  attentionReason: TerminalSessionAttentionReason
   sessionId: string
+  bindingId: string | null
   workspaceId: string
   workspaceName: string
   workspacePath: string
@@ -64,20 +84,23 @@ export type AgentStandbyNotificationPayload = {
 
 export function useAgentStandbyNotificationWatcher({
   enabled = true,
-  onAgentEnteredStandby,
+  onAgentNeedsAttention,
   onAgentEnteredWorking,
 }: {
   enabled?: boolean
-  onAgentEnteredStandby: (payload: AgentStandbyNotificationPayload) => void
-  onAgentEnteredWorking: (sessionId: string) => void
+  onAgentNeedsAttention: (payload: AgentStandbyNotificationPayload) => void
+  onAgentEnteredWorking: (identity: { sessionId: string; bindingId: string | null }) => void
 }): void {
   const lastStateBySessionIdRef = useRef<Map<string, TerminalSessionState>>(new Map())
-  const standbyHandlerRef = useRef(onAgentEnteredStandby)
+  const lastAttentionReasonBySessionIdRef = useRef<Map<string, TerminalSessionAttentionReason>>(
+    new Map(),
+  )
+  const attentionHandlerRef = useRef(onAgentNeedsAttention)
   const workingHandlerRef = useRef(onAgentEnteredWorking)
 
   useEffect(() => {
-    standbyHandlerRef.current = onAgentEnteredStandby
-  }, [onAgentEnteredStandby])
+    attentionHandlerRef.current = onAgentNeedsAttention
+  }, [onAgentNeedsAttention])
 
   useEffect(() => {
     workingHandlerRef.current = onAgentEnteredWorking
@@ -89,7 +112,7 @@ export function useAgentStandbyNotificationWatcher({
     }
 
     const ptyEventHub = getPtyEventHub()
-    const unsubscribe = ptyEventHub.onState((event: TerminalSessionStateEvent) => {
+    const unsubscribeState = ptyEventHub.onState((event: TerminalSessionStateEvent) => {
       const sessionId = normalizeSessionId(event.sessionId)
       if (!sessionId) {
         return
@@ -99,11 +122,18 @@ export function useAgentStandbyNotificationWatcher({
       lastStateBySessionIdRef.current.set(sessionId, event.state)
 
       if (event.state === 'working') {
-        workingHandlerRef.current(sessionId)
+        lastAttentionReasonBySessionIdRef.current.delete(sessionId)
+        workingHandlerRef.current({
+          sessionId,
+          bindingId: normalizeBindingId(event.bindingId),
+        })
         return
       }
 
-      const resolved = resolveAgentNodeForSessionId(sessionId)
+      const resolved = resolveAgentNodeForRuntimeEvent({
+        sessionId,
+        bindingId: normalizeBindingId(event.bindingId),
+      })
       if (!resolved) {
         return
       }
@@ -120,8 +150,13 @@ export function useAgentStandbyNotificationWatcher({
         return
       }
 
-      standbyHandlerRef.current({
+      const attentionReason =
+        lastAttentionReasonBySessionIdRef.current.get(sessionId) ?? 'input'
+
+      attentionHandlerRef.current({
+        attentionReason,
         sessionId,
+        bindingId: normalizeBindingId(event.bindingId),
         workspaceId: resolved.workspaceId,
         workspaceName: resolved.workspaceName,
         workspacePath: resolved.workspacePath,
@@ -132,8 +167,18 @@ export function useAgentStandbyNotificationWatcher({
       })
     })
 
+    const unsubscribeAttention = ptyEventHub.onAttention((event: TerminalSessionAttentionEvent) => {
+      const sessionId = normalizeSessionId(event.sessionId)
+      if (!sessionId) {
+        return
+      }
+
+      lastAttentionReasonBySessionIdRef.current.set(sessionId, event.reason)
+    })
+
     return () => {
-      unsubscribe()
+      unsubscribeState()
+      unsubscribeAttention()
     }
   }, [enabled])
 }

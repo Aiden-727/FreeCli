@@ -13,6 +13,7 @@ import { toAgentNodeTitle } from '@app/renderer/shell/utils/format'
 import {
   parseHostedTerminalAgentCommand,
 } from '@contexts/terminal/domain/hostedAgent'
+import { deriveHostedTerminalBindingId } from '@contexts/session/domain/sessionBindingId'
 import { TERMINAL_LAYOUT_SYNC_EVENT } from '../../terminalNode/constants'
 import { centerNodeInViewport } from '../helpers'
 import { syncWorkspaceCanvasTestState } from '../testHarness'
@@ -524,6 +525,7 @@ export function useWorkspaceCanvasNodesStore({
 
       let trackingRequest: {
         sessionId: string
+        bindingId: string
         provider: 'claude-code' | 'codex'
         cwd: string
         launchMode: 'new' | 'resume'
@@ -549,7 +551,10 @@ export function useWorkspaceCanvasNodesStore({
             const nextResumeSessionIdVerified = nextResumeSessionId !== null
             const nextStatus: TerminalNodeData['status'] = 'running'
             const resolvedModel = parsed.model ?? null
+            const bindingId =
+              node.data.hostedAgent?.bindingId ?? deriveHostedTerminalBindingId(node.id)
             const nextHostedAgent: NonNullable<TerminalNodeData['hostedAgent']> = {
+              bindingId,
               provider: parsed.provider,
               launchMode: parsed.launchMode,
               resumeSessionId: nextResumeSessionId,
@@ -567,6 +572,7 @@ export function useWorkspaceCanvasNodesStore({
 
             trackingRequest = {
               sessionId: node.data.sessionId,
+              bindingId,
               provider: parsed.provider,
               cwd,
               launchMode: parsed.launchMode,

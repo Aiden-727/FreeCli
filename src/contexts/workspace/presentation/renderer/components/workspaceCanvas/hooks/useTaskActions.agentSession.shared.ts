@@ -126,6 +126,7 @@ export function clearStaleTaskLinkedAgent({
           task: {
             ...node.data.task,
             linkedAgentNodeId: null,
+            linkedAgentBindingId: null,
             updatedAt: new Date().toISOString(),
           },
         },

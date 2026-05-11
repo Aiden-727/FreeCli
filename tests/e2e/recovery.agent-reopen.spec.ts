@@ -109,8 +109,12 @@ test.describe('Recovery - Agent reopen', () => {
           nodes?: Array<{
             id?: string
             kind?: string
-            task?: { linkedAgentNodeId?: string | null } | null
+            task?: {
+              linkedAgentNodeId?: string | null
+              linkedAgentBindingId?: string | null
+            } | null
             agent?: {
+              bindingId?: string | null
               resumeSessionId?: string | null
               resumeSessionIdVerified?: boolean
             } | null
@@ -121,12 +125,15 @@ test.describe('Recovery - Agent reopen', () => {
       const nodes = parsed?.workspaces?.[0]?.nodes ?? []
       const task = nodes.find(node => node.kind === 'task')
       const linkedAgentNodeId = task?.task?.linkedAgentNodeId ?? null
+      const linkedAgentBindingId = task?.task?.linkedAgentBindingId ?? null
       const agent = linkedAgentNodeId
         ? nodes.find(node => node.kind === 'agent' && node.id === linkedAgentNodeId)
         : null
 
       return {
         linkedAgentNodeId,
+        linkedAgentBindingId,
+        bindingId: agent?.agent?.bindingId ?? null,
         resumeSessionId: agent?.agent?.resumeSessionId ?? null,
         resumeSessionIdVerified: agent?.agent?.resumeSessionIdVerified ?? false,
       }
@@ -205,6 +212,7 @@ test.describe('Recovery - Agent reopen', () => {
             return (
               typeof binding.linkedAgentNodeId === 'string' &&
               binding.linkedAgentNodeId.length > 0 &&
+              binding.linkedAgentBindingId === binding.bindingId &&
               binding.resumeSessionIdVerified === true &&
               typeof binding.resumeSessionId === 'string' &&
               binding.resumeSessionId.length > 0
@@ -247,6 +255,8 @@ test.describe('Recovery - Agent reopen', () => {
             const binding = await readBinding(restartedWindow)
             return (
               binding.linkedAgentNodeId === initialBinding.linkedAgentNodeId &&
+              binding.linkedAgentBindingId === initialBinding.linkedAgentBindingId &&
+              binding.bindingId === initialBinding.bindingId &&
               binding.resumeSessionId === initialBinding.resumeSessionId &&
               binding.resumeSessionIdVerified === initialBinding.resumeSessionIdVerified
             )
@@ -271,8 +281,12 @@ test.describe('Recovery - Agent reopen', () => {
           nodes?: Array<{
             id?: string
             kind?: string
-            task?: { linkedAgentNodeId?: string | null } | null
+            task?: {
+              linkedAgentNodeId?: string | null
+              linkedAgentBindingId?: string | null
+            } | null
             agent?: {
+              bindingId?: string | null
               resumeSessionId?: string | null
               resumeSessionIdVerified?: boolean
             } | null
@@ -288,10 +302,13 @@ test.describe('Recovery - Agent reopen', () => {
       return tasks
         .map(task => {
           const linkedAgentNodeId = task.task?.linkedAgentNodeId ?? null
+          const linkedAgentBindingId = task.task?.linkedAgentBindingId ?? null
           const agent = linkedAgentNodeId ? agentById.get(linkedAgentNodeId) : undefined
           return {
             taskId: task.id ?? '',
             linkedAgentNodeId,
+            linkedAgentBindingId,
+            bindingId: agent?.agent?.bindingId ?? null,
             resumeSessionId: agent?.agent?.resumeSessionId ?? null,
             resumeSessionIdVerified: agent?.agent?.resumeSessionIdVerified ?? false,
           }
@@ -402,6 +419,7 @@ test.describe('Recovery - Agent reopen', () => {
             return (
               typeof binding?.linkedAgentNodeId === 'string' &&
               binding.linkedAgentNodeId.length > 0 &&
+              binding.linkedAgentBindingId === binding.bindingId &&
               binding.resumeSessionIdVerified === true &&
               typeof binding.resumeSessionId === 'string' &&
               binding.resumeSessionId.length > 0
@@ -422,6 +440,7 @@ test.describe('Recovery - Agent reopen', () => {
               binding =>
                 typeof binding.linkedAgentNodeId === 'string' &&
                 binding.linkedAgentNodeId.length > 0 &&
+                binding.linkedAgentBindingId === binding.bindingId &&
                 binding.resumeSessionIdVerified === true &&
                 typeof binding.resumeSessionId === 'string' &&
                 binding.resumeSessionId.length > 0,
@@ -463,6 +482,8 @@ test.describe('Recovery - Agent reopen', () => {
 
               return (
                 binding.linkedAgentNodeId === initial.linkedAgentNodeId &&
+                binding.linkedAgentBindingId === initial.linkedAgentBindingId &&
+                binding.bindingId === initial.bindingId &&
                 binding.resumeSessionId === initial.resumeSessionId &&
                 binding.resumeSessionIdVerified === initial.resumeSessionIdVerified
               )

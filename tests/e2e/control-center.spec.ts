@@ -393,7 +393,7 @@ test.describe('Control Center', () => {
     }
   })
 
-  test('shows system monitor header widget in the left header status area and opens the system monitor page', async () => {
+  test('keeps system monitor out of header widgets and still opens the system monitor page', async () => {
     const { electronApp, window } = await launchApp()
 
     try {
@@ -423,20 +423,22 @@ test.describe('Control Center', () => {
                 alwaysOnTop: true,
                 fontSize: 9,
                 displayItems: ['download', 'upload', 'cpu'],
+                followSystemTheme: true,
+                speedShortModeEnabled: false,
+                separateValueUnitWithSpace: true,
+                useByteUnit: true,
+                hideUnit: false,
+                hidePercent: false,
+                valueRightAligned: true,
+                digitsNumber: 4,
               },
             },
           },
         },
       })
 
-      const systemMonitorWidget = window.locator('[data-testid="app-header-system-monitor"]')
       const cloudWidget = window.locator('[data-testid="app-header-oss-backup-status"]')
-
-      await expect(systemMonitorWidget).toBeVisible()
       await expect(cloudWidget).toBeVisible()
-      await expect(window.locator('[data-testid="app-header-system-monitor-download"]')).toBeVisible()
-      await expect(window.locator('[data-testid="app-header-system-monitor-upload"]')).toBeVisible()
-      await expect(window.locator('[data-testid="app-header-system-monitor-cpu"]')).toBeVisible()
 
       const cloudVisualStyle = await cloudWidget.evaluate(element => {
         const style = window.getComputedStyle(element)
@@ -451,20 +453,12 @@ test.describe('Control Center', () => {
       expect(cloudVisualStyle.width).toBe('28px')
       expect(cloudVisualStyle.height).toBe('28px')
       await expect(window.locator('[data-testid="app-header-oss-backup-status-badge"] svg')).toBeVisible()
+      await expect(window.locator('[data-testid="app-header-system-monitor"]')).toHaveCount(0)
 
-      const [systemBox, cloudBox] = await Promise.all([
-        systemMonitorWidget.boundingBox(),
-        cloudWidget.boundingBox(),
-      ])
-
-      expect(systemBox).not.toBeNull()
-      expect(cloudBox).not.toBeNull()
-      expect((systemBox?.x ?? 0) + (systemBox?.width ?? 0)).toBeLessThan(cloudBox?.x ?? 0)
-      expect(systemBox?.x ?? 0).toBeLessThan(220)
-
-      await systemMonitorWidget.click()
+      await window.locator('[data-testid="app-header-plugins"]').click()
 
       await expect(window.locator('[data-testid="plugin-manager"]')).toBeVisible()
+      await window.locator('[data-testid="plugin-manager-nav-system-monitor"]').click()
       await expect(
         window.locator('[data-testid="plugin-manager-plugin-system-monitor-section"]'),
       ).toBeVisible()

@@ -148,6 +148,7 @@ describe('Gemini session binding', () => {
 
     runtime.startSessionStateWatcher({
       sessionId: 'session-1',
+      bindingId: 'binding-1',
       provider: 'gemini',
       cwd,
       launchMode: 'new',
@@ -164,6 +165,7 @@ describe('Gemini session binding', () => {
         ([channel, payload]) =>
           channel === IPC_CHANNELS.ptySessionMetadata &&
           payload.sessionId === 'session-1' &&
+          payload.bindingId === 'binding-1' &&
           payload.resumeSessionId === 'existing-session',
       ),
     ).toBe(false)
@@ -195,6 +197,7 @@ describe('Gemini session binding', () => {
           ([channel, payload]) =>
             channel === IPC_CHANNELS.ptySessionMetadata &&
             payload.sessionId === 'session-1' &&
+            payload.bindingId === 'binding-1' &&
             payload.resumeSessionId === 'new-session',
         ),
       ).toBe(true)
@@ -206,6 +209,7 @@ describe('Gemini session binding', () => {
           ([channel, payload]) =>
             channel === IPC_CHANNELS.ptyState &&
             payload.sessionId === 'session-1' &&
+            payload.bindingId === 'binding-1' &&
             payload.state === 'working',
         ),
       ).toBe(true)

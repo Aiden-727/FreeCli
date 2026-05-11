@@ -345,6 +345,14 @@ describe('agent settings normalization', () => {
         alwaysOnTop: true,
         fontSize: 9,
         displayItems: ['download', 'upload', 'cpu'],
+        followSystemTheme: true,
+        speedShortModeEnabled: false,
+        separateValueUnitWithSpace: true,
+        useByteUnit: true,
+        hideUnit: false,
+        hidePercent: false,
+        valueRightAligned: true,
+        digitsNumber: 4,
       },
     })
   })

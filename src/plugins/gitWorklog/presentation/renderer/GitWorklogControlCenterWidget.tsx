@@ -53,23 +53,21 @@ export default function GitWorklogControlCenterWidget({
           {t('pluginManager.plugins.gitWorklog.title')}
         </span>
         {showMetrics ? (
-          <span className="control-center-tile__subtitle control-center-tile__subtitle--stack">
-            <span className="control-center-tile__metric-row">
-              <span className="control-center-tile__metric">
-                <span className="control-center-tile__metric-value">
-                  {formatCount(state.overview.commitCountToday)}
-                </span>
-                <span className="control-center-tile__metric-label">
-                  {t('pluginManager.plugins.gitWorklog.controlCenterMetrics.commits')}
-                </span>
+          <span className="control-center-tile__subtitle control-center-tile__plugin-lines">
+            <span className="control-center-tile__plugin-line">
+              <span className="control-center-tile__eye-care-phase-pill">
+                <span>今日</span>
               </span>
-              <span className="control-center-tile__metric">
-                <span className="control-center-tile__metric-value">
-                  {formatCount(state.overview.changedLinesToday)}
-                </span>
-                <span className="control-center-tile__metric-label">
-                  {t('pluginManager.plugins.gitWorklog.controlCenterMetrics.changedLines')}
-                </span>
+              <span className="control-center-tile__plugin-value">
+                {formatCount(state.overview.changedLinesToday)}
+              </span>
+            </span>
+            <span className="control-center-tile__plugin-line">
+              <span className="control-center-tile__eye-care-phase-pill">
+                <span>累计</span>
+              </span>
+              <span className="control-center-tile__plugin-value">
+                {formatCount(state.overview.changedLinesInRange)}
               </span>
             </span>
           </span>

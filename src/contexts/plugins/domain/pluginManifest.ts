@@ -1,4 +1,5 @@
 export const BUILTIN_PLUGIN_IDS = [
+  'eye-care',
   'input-stats',
   'system-monitor',
   'quota-monitor',
@@ -9,6 +10,7 @@ export const BUILTIN_PLUGIN_IDS = [
 
 export type BuiltinPluginId = (typeof BUILTIN_PLUGIN_IDS)[number]
 export const BUILTIN_PLUGIN_SETTINGS_KEYS = [
+  'eyeCare',
   'inputStats',
   'systemMonitor',
   'quotaMonitor',
@@ -35,6 +37,20 @@ export interface PluginManifest {
 }
 
 const BUILTIN_PLUGIN_MANIFESTS: Record<BuiltinPluginId, PluginManifest> = {
+  'eye-care': {
+    id: 'eye-care',
+    defaultEnabled: false,
+    titleKey: 'pluginManager.plugins.eyeCare.title',
+    descriptionKey: 'pluginManager.plugins.eyeCare.description',
+    settingsKey: 'eyeCare',
+    cloudBackupRole: 'none',
+    contributes: {
+      headerWidget: true,
+      controlCenterWidget: true,
+      settingsSection: true,
+      mainRuntime: true,
+    },
+  },
   'input-stats': {
     id: 'input-stats',
     defaultEnabled: false,
@@ -57,7 +73,7 @@ const BUILTIN_PLUGIN_MANIFESTS: Record<BuiltinPluginId, PluginManifest> = {
     settingsKey: 'systemMonitor',
     cloudBackupRole: 'none',
     contributes: {
-      headerWidget: true,
+      headerWidget: false,
       controlCenterWidget: true,
       settingsSection: true,
       mainRuntime: true,

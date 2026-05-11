@@ -131,6 +131,7 @@ export function registerPtyIpcHandlers(
 
       runtime.startSessionStateWatcher({
         sessionId: normalized.sessionId,
+        bindingId: normalized.bindingId,
         provider: normalized.provider,
         cwd: normalized.cwd,
         launchMode: normalized.launchMode,

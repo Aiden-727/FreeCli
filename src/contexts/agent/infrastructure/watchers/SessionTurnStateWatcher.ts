@@ -1,7 +1,11 @@
 import fs from 'node:fs'
 import fsPromises from 'node:fs/promises'
 import { StringDecoder } from 'node:string_decoder'
-import type { AgentProviderId, TerminalSessionState } from '@shared/contracts/dto'
+import type {
+  AgentProviderId,
+  TerminalSessionAttentionReason,
+  TerminalSessionState,
+} from '@shared/contracts/dto'
 import { inspectSessionLine, type SessionRuntimeMetadata } from './SessionTurnStateDetector'
 
 interface SessionTurnStateWatcherOptions {
@@ -9,6 +13,7 @@ interface SessionTurnStateWatcherOptions {
   sessionId: string
   filePath: string
   onState: (sessionId: string, state: TerminalSessionState) => void
+  onAttention?: (sessionId: string, reason: TerminalSessionAttentionReason) => void
   onMetadata?: (sessionId: string, metadata: SessionRuntimeMetadata) => void
   onError?: (error: unknown) => void
 }
@@ -42,6 +47,7 @@ export class SessionTurnStateWatcher {
   private readonly sessionId: string
   private readonly filePath: string
   private readonly onState: (sessionId: string, state: TerminalSessionState) => void
+  private readonly onAttention?: (sessionId: string, reason: TerminalSessionAttentionReason) => void
   private readonly onMetadata?: (sessionId: string, metadata: SessionRuntimeMetadata) => void
   private readonly onError?: (error: unknown) => void
 
@@ -53,6 +59,7 @@ export class SessionTurnStateWatcher {
   private processing = false
   private hasPendingRead = false
   private lastState: TerminalSessionState | null = null
+  private lastAttentionReason: TerminalSessionAttentionReason | null = null
   private lastMetadata: SessionRuntimeMetadata | null = null
 
   public constructor(options: SessionTurnStateWatcherOptions) {
@@ -60,6 +67,7 @@ export class SessionTurnStateWatcher {
     this.sessionId = options.sessionId
     this.filePath = options.filePath
     this.onState = options.onState
+    this.onAttention = options.onAttention
     this.onMetadata = options.onMetadata
     this.onError = options.onError
   }
@@ -215,6 +223,11 @@ export class SessionTurnStateWatcher {
     ) {
       this.lastMetadata = inspection.runtimeMetadata
       this.onMetadata?.(this.sessionId, inspection.runtimeMetadata)
+    }
+
+    if (inspection.attentionReason && inspection.attentionReason !== this.lastAttentionReason) {
+      this.lastAttentionReason = inspection.attentionReason
+      this.onAttention?.(this.sessionId, inspection.attentionReason)
     }
 
     if (!inspection.state || inspection.state === this.lastState) {

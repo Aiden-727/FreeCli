@@ -99,9 +99,16 @@ export const en = {
     minimap: 'Minimap',
     theme: 'Theme',
     plugins: 'Plugins',
-    agentStandbyBanner: 'Agent standby banner',
+    agentStandbyBanner: 'Agent attention banner',
     on: 'On',
     off: 'Off',
+  },
+  notifications: {
+    agentAttention: {
+      reasonApproval: 'Approval needed',
+      reasonInput: 'Input needed',
+      reasonRecovery: 'Recovery failed',
+    },
   },
   pluginManager: {
     eyebrow: 'Plugin Host',
@@ -145,6 +152,7 @@ export const en = {
       toast: 'Plugin host sync failed: {{title}}',
       items: {
         runtime_sync: 'Runtime lifecycle sync',
+        eye_care_sync: 'Eye care settings sync',
         input_stats_sync: 'Input stats settings sync',
         system_monitor_sync: 'System monitor settings sync',
         quota_monitor_sync: 'Quota monitor settings sync',
@@ -158,6 +166,62 @@ export const en = {
     emptyTitle: 'No plugins enabled',
     emptyHelp: 'Enable a plugin first, then open its dedicated settings page.',
     plugins: {
+      eyeCare: {
+        title: 'Eye Care',
+        description:
+          'Remind users to rest on a work/break cycle and optionally enforce a full-page blur break.',
+        configurationTitle: 'Eye Care Schedule',
+        configurationSummary:
+          'Defaults to 20 minutes of work and 20 seconds of rest, and keeps cycling until you stop it.',
+        overview: {
+          title: 'Eye Care Overview',
+          summary: 'Shows the live phase, remaining time, and completed breaks for today.',
+          phase: 'Current phase',
+          remaining: 'Remaining time',
+          breaks: 'Completed breaks today',
+          cycle: 'Current cycle',
+          heroSummary:
+            'Defaults to 20 minutes of work + 20 seconds of rest, with a pausable, resumable loop owned by Main.',
+        },
+        phase: {
+          idle: 'Idle',
+          working: 'Working',
+          breaking: 'Breaking',
+          paused: 'Paused',
+        },
+        workDurationLabel: 'Work duration (minutes)',
+        breakDurationLabel: 'Break duration (seconds)',
+        postponeDurationLabel: 'Postpone duration (minutes)',
+        modeLabel: 'Break mode',
+        modeOptions: {
+          gentle: 'Gentle reminder',
+          forcedBlur: 'Forced blur break',
+        },
+        strictModeLabel: 'Strict mode',
+        allowPostponeLabel: 'Allow postpone',
+        allowSkipLabel: 'Allow skip',
+        autoRestartLabel: 'Auto-start next cycle after break',
+        actionsTitle: 'Cycle Actions',
+        actionsSummary:
+          'Once started, the timer loops on your schedule. While running you can pause or stop it; while paused you can only resume or stop.',
+        actions: {
+          start: 'Start timer',
+          pause: 'Pause',
+          resume: 'Resume',
+          stop: 'Stop',
+        },
+        controlCenter: {
+          summary: '{{phase}} · {{remaining}} left',
+        },
+        header: {
+          title: 'Eye care: {{phase}}, {{remaining}} left',
+        },
+        overlay: {
+          title: 'Time to take a break',
+          summary: 'Step away from the screen for a moment and continue after the countdown ends.',
+          postpone: 'Postpone',
+        },
+      },
       inputStats: {
         title: 'Input Stats',
         description:
@@ -330,19 +394,11 @@ export const en = {
           off: 'Off',
           total: 'Total usage (on demand)',
         },
-        taskbarWidgetLabel: 'Enable system taskbar monitor widget',
-        notifyIconLabel: 'Enable notify icon',
-        taskbarCompactModeLabel: 'Enable compact mode',
-        taskbarAlwaysOnTopLabel: 'Keep window on top',
-        taskbarFontSizeLabel: 'Status bar font size',
-        taskbarDisplayItemsLabel: 'Status bar items',
-        taskbarDisplayItems: {
-          download: 'Download speed',
-          upload: 'Upload speed',
-          cpu: 'CPU',
-          memory: 'Memory',
-          gpu: 'GPU',
-        },
+        taskbarWidgetRetiredTitle: 'Taskbar widget retired',
+        taskbarWidgetRetiredSummary:
+          'This capability has been removed from settings and will be rebuilt on a stable integration path later.',
+        taskbarWidgetRetiredDescription:
+          'The historical implementation and investigation notes are preserved, but the current build no longer tries to render a monitor widget inside the Windows taskbar to avoid blank, flickering, and host-compatibility issues.',
         historyTitle: 'Recent totals',
         historySummaryDays: 'Last {{value}} days',
         todayTrafficTitle: 'Today traffic',

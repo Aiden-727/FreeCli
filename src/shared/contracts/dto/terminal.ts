@@ -71,6 +71,7 @@ export interface SnapshotTerminalResult {
 
 export interface TrackHostedTerminalAgentInput {
   sessionId: string
+  bindingId: string
   provider: Extract<AgentProviderId, 'claude-code' | 'codex'>
   cwd: string
   launchMode: AgentLaunchMode
@@ -85,18 +86,29 @@ export interface TerminalDataEvent {
 
 export interface TerminalExitEvent {
   sessionId: string
+  bindingId?: string | null
   exitCode: number
 }
 
 export type TerminalSessionState = 'working' | 'standby'
 
+export type TerminalSessionAttentionReason = 'approval' | 'input' | 'recovery'
+
 export interface TerminalSessionStateEvent {
   sessionId: string
+  bindingId?: string | null
   state: TerminalSessionState
+}
+
+export interface TerminalSessionAttentionEvent {
+  sessionId: string
+  bindingId?: string | null
+  reason: TerminalSessionAttentionReason
 }
 
 export interface TerminalSessionMetadataEvent {
   sessionId: string
+  bindingId?: string | null
   resumeSessionId: string | null
   effectiveModel?: string | null
   reasoningEffort?: string | null

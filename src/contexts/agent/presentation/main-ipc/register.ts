@@ -263,6 +263,7 @@ export function registerAgentIpcHandlers(
       if (shouldStartStateWatcher) {
         ptyRuntime.startSessionStateWatcher({
           sessionId,
+          bindingId: normalized.bindingId,
           provider: normalized.provider,
           cwd: normalized.cwd,
           launchMode: launchCommand.launchMode,

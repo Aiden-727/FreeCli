@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  detectAttentionReasonFromSessionLine,
   detectRuntimeMetadataFromSessionLine,
   detectTurnStateFromSessionLine,
 } from '../../../src/contexts/agent/infrastructure/watchers/SessionTurnStateDetector'
@@ -55,6 +56,41 @@ describe('detectTurnStateFromSessionLine', () => {
     })
 
     expect(detectTurnStateFromSessionLine('claude-code', line)).toBe('working')
+  })
+
+  it('detects claude tool-use waits as approval attention', () => {
+    const line = JSON.stringify({
+      type: 'assistant',
+      message: {
+        stop_reason: 'tool_use',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_123',
+            name: 'Bash',
+          },
+        ],
+      },
+    })
+
+    expect(detectAttentionReasonFromSessionLine('claude-code', line)).toBe('approval')
+  })
+
+  it('detects claude assistant questions as input attention', () => {
+    const line = JSON.stringify({
+      type: 'assistant',
+      message: {
+        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'text',
+            text: '是否继续执行下一步？',
+          },
+        ],
+      },
+    })
+
+    expect(detectAttentionReasonFromSessionLine('claude-code', line)).toBe('input')
   })
 
   it('treats codex assistant commentary messages as working', () => {
@@ -174,6 +210,54 @@ describe('detectTurnStateFromSessionLine', () => {
     })
 
     expect(detectTurnStateFromSessionLine('codex', line)).toBe('working')
+  })
+
+  it('detects codex request_user_input calls as input attention', () => {
+    const line = JSON.stringify({
+      type: 'response_item',
+      payload: {
+        type: 'function_call',
+        name: 'request_user_input',
+      },
+    })
+
+    expect(detectAttentionReasonFromSessionLine('codex', line)).toBe('input')
+  })
+
+  it('detects codex generic function calls as approval attention', () => {
+    const line = JSON.stringify({
+      type: 'response_item',
+      payload: {
+        type: 'function_call',
+        name: 'shell_command',
+      },
+    })
+
+    expect(detectAttentionReasonFromSessionLine('codex', line)).toBe('approval')
+  })
+
+  it('detects codex assistant questions as input attention', () => {
+    const line = JSON.stringify({
+      type: 'event_msg',
+      payload: {
+        type: 'agent_message',
+        phase: 'final_answer',
+        message: 'Which option do you want me to use?',
+      },
+    })
+
+    expect(detectAttentionReasonFromSessionLine('codex', line)).toBe('input')
+  })
+
+  it('detects codex turn_aborted as recovery attention', () => {
+    const line = JSON.stringify({
+      type: 'event_msg',
+      payload: {
+        type: 'turn_aborted',
+      },
+    })
+
+    expect(detectAttentionReasonFromSessionLine('codex', line)).toBe('recovery')
   })
 
   it('ignores codex user messages so they do not start working prematurely', () => {

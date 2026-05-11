@@ -125,6 +125,7 @@ export function TerminalNode({
   const pasteFlowActiveRef = useRef(false)
   const pasteIntentSequenceRef = useRef(0)
   const latestPasteIntentSequenceRef = useRef(0)
+  const pendingClipboardPastePromiseRef = useRef<Promise<void> | null>(null)
   const pasteIndicatorTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const {
     state: findState,
@@ -233,6 +234,20 @@ export function TerminalNode({
     [pasteResolvedPathsIntoTerminal, resolveClipboardImageTempPath, t],
   )
 
+  const scheduleClipboardPasteIntoTerminal = useCallback(
+    ({ terminal }: { terminal: Pick<Terminal, 'paste'> }): Promise<void> => {
+      const pastePromise = pasteClipboardContentIntoTerminal({ terminal }).finally(() => {
+        if (pendingClipboardPastePromiseRef.current === pastePromise) {
+          pendingClipboardPastePromiseRef.current = null
+        }
+      })
+
+      pendingClipboardPastePromiseRef.current = pastePromise
+      return pastePromise
+    },
+    [pasteClipboardContentIntoTerminal],
+  )
+
   const clearPasteIndicatorTimer = useCallback(() => {
     if (pasteIndicatorTimerRef.current === null) {
       return
@@ -245,6 +260,7 @@ export function TerminalNode({
   const completePasteFlow = useCallback(() => {
     pasteFlowActiveRef.current = false
     latestPasteIntentSequenceRef.current = 0
+    pendingClipboardPastePromiseRef.current = null
     isPasteIndicatorVisibleRef.current = false
     clearPasteIndicatorTimer()
     setIsPasteIndicatorVisible(false)
@@ -341,6 +357,7 @@ export function TerminalNode({
     return () => {
       pasteFlowActiveRef.current = false
       latestPasteIntentSequenceRef.current = 0
+      pendingClipboardPastePromiseRef.current = null
       isPasteIndicatorVisibleRef.current = false
       clearPasteIndicatorTimer()
     }
@@ -456,7 +473,8 @@ export function TerminalNode({
         ptyWriteQueue,
         terminal,
         onOpenFind: openTerminalFind,
-        pasteClipboardText: pasteClipboardContentIntoTerminal,
+        pasteClipboardText: scheduleClipboardPasteIntoTerminal,
+        getPendingPastePromise: () => pendingClipboardPastePromiseRef.current,
       }),
     )
     let cancelMouseServicePatch: () => void = () => undefined
@@ -713,7 +731,7 @@ export function TerminalNode({
     markScrollbackDirty,
     openTerminalFind,
     handlePtyQueueStateChange,
-    pasteClipboardContentIntoTerminal,
+    scheduleClipboardPasteIntoTerminal,
     scrollbackBufferRef,
     sessionId,
     syncTerminalSize,

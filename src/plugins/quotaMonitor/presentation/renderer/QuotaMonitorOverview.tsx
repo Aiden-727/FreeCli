@@ -180,6 +180,18 @@ function formatTokenCompact(value: number): string {
   return value.toFixed(0)
 }
 
+function formatTokenCompactWithZero(value: number): string {
+  if (!Number.isFinite(value) || value < 0) {
+    return '--'
+  }
+
+  if (value === 0) {
+    return '0'
+  }
+
+  return formatTokenCompact(value)
+}
+
 function formatTrendValue(value: number): string {
   if (!Number.isFinite(value) || value <= 0) {
     return '0'
@@ -649,13 +661,13 @@ function ModelStatsCard({
           <span>{t('pluginManager.plugins.quotaMonitor.modelStats.total')}</span>
           <span>{t('pluginManager.plugins.quotaMonitor.modelStats.average')}</span>
         </div>
-        {(summary?.models ?? []).slice(0, 6).map(metric => (
+        {(summary?.models ?? []).map(metric => (
           <div
             key={`${profile.id}-${metric.modelName}`}
             className="quota-monitor-overview__model-row"
           >
             <span>{metric.modelName}</span>
-            <span>{formatTokenCompact(metric.todayTokens)}</span>
+            <span>{formatTokenCompactWithZero(metric.todayTokens)}</span>
             <span>{formatTokenCompact(metric.totalTokens)}</span>
             <span>{formatTokenCompact(metric.averageDailyTokens)}</span>
           </div>

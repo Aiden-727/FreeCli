@@ -5,6 +5,8 @@ const providerCases = [
   { provider: 'codex' as const, model: 'gpt-5.2-codex' },
   { provider: 'claude-code' as const, model: 'claude-sonnet-4-5' },
 ]
+const standbyStatusPattern = /^(Standby|待命)$/
+const workingStatusPattern = /^(Working|运行中)$/
 
 for (const providerCase of providerCases) {
   test.describe(`Workspace Canvas - Agent Status Submit (${providerCase.provider})`, () => {
@@ -51,18 +53,18 @@ for (const providerCase of providerCases) {
           .first()
 
         await expect(agentNode).toBeVisible()
-        await expect(nodeStatus).toHaveText('Standby')
-        await expect(sidebarStatus).toHaveText('Standby')
+        await expect(nodeStatus).toHaveText(standbyStatusPattern)
+        await expect(sidebarStatus).toHaveText(standbyStatusPattern)
 
         const xterm = agentNode.locator('.xterm')
         await xterm.click()
         await expect(agentNode.locator('.xterm-helper-textarea')).toBeFocused()
         await window.keyboard.press('Enter')
 
-        await expect(nodeStatus).toHaveText('Working', { timeout: 1000 })
-        await expect(sidebarStatus).toHaveText('Working')
-        await expect(nodeStatus).toHaveText('Standby', { timeout: 15000 })
-        await expect(sidebarStatus).toHaveText('Standby')
+        await expect(nodeStatus).toHaveText(workingStatusPattern, { timeout: 1000 })
+        await expect(sidebarStatus).toHaveText(workingStatusPattern)
+        await expect(nodeStatus).toHaveText(standbyStatusPattern, { timeout: 15000 })
+        await expect(sidebarStatus).toHaveText(standbyStatusPattern)
       } finally {
         await electronApp.close()
       }

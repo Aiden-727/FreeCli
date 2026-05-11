@@ -27,6 +27,22 @@ export interface GitWorklogCachedHeatmapStats {
   dailyPoints: GitWorklogDailyPointDto[]
 }
 
+export interface GitWorklogRefSnapshotEntry {
+  refName: string
+  oid: string
+}
+
+export interface GitWorklogCachedDailyHistory {
+  refsSnapshot: GitWorklogRefSnapshotEntry[]
+  dailyPoints: Array<
+    GitWorklogDailyPointDto & {
+      files: string[]
+    }
+  >
+  builtAt: string
+  updatedAt: string
+}
+
 export interface GitWorklogRangeCacheValidation {
   authorFilter: string
   from: string | null
@@ -64,11 +80,19 @@ interface GitWorklogHeatmapCacheEntry {
   updatedAt: string
 }
 
+interface GitWorklogDailyHistoryEntry {
+  refsSnapshot: GitWorklogRefSnapshotEntry[]
+  dailyPoints: GitWorklogDailyPointDto[]
+  builtAt: string
+  updatedAt: string
+}
+
 interface GitWorklogRepositoryCacheEntry {
   repoPath: string
   rangeStats: GitWorklogRangeCacheEntry[]
   codeStats: GitWorklogCodeCacheEntry[]
   heatmapStats: GitWorklogHeatmapCacheEntry[]
+  dailyHistory: GitWorklogDailyHistoryEntry | null
 }
 
 export interface GitWorklogHistorySyncPayload {
@@ -146,6 +170,43 @@ function normalizeDailyPoint(raw: unknown): GitWorklogDailyPointDto | null {
   }
 }
 
+function normalizeRefSnapshotEntry(raw: unknown): GitWorklogRefSnapshotEntry | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+
+  const refName = typeof raw.refName === 'string' ? raw.refName.trim() : ''
+  const oid = typeof raw.oid === 'string' ? raw.oid.trim() : ''
+  if (refName.length === 0 || oid.length === 0) {
+    return null
+  }
+
+  return {
+    refName,
+    oid,
+  }
+}
+
+function normalizeRefsSnapshot(raw: unknown): GitWorklogRefSnapshotEntry[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+
+  const entries: GitWorklogRefSnapshotEntry[] = []
+  const seenRefs = new Set<string>()
+  for (const item of raw) {
+    const normalized = normalizeRefSnapshotEntry(item)
+    if (!normalized || seenRefs.has(normalized.refName)) {
+      continue
+    }
+
+    seenRefs.add(normalized.refName)
+    entries.push(normalized)
+  }
+
+  return entries.sort((left, right) => left.refName.localeCompare(right.refName))
+}
+
 function normalizeRangeStats(raw: unknown): GitWorklogCachedRangeStats | null {
   if (!isRecord(raw)) {
     return null
@@ -198,6 +259,43 @@ function normalizeHeatmapStats(raw: unknown): GitWorklogCachedHeatmapStats | nul
 
   return {
     dailyPoints,
+  }
+}
+
+function normalizeDailyHistory(raw: unknown): GitWorklogCachedDailyHistory | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+
+  return {
+    refsSnapshot: normalizeRefsSnapshot(raw.refsSnapshot),
+    dailyPoints: Array.isArray(raw.dailyPoints)
+      ? raw.dailyPoints
+          .map(item => {
+            const point = normalizeDailyPoint(item)
+            if (!point || !isRecord(item)) {
+              return null
+            }
+
+            const files = Array.isArray(item.files)
+              ? item.files.filter((file): file is string => typeof file === 'string' && file.trim().length > 0)
+              : []
+
+            return {
+              ...point,
+              files,
+            }
+          })
+          .filter(
+            (
+              point,
+            ): point is GitWorklogDailyPointDto & {
+              files: string[]
+            } => point !== null,
+          )
+      : [],
+    builtAt: normalizeIsoDate(raw.builtAt),
+    updatedAt: normalizeIsoDate(raw.updatedAt),
   }
 }
 
@@ -401,6 +499,7 @@ function normalizeRepositoryEntries(raw: unknown): GitWorklogRepositoryCacheEntr
       rangeStats: normalizeRangeEntries(item.rangeStats),
       codeStats: normalizeCodeEntries(item.codeStats),
       heatmapStats: normalizeHeatmapEntries(item.heatmapStats),
+      dailyHistory: normalizeDailyHistory(item.dailyHistory),
     })
   }
 
@@ -415,8 +514,9 @@ function computeRepositoryLatestTimestamp(entry: GitWorklogRepositoryCacheEntry)
   const rangeLatest = entry.rangeStats[0]?.updatedAt ?? ''
   const codeLatest = entry.codeStats[0]?.updatedAt ?? ''
   const heatmapLatest = entry.heatmapStats[0]?.updatedAt ?? ''
-  const rangeOrCodeLatest = rangeLatest.localeCompare(codeLatest) >= 0 ? rangeLatest : codeLatest
-  return rangeOrCodeLatest.localeCompare(heatmapLatest) >= 0 ? rangeOrCodeLatest : heatmapLatest
+  const dailyHistoryLatest = entry.dailyHistory?.updatedAt ?? ''
+  const latestCandidates = [rangeLatest, codeLatest, heatmapLatest, dailyHistoryLatest]
+  return latestCandidates.sort((left, right) => right.localeCompare(left))[0] ?? ''
 }
 
 export function normalizeGitWorklogHistorySyncPayload(raw: unknown): GitWorklogHistorySyncPayload {
@@ -588,6 +688,63 @@ export class GitWorklogHistoryStore {
     this.dirty = true
   }
 
+  public async getDailyHistory(repoPath: string): Promise<GitWorklogCachedDailyHistory | null> {
+    await this.ensureLoaded()
+    const repository = this.findRepository(repoPath)
+    if (!repository?.dailyHistory) {
+      return null
+    }
+
+    return repository.dailyHistory
+  }
+
+  public async saveDailyHistory(options: {
+    repoPath: string
+    refsSnapshot: GitWorklogRefSnapshotEntry[]
+    dailyPoints: Array<
+      GitWorklogDailyPointDto & {
+        files: string[]
+      }
+    >
+    builtAt?: string
+  }): Promise<void> {
+    await this.ensureLoaded()
+    const repository = this.getOrCreateRepository(options.repoPath)
+    const now = new Date().toISOString()
+    repository.dailyHistory = {
+      refsSnapshot: normalizeRefsSnapshot(options.refsSnapshot),
+      dailyPoints: options.dailyPoints
+        .map(item => {
+          const point = normalizeDailyPoint(item)
+          if (!point) {
+            return null
+          }
+
+          return {
+            ...point,
+            files: item.files
+              .filter(file => typeof file === 'string')
+              .map(file => file.trim())
+              .filter(file => file.length > 0)
+              .sort((left, right) => left.localeCompare(right)),
+          }
+        })
+        .filter(
+          (
+            point,
+          ): point is GitWorklogDailyPointDto & {
+            files: string[]
+          } => point !== null,
+        )
+        .sort((left, right) => left.day.localeCompare(right.day)),
+      builtAt: normalizeIsoDate(options.builtAt, now),
+      updatedAt: now,
+    }
+
+    this.reorderAndTrimRepositories()
+    this.dirty = true
+  }
+
   public async exportForSync(): Promise<GitWorklogHistorySyncPayload> {
     await this.ensureLoaded()
     return {
@@ -662,6 +819,7 @@ export class GitWorklogHistoryStore {
       rangeStats: [],
       codeStats: [],
       heatmapStats: [],
+      dailyHistory: null,
     }
     this.state.repositories.push(next)
     return next

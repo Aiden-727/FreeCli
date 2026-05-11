@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type {
   TerminalDataEvent,
   TerminalExitEvent,
+  TerminalSessionAttentionEvent,
   TerminalSessionMetadataEvent,
   TerminalSessionStateEvent,
 } from '@shared/contracts/dto'
@@ -19,6 +20,9 @@ describe('createPtyEventHub', () => {
       }),
       onExit: vi.fn((_listener: (event: TerminalExitEvent) => void) => () => undefined),
       onState: vi.fn((_listener: (event: TerminalSessionStateEvent) => void) => () => undefined),
+      onAttention: vi.fn(
+        (_listener: (event: TerminalSessionAttentionEvent) => void) => () => undefined,
+      ),
       onMetadata: vi.fn(
         (_listener: (event: TerminalSessionMetadataEvent) => void) => () => undefined,
       ),
@@ -60,6 +64,7 @@ describe('createPtyEventHub', () => {
     const unsubscribeDataSource = vi.fn()
     const unsubscribeExitSource = vi.fn()
     const unsubscribeStateSource = vi.fn()
+    const unsubscribeAttentionSource = vi.fn()
     const unsubscribeMetadataSource = vi.fn()
 
     const source = {
@@ -67,6 +72,9 @@ describe('createPtyEventHub', () => {
       onExit: vi.fn((_listener: (event: TerminalExitEvent) => void) => unsubscribeExitSource),
       onState: vi.fn(
         (_listener: (event: TerminalSessionStateEvent) => void) => unsubscribeStateSource,
+      ),
+      onAttention: vi.fn(
+        (_listener: (event: TerminalSessionAttentionEvent) => void) => unsubscribeAttentionSource,
       ),
       onMetadata: vi.fn(
         (_listener: (event: TerminalSessionMetadataEvent) => void) => unsubscribeMetadataSource,
@@ -77,6 +85,7 @@ describe('createPtyEventHub', () => {
     hub.onData(() => undefined)
     hub.onExit(() => undefined)
     hub.onState(() => undefined)
+    hub.onAttention(() => undefined)
     hub.onMetadata(() => undefined)
 
     hub.dispose()
@@ -84,6 +93,7 @@ describe('createPtyEventHub', () => {
     expect(unsubscribeDataSource).toHaveBeenCalledTimes(1)
     expect(unsubscribeExitSource).toHaveBeenCalledTimes(1)
     expect(unsubscribeStateSource).toHaveBeenCalledTimes(1)
+    expect(unsubscribeAttentionSource).toHaveBeenCalledTimes(1)
     expect(unsubscribeMetadataSource).toHaveBeenCalledTimes(1)
   })
 })

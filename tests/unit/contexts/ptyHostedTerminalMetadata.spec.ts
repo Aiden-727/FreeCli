@@ -30,6 +30,7 @@ describe('updateWorkspacesWithHostedTerminalMetadata', () => {
               expectedDirectory: '/tmp/workspace',
               agent: null,
               hostedAgent: {
+                bindingId: 'binding-1',
                 provider: 'codex',
                 launchMode: 'new',
                 resumeSessionId: null,
@@ -62,7 +63,8 @@ describe('updateWorkspacesWithHostedTerminalMetadata', () => {
 
     const result = updateWorkspacesWithHostedTerminalMetadata({
       workspaces,
-      sessionId: 'session-1',
+      sessionId: 'new-session',
+      bindingId: 'binding-1',
       excludeWorkspaceId: null,
       resumeSessionId: 'resume-1',
       effectiveModel: 'gpt-5.4',

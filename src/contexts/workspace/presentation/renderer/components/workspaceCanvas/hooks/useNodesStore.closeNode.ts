@@ -28,6 +28,7 @@ function createAgentSessionRecord(
 
   return {
     id: crypto.randomUUID(),
+    bindingId: target.data.agent.bindingId,
     provider: target.data.agent.provider,
     ...resumeBinding,
     prompt: target.data.agent.prompt,
@@ -99,6 +100,7 @@ export function removeNodeWithRelations({
             task: {
               ...node.data.task,
               linkedAgentNodeId: null,
+              linkedAgentBindingId: null,
               agentSessions: nextSessions,
               status: node.data.task.status === 'doing' ? 'todo' : node.data.task.status,
               updatedAt: now,

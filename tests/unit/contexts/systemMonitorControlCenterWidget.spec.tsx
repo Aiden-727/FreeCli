@@ -43,6 +43,21 @@ describe('SystemMonitorControlCenterWidget', () => {
         historyRangeDays: 7,
         gpuMode: 'off',
         taskbarWidgetEnabled: false,
+        taskbarWidget: {
+          notifyIconEnabled: false,
+          compactModeEnabled: true,
+          alwaysOnTop: true,
+          fontSize: 9,
+          displayItems: ['download', 'upload', 'cpu'],
+          followSystemTheme: true,
+          speedShortModeEnabled: false,
+          separateValueUnitWithSpace: true,
+          useByteUnit: true,
+          hideUnit: false,
+          hidePercent: false,
+          valueRightAligned: true,
+          digitsNumber: 4,
+        },
       },
       current: {
         recordedAt: '2026-04-15T10:00:00.000Z',
@@ -60,6 +75,13 @@ describe('SystemMonitorControlCenterWidget', () => {
         downloadBytes: 16384,
       },
       recentDaysTraffic: [],
+      taskbarDiagnostics: {
+        requestedEnabled: false,
+        visible: false,
+        embedded: false,
+        error: null,
+        lastCheckedAt: '2026-04-15T10:00:00.000Z',
+      },
       lastError: null,
     })
 

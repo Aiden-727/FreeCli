@@ -173,6 +173,7 @@ export async function hydrateAgentNode({
   if (shouldAutoResumeAgent) {
     try {
       const restoredAgent = await window.freecliApi.agent.launch({
+        bindingId: sanitizedAgent.bindingId,
         provider: sanitizedAgent.provider,
         cwd: sanitizedAgent.executionDirectory,
         prompt: sanitizedAgent.prompt,
@@ -225,6 +226,7 @@ export async function hydrateAgentNode({
   if (shouldRelaunchBlankAgent) {
     try {
       const relaunchedAgent = await window.freecliApi.agent.launch({
+        bindingId: sanitizedAgent.bindingId,
         provider: sanitizedAgent.provider,
         cwd: sanitizedAgent.executionDirectory,
         prompt: sanitizedAgent.prompt,

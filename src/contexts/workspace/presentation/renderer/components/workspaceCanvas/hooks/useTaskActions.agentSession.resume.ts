@@ -55,6 +55,7 @@ export async function resumeTaskAgentSessionAction(
 
   try {
     const launched = await window.freecliApi.agent.launch({
+      bindingId: record.bindingId,
       provider: record.provider,
       cwd: record.boundDirectory,
       prompt: record.prompt,
@@ -76,6 +77,7 @@ export async function resumeTaskAgentSessionAction(
         preferredDirection: 'right',
       },
       agent: {
+        bindingId: record.bindingId,
         provider: record.provider,
         prompt: record.prompt,
         model: record.model,
@@ -118,6 +120,7 @@ export async function resumeTaskAgentSessionAction(
               ...node.data.task,
               status: 'doing',
               linkedAgentNodeId: createdAgentNode.id,
+              linkedAgentBindingId: record.bindingId,
               lastRunAt: now,
               agentSessions: (node.data.task.agentSessions ?? []).map(session =>
                 session.id === recordId

@@ -614,6 +614,8 @@ describe('OssBackupPluginController', () => {
           repoPath: 'd:/project/repo-a',
           rangeStats: [],
           codeStats: [],
+          heatmapStats: [],
+          dailyHistory: null,
         },
       ],
     }

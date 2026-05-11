@@ -161,6 +161,7 @@ export async function pasteTextFromClipboard({
 export function handleTerminalCustomKeyEvent({
   copySelectedText = copyTextToClipboard,
   event,
+  getPendingPastePromise,
   pasteClipboardText = pasteTextFromClipboard,
   onOpenFind,
   platformInfo,
@@ -169,6 +170,7 @@ export function handleTerminalCustomKeyEvent({
 }: {
   copySelectedText?: (text: string) => Promise<void> | void
   event: KeyboardEvent
+  getPendingPastePromise?: () => Promise<void> | null
   pasteClipboardText?: (
     options: Pick<Parameters<typeof pasteTextFromClipboard>[0], 'terminal'>,
   ) => Promise<void> | void
@@ -177,6 +179,26 @@ export function handleTerminalCustomKeyEvent({
   ptyWriteQueue: PtyWriteQueue
   terminal: TerminalClipboardController
 }): boolean {
+  const pendingPastePromise = getPendingPastePromise?.() ?? null
+  const shouldDelaySubmitUntilPasteCompletes =
+    event.type === 'keydown' &&
+    event.key === 'Enter' &&
+    !event.shiftKey &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    pendingPastePromise !== null
+
+  if (shouldDelaySubmitUntilPasteCompletes) {
+    event.preventDefault()
+    event.stopPropagation()
+    void pendingPastePromise.finally(() => {
+      ptyWriteQueue.enqueue('\r')
+      ptyWriteQueue.flush()
+    })
+    return false
+  }
+
   if (
     event.key === 'Enter' &&
     event.shiftKey &&

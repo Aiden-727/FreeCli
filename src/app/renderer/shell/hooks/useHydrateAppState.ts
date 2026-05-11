@@ -27,7 +27,38 @@ import { isWorkspaceArchived } from '@app/renderer/shell/utils/workspaceArchive'
 
 function toShellWorkspaceState(workspace: PersistedWorkspaceState): WorkspaceState {
   const nodes = toRuntimeNodes(workspace)
-  const validNodeIds = new Set(nodes.map(node => node.id))
+  const agentBindingIdByNodeId = new Map(
+    nodes
+      .filter(node => node.data.kind === 'agent' && node.data.agent)
+      .map(node => [node.id, node.data.agent?.bindingId ?? null]),
+  )
+  const normalizedNodes = nodes.map(node => {
+    if (node.data.kind !== 'task' || !node.data.task) {
+      return node
+    }
+
+    const linkedAgentBindingId =
+      node.data.task.linkedAgentBindingId ??
+      (node.data.task.linkedAgentNodeId
+        ? (agentBindingIdByNodeId.get(node.data.task.linkedAgentNodeId) ?? null)
+        : null)
+
+    if (linkedAgentBindingId === node.data.task.linkedAgentBindingId) {
+      return node
+    }
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        task: {
+          ...node.data.task,
+          linkedAgentBindingId,
+        },
+      },
+    }
+  })
+  const validNodeIds = new Set(normalizedNodes.map(node => node.id))
   const sanitizedSpaces = sanitizeWorkspaceSpaces(
     workspace.spaces.map(space => ({
       ...space,
@@ -46,7 +77,7 @@ function toShellWorkspaceState(workspace: PersistedWorkspaceState): WorkspaceSta
     lifecycleState: workspace.lifecycleState,
     archivedAt: workspace.archivedAt,
     pullRequestBaseBranchOptions: workspace.pullRequestBaseBranchOptions ?? [],
-    nodes,
+    nodes: normalizedNodes,
     viewport: {
       x: workspace.viewport.x,
       y: workspace.viewport.y,
@@ -72,7 +103,13 @@ function shouldHydrateRuntimeNode(node: Node<TerminalNodeData>): boolean {
     return false
   }
 
-  return !hasSessionId(node)
+  // A live runtime session must always win over restore intent. Rehydration is only
+  // for nodes that currently have no runtime transport attached.
+  if (hasSessionId(node)) {
+    return false
+  }
+
+  return true
 }
 
 function mergeHydratedAgentData(
@@ -85,6 +122,7 @@ function mergeHydratedAgentData(
 
   return {
     ...currentAgent,
+    bindingId: hydratedAgent.bindingId,
     provider: hydratedAgent.provider,
     prompt: hydratedAgent.prompt,
     model: hydratedAgent.model,
@@ -105,6 +143,7 @@ function mergeHydratedHostedAgentData(
 
   return {
     ...currentHostedAgent,
+    bindingId: hydratedHostedAgent.bindingId,
     provider: hydratedHostedAgent.provider,
     launchMode: hydratedHostedAgent.launchMode,
     resumeSessionId: hydratedHostedAgent.resumeSessionId,
@@ -338,8 +377,10 @@ export async function hydrateRuntimeNode({
             agent: null,
             hostedAgent: {
               ...hostedAgent,
-              restoreIntent: false,
-              state: 'unavailable',
+              // Failing to resolve the resume target during one hydration pass
+              // must not permanently revoke future auto-restore attempts.
+              restoreIntent: true,
+              state: 'inactive',
               resumeSessionId: resolvedResumeSessionId,
               resumeSessionIdVerified: resolvedResumeSessionId !== null,
             },
@@ -355,6 +396,7 @@ export async function hydrateRuntimeNode({
         })
         await window.freecliApi.pty.trackHostedAgent?.({
           sessionId: spawned.sessionId,
+          bindingId: hostedAgent.bindingId,
           provider: hostedAgent.provider,
           cwd: hostedAgent.cwd,
           launchMode: 'resume',
@@ -410,8 +452,8 @@ export async function hydrateRuntimeNode({
             agent: null,
             hostedAgent: {
               ...hostedAgent,
-              restoreIntent: false,
-              state: 'unavailable',
+              restoreIntent: true,
+              state: 'inactive',
               resumeSessionId: resolvedResumeSessionId,
               resumeSessionIdVerified: resolvedResumeSessionId !== null,
             },

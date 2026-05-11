@@ -16,7 +16,7 @@ const helperResourcesRoot = resolve(process.cwd(), 'build-resources')
 const outputDir = resolve(process.cwd(), 'build-resources', 'system-monitor-helper')
 const publishTempDir = mkdtempSync(resolve(tmpdir(), 'freecli-system-monitor-helper-'))
 mkdirSync(helperResourcesRoot, { recursive: true })
-const stagingDir = mkdtempSync(resolve(helperResourcesRoot, 'system-monitor-helper-stage-'))
+const stagingDir = mkdtempSync(resolve(tmpdir(), 'freecli-system-monitor-helper-stage-'))
 const backupDir = `${outputDir}.bak`
 const requiredPublishedFiles = [
   'WindowsMonitorHelper.exe',
@@ -28,6 +28,32 @@ const requiredPublishedFiles = [
 ]
 mkdirSync(outputDir, { recursive: true })
 
+function hasRequiredPublishedFiles(directory) {
+  return requiredPublishedFiles.every(fileName => existsSync(resolve(directory, fileName)))
+}
+
+const restoreResult = spawnSync(
+  'dotnet',
+  [
+    'restore',
+    resolve(projectDir, 'WindowsMonitorHelper.csproj'),
+    '-r',
+    'win-x64',
+    '--ignore-failed-sources',
+  ],
+  {
+    cwd: process.cwd(),
+    shell: process.platform === 'win32',
+    stdio: 'inherit',
+  },
+)
+
+if (restoreResult.status !== 0) {
+  rmSync(publishTempDir, { recursive: true, force: true })
+  rmSync(stagingDir, { recursive: true, force: true })
+  process.exit(restoreResult.status ?? 1)
+}
+
 const result = spawnSync(
   'dotnet',
   [
@@ -37,6 +63,7 @@ const result = spawnSync(
     'Release',
     '-r',
     'win-x64',
+    '--no-restore',
     '--self-contained',
     'true',
     '-p:PublishSingleFile=false',
@@ -53,6 +80,22 @@ const result = spawnSync(
 if (result.status !== 0) {
   rmSync(publishTempDir, { recursive: true, force: true })
   rmSync(stagingDir, { recursive: true, force: true })
+  const allowFallbackToExistingOutput =
+    process.env.CI !== 'true' &&
+    process.env.FREECLI_STRICT_SYSTEM_MONITOR_HELPER_BUILD !== '1' &&
+    hasRequiredPublishedFiles(outputDir)
+
+  if (allowFallbackToExistingOutput) {
+    console.warn(
+      [
+        '[system-monitor-helper] dotnet publish failed, falling back to the existing helper output.',
+        'Why: local dev should not be blocked by transient NuGet/network failures when a valid helper build already exists.',
+        `target=${outputDir}`,
+      ].join(' '),
+    )
+    process.exit(0)
+  }
+
   process.exit(result.status ?? 1)
 }
 
@@ -73,7 +116,22 @@ try {
     renameSync(outputDir, backupDir)
   }
 
-  renameSync(stagingDir, outputDir)
+  try {
+    renameSync(stagingDir, outputDir)
+  } catch (error) {
+    const isCrossDeviceRename =
+      error instanceof Error &&
+      'code' in error &&
+      typeof error.code === 'string' &&
+      error.code === 'EXDEV'
+    if (!isCrossDeviceRename) {
+      throw error
+    }
+
+    cpSync(stagingDir, outputDir, { recursive: true, force: true })
+    rmSync(stagingDir, { recursive: true, force: true })
+  }
+
   rmSync(backupDir, { recursive: true, force: true })
 } catch (error) {
   try {

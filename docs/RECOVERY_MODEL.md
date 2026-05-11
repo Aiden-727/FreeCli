@@ -22,6 +22,20 @@
 - 首次打开 agent 窗口但未发送消息时，没有 durable session intent，重启后无法恢复。
 - watcher / fallback / 关闭流程容易把运行时观测错误地写成恢复真相。
 
+### 本轮补充：为什么会出现“多个终端恢复成同一个任务”
+
+根因不是单纯“恢复慢”或“session 文件晚到”，而是**durable 身份与 runtime 会话号混用**：
+
+- `sessionId` 是 PTY runtime 会话号，重启、重建、恢复后都可能变化。
+- 旧链路里 renderer 和 watcher 仍大量按 `sessionId` 反推“这个事件属于哪个 agent / hosted terminal 节点”。
+- 一旦恢复时存在 `旧 durable 节点 + 新 runtime sessionId` 的过渡窗口，晚到的 `state / metadata / exit` 事件就可能串写到错误节点。
+
+当前模型已明确：
+
+- `bindingId` 才是 terminal / agent 的 durable identity。
+- `resumeSessionId` 是该 durable identity 当前绑定到的外部 agent 会话标识。
+- `sessionId` 仅表示当前这次运行中的 PTY transport，会变，不可作为 durable owner。
+
 ## 2. 四类状态
 
 ### 用户意图
@@ -40,6 +54,7 @@
 
 示例：
 - 哪个 task 持有哪个 agent window 记录
+- 哪个 durable agent / hosted terminal 绑定了哪个 `bindingId`
 - 某个 agent window 当前期望恢复到哪个 resume session
 - 某个 workspace 下有哪些 node / space / viewport 布局
 - 用户 settings
@@ -70,6 +85,7 @@
 3. **首次打开但未发首条消息，也必须留下 durable launch intent。**
 4. **watcher 只能上报 observation，不能直接降级或清空 resumable truth。**
 5. **关闭窗口、fallback terminal、late async completion 都不能重写别的 owner 的 durable fact。**
+6. **PTY `sessionId` 只能表示当前 runtime transport；跨重启、跨恢复的 durable 归属一律使用 `bindingId`。**
 
 ## 4. 恢复状态所有权表
 
@@ -78,8 +94,9 @@
 | workspace list / active workspace | Durable Fact | `workspace` context | workspace usecase | DB persisted workspace state |
 | viewport / spaces / node layout | Durable Fact | `workspace` context | workspace usecase | DB persisted workspace state |
 | task fields | Durable Fact | `task` context | task usecase | task repository |
-| task -> agent window reference | Durable Fact | `task` context | task-agent binding usecase | task repository |
+| task -> agent window reference (`linkedAgentBindingId`) | Durable Fact | `task` context | task-agent binding usecase | task repository |
 | agent window record | Durable Fact | `agent` context | launch / close / restore usecases | agent repository |
+| agent / hosted terminal durable binding (`bindingId`) | Durable Fact | `agent` / `terminal` context | create / restore usecases | app persisted workspace state |
 | launch intent before first message | Durable Fact | `agent` context | launch usecase at window creation time | agent repository |
 | resume session binding | Durable Fact | `agent` context | bind / verify resume usecases | agent repository |
 | resume session verified flag | Durable Fact | `agent` context | verify resume binding usecase | agent repository |
@@ -107,6 +124,7 @@
 - `task` 与 `agent` 的 durable relation 没有独立聚合建模。
 - 绑定关系部分存在 node data，部分存在 task session history，部分依赖 runtime metadata 回填。
 - 恢复时实际上在“猜测”哪个 session 属于哪个窗口。
+- watcher / PTY runtime 事件若继续按 `sessionId` 归属节点，就会在恢复重建阶段把多个终端错误折叠到同一任务或同一节点。
 
 ### 问题 C：只有第一次打开且未发送消息时不能恢复
 
@@ -160,6 +178,7 @@
 ```text
 AgentWindow {
   agentWindowId
+  bindingId
   taskId
   workspaceId
   provider
@@ -180,6 +199,7 @@ AgentWindow {
 ```
 
 关键规则：
+- `bindingId` 是 durable identity。
 - `binding` 是 durable fact。
 - `runtime` 不是 durable recovery truth。
 - 首次 launch 时，即使 `resumeSessionId` 仍为空，也要持久化 `binding.state = pending`。
@@ -189,14 +209,14 @@ AgentWindow {
 ```text
 TaskAgentLink {
   taskId
-  agentWindowId
+  linkedAgentBindingId
   relation: active | historical
   lastRunAt
 }
 ```
 
 关键规则：
-- active link 只允许 0..1 指向当前激活 agent window。
+- active link 只允许 0..1 指向当前激活 `bindingId`。
 - 历史展示记录是 task 视角的 projection，不是 agent resume truth owner。
 
 ## 8. 各关键边界允许做什么
@@ -219,12 +239,14 @@ TaskAgentLink {
 - 上报定位到的 `resumeSessionId`
 - 上报 hosted terminal 的 `effectiveModel / reasoningEffort / displayModelLabel`
 - 触发 agent context 的 verify usecase
+- 透传当前 runtime `sessionId -> bindingId` 的观测关系，供 renderer 按 durable identity 命中节点
 
 不允许：
 - 直接删除 binding
 - 直接把 active window 改成不可恢复
 - 直接改 task 与 window 的归属关系
 - 只给 inactive workspace 写 runtime metadata，而遗漏当前激活 canvas 中可见的 hosted terminal 节点
+- 继续仅凭 `sessionId` 在 renderer 里猜测 durable 节点归属
 
 ### Hydration / Reopen
 
@@ -295,6 +317,7 @@ TaskAgentLink {
 ### E2E
 
 - reopen app restores correct task-agent-session relation
+- multiple agent / hosted terminal restores do not cross-bind by runtime `sessionId`
 - blank first launch restores pending binding window
 - close/reopen does not downgrade agent window into plain terminal semantics
 

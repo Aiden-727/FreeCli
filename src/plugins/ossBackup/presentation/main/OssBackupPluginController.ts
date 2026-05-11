@@ -24,6 +24,7 @@ import {
 import {
   DEFAULT_OSS_BACKUP_SETTINGS,
   isOssBackupConfigured,
+  normalizeOssBackupObjectDirectory,
 } from '@contexts/plugins/domain/ossBackupSettings'
 import { normalizeBuiltinPluginIds } from '@contexts/plugins/domain/pluginManifest'
 import { normalizeAgentSettings } from '@contexts/settings/domain/agentSettings'
@@ -185,12 +186,7 @@ function createDefaultState(settings: OssBackupSettingsDto, isEnabled: boolean):
 }
 
 function normalizeObjectKey(value: string): string {
-  return value
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '')
-    .replace(/\/{2,}/g, '/')
-    .replace(/\/+$/, '')
+  return normalizeOssBackupObjectDirectory(value)
 }
 
 function deriveObjectKeys(settings: OssBackupSettingsDto): OssObjectKeys {

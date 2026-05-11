@@ -43,6 +43,8 @@ export class TerminalSessionManager {
   private readonly ptyDataSubscribersBySessionId = new Map<string, Set<number>>()
   private readonly ptyDataSessionsByWebContentsId = new Map<number, Set<string>>()
   private readonly ptyDataSubscribedWebContentsIds = new Set<number>()
+  private readonly bindingIdBySessionId = new Map<string, string>()
+  private readonly suppressExitBroadcastSessionIds = new Set<string>()
 
   constructor(deps: SessionManagerDeps) {
     this.sendToAllWindows = deps.sendToAllWindows
@@ -232,8 +234,18 @@ export class TerminalSessionManager {
     this.cleanupSessionPtyDataSubscriptions(sessionId)
     this.activeSessions.delete(sessionId)
     this.terminatedSessions.add(sessionId)
-    const eventPayload: TerminalExitEvent = { sessionId, exitCode }
-    this.sendToAllWindows(IPC_CHANNELS.ptyExit, eventPayload)
+    const shouldSuppressBroadcast = this.suppressExitBroadcastSessionIds.has(sessionId)
+    this.suppressExitBroadcastSessionIds.delete(sessionId)
+    const bindingId = this.bindingIdBySessionId.get(sessionId) ?? null
+    const eventPayload: TerminalExitEvent = {
+      sessionId,
+      bindingId,
+      exitCode,
+    }
+    this.bindingIdBySessionId.delete(sessionId)
+    if (!shouldSuppressBroadcast) {
+      this.sendToAllWindows(IPC_CHANNELS.ptyExit, eventPayload)
+    }
   }
 
   registerSession(sessionId: string): void {
@@ -281,16 +293,31 @@ export class TerminalSessionManager {
     return snapshot ? snapshotToString(snapshot) : ''
   }
 
-  kill(sessionId: string): void {
+  kill(sessionId: string, options: { suppressExitBroadcast?: boolean } = {}): void {
     this.flushPtyDataBroadcast(sessionId)
     this.sessionStateWatcher.disposeSession(sessionId)
     this.cleanupSessionPtyDataSubscriptions(sessionId)
     this.activeSessions.delete(sessionId)
     this.terminatedSessions.add(sessionId)
     this.snapshots.delete(sessionId)
+    if (options.suppressExitBroadcast === true) {
+      this.suppressExitBroadcastSessionIds.add(sessionId)
+      return
+    }
+
+    this.bindingIdBySessionId.delete(sessionId)
+  }
+
+  listActiveSessionIds(): string[] {
+    return [...this.activeSessions.values()]
   }
 
   startSessionStateWatcher(input: SessionStateWatcherStartInput): void {
+    if (typeof input.bindingId === 'string' && input.bindingId.trim().length > 0) {
+      this.bindingIdBySessionId.set(input.sessionId, input.bindingId)
+    } else {
+      this.bindingIdBySessionId.delete(input.sessionId)
+    }
     this.sessionStateWatcher.start(input)
   }
 
@@ -311,5 +338,7 @@ export class TerminalSessionManager {
     this.activeSessions.clear()
     this.terminatedSessions.clear()
     this.snapshots.clear()
+    this.bindingIdBySessionId.clear()
+    this.suppressExitBroadcastSessionIds.clear()
   }
 }

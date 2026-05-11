@@ -112,12 +112,18 @@ function clampToNonNegative(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0
 }
 
+function padDatePart(value: number): string {
+  return value.toString().padStart(2, '0')
+}
+
 function toDateKey(value: Date): string {
-  return value.toISOString().slice(0, 10)
+  return `${value.getFullYear()}-${padDatePart(value.getMonth() + 1)}-${padDatePart(
+    value.getDate(),
+  )}`
 }
 
 function toHourKey(value: Date): string {
-  return `${value.toISOString().slice(0, 13)}:00`
+  return `${toDateKey(value)}T${padDatePart(value.getHours())}:00`
 }
 
 function formatDayLabel(value: Date): string {

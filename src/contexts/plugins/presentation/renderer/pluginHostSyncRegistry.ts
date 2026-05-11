@@ -40,6 +40,17 @@ export function buildPluginHostSyncTasks(options: {
     })
   }
 
+  if (typeof pluginsApi.eyeCare?.syncSettings === 'function') {
+    tasks.push({
+      code: 'eye_care_sync',
+      signature: JSON.stringify(options.settings.plugins.eyeCare),
+      run: async () =>
+        await pluginsApi.eyeCare.syncSettings({
+          settings: options.settings.plugins.eyeCare,
+        }),
+    })
+  }
+
   if (typeof pluginsApi.inputStats?.syncSettings === 'function') {
     tasks.push({
       code: 'input_stats_sync',

@@ -45,23 +45,23 @@ export default function InputStatsControlCenterWidget({
           {t('pluginManager.plugins.inputStats.title')}
         </span>
         {showMetrics ? (
-          <span className="control-center-tile__subtitle control-center-tile__subtitle--stack">
-            <span className="control-center-tile__metric-row">
-              <span className="control-center-tile__metric">
-                <Keyboard size={12} />
-                <span className="control-center-tile__metric-value">
-                  {formatCount(state.today.keyPresses)}
-                </span>
-                <span className="control-center-tile__metric-label">
-                  {t('pluginManager.plugins.inputStats.controlCenterMetrics.keys')}
-                </span>
+          <span className="control-center-tile__subtitle control-center-tile__plugin-lines">
+            <span className="control-center-tile__plugin-line control-center-tile__plugin-line--input">
+              <span className="control-center-tile__eye-care-phase-pill control-center-tile__eye-care-phase-pill--metric">
+                <Keyboard size={14} />
+                <span>{t('pluginManager.plugins.inputStats.controlCenterMetrics.keys')}</span>
               </span>
-              <span className="control-center-tile__metric">
-                <MousePointer2 size={12} />
-                <span className="control-center-tile__metric-value">{formatCount(clicks)}</span>
-                <span className="control-center-tile__metric-label">
-                  {t('pluginManager.plugins.inputStats.controlCenterMetrics.clicks')}
-                </span>
+              <span className="control-center-tile__plugin-value">
+                {formatCount(state.today.keyPresses)}
+              </span>
+            </span>
+            <span className="control-center-tile__plugin-line control-center-tile__plugin-line--input">
+              <span className="control-center-tile__eye-care-phase-pill control-center-tile__eye-care-phase-pill--metric">
+                <MousePointer2 size={14} />
+                <span>{t('pluginManager.plugins.inputStats.controlCenterMetrics.clicks')}</span>
+              </span>
+              <span className="control-center-tile__plugin-value">
+                {formatCount(clicks)}
               </span>
             </span>
           </span>

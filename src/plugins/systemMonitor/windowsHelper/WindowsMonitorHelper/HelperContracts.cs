@@ -41,11 +41,26 @@ internal sealed record TaskbarWidgetRuntimeStatus(
     bool RequestedEnabled,
     bool Visible,
     bool Embedded,
-    string? Error)
+    string? Error,
+    TaskbarWidgetDebugInfo? Debug)
 {
     public static TaskbarWidgetRuntimeStatus Disabled =>
-        new(false, false, false, null);
+        new(false, false, false, null, null);
 
     public static TaskbarWidgetRuntimeStatus Failed(string error) =>
-        new(true, false, false, error);
+        new(true, false, false, error, null);
 }
+
+internal sealed record TaskbarWidgetDebugInfo(
+    bool? SessionHidden,
+    bool? HasLatestSnapshot,
+    bool? HasLayout,
+    bool? HandleCreated,
+    string? Stage,
+    string? ParentWindowClass,
+    string? Bounds,
+    string? BackgroundColor,
+    string? ForegroundColor,
+    string? AnchorRect,
+    string? NotifyRect,
+    string? TaskbarRect);

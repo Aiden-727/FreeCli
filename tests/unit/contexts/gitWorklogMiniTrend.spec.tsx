@@ -1,6 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act } from 'react'
+import { describe, expect, it, vi } from 'vitest'
 import { GitWorklogMiniTrend } from '../../../src/plugins/gitWorklog/presentation/renderer/GitWorklogMiniTrend'
 
 function createPoints(count: number) {
@@ -16,6 +17,31 @@ function createPoints(count: number) {
 }
 
 describe('GitWorklogMiniTrend', () => {
+  it('animates chart layers when switching range windows', () => {
+    vi.useFakeTimers()
+    render(<GitWorklogMiniTrend points={createPoints(30)} repoId="repo_animated" />)
+
+    const trend = screen.getByTestId('git-worklog-mini-trend-repo_animated')
+    act(() => {
+      fireEvent.click(screen.getByTestId('git-worklog-mini-trend-range-repo_animated-15'))
+    })
+
+    expect(
+      trend.querySelector('.git-worklog-mini-trend__chart-layer--previous'),
+    ).not.toBeNull()
+    expect(
+      trend.querySelector('.git-worklog-mini-trend__chart-layer--current'),
+    ).not.toBeNull()
+
+    act(() => {
+      vi.advanceTimersByTime(221)
+    })
+
+    expect(trend.querySelector('.git-worklog-mini-trend__chart-layer--previous')).toBeNull()
+    expect(trend.querySelector('.git-worklog-mini-trend__chart-layer--current')).toBeNull()
+    vi.useRealTimers()
+  })
+
   it('renders additions and deletions trend with 7/15/30 day range switching', () => {
     render(<GitWorklogMiniTrend points={createPoints(30)} repoId="repo_a" />)
 

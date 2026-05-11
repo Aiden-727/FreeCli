@@ -7,15 +7,16 @@ import {
 import type { Node } from '@xyflow/react'
 import { buildHostedTerminalDisplayModelLabel } from '@contexts/terminal/domain/hostedAgent'
 import type { TerminalNodeData } from '../../../types'
+import { matchesTerminalRuntimeEvent } from '../../../utils/terminalBindingMatch'
 
 export function applyAgentExitToNodes(
   prevNodes: Node<TerminalNodeData>[],
-  event: { sessionId: string; exitCode: number },
+  event: { sessionId: string; bindingId?: string | null; exitCode: number },
 ): { nextNodes: Node<TerminalNodeData>[]; didChange: boolean } {
   let didChange = false
 
   const nextNodes = prevNodes.map(node => {
-    if (node.data.sessionId !== event.sessionId || node.data.kind !== 'agent') {
+    if (node.data.kind !== 'agent' || !matchesTerminalRuntimeEvent(node.data, event)) {
       return node
     }
 
@@ -62,14 +63,14 @@ function normalizeOptionalText(rawValue: unknown): string | null {
 
 function applyHostedTerminalStateToNodes(
   prevNodes: Node<TerminalNodeData>[],
-  event: { sessionId: string; state: 'working' | 'standby' },
+  event: { sessionId: string; bindingId?: string | null; state: 'working' | 'standby' },
 ): { nextNodes: Node<TerminalNodeData>[]; didChange: boolean } {
   let didChange = false
 
   const nextNodes = prevNodes.map(node => {
     if (
       node.data.kind !== 'terminal' ||
-      node.data.sessionId !== event.sessionId ||
+      !matchesTerminalRuntimeEvent(node.data, event) ||
       !node.data.hostedAgent
     ) {
       return node
@@ -112,6 +113,7 @@ export function applyHostedTerminalMetadataToNodes(
   prevNodes: Node<TerminalNodeData>[],
   event: {
     sessionId: string
+    bindingId?: string | null
     resumeSessionId: string | null
     effectiveModel?: string | null
     reasoningEffort?: string | null
@@ -145,7 +147,7 @@ export function applyHostedTerminalMetadataToNodes(
   const nextNodes = prevNodes.map(node => {
     if (
       node.data.kind !== 'terminal' ||
-      node.data.sessionId !== event.sessionId ||
+      !matchesTerminalRuntimeEvent(node.data, event) ||
       !node.data.hostedAgent
     ) {
       return node
@@ -190,16 +192,16 @@ export function applyHostedTerminalMetadataToNodes(
   }
 }
 
-function applyHostedTerminalExitToNodes(
+export function applyHostedTerminalExitToNodes(
   prevNodes: Node<TerminalNodeData>[],
-  event: { sessionId: string; exitCode: number },
+  event: { sessionId: string; bindingId?: string | null; exitCode: number },
 ): { nextNodes: Node<TerminalNodeData>[]; didChange: boolean } {
   let didChange = false
 
   const nextNodes = prevNodes.map(node => {
     if (
       node.data.kind !== 'terminal' ||
-      node.data.sessionId !== event.sessionId ||
+      !matchesTerminalRuntimeEvent(node.data, event) ||
       !node.data.hostedAgent
     ) {
       return node
@@ -216,7 +218,9 @@ function applyHostedTerminalExitToNodes(
         hostedAgent: {
           ...node.data.hostedAgent,
           state: 'inactive' as const,
-          restoreIntent: false,
+          // Runtime exit only means the PTY ended; it must not silently revoke
+          // the durable intent to auto-restore this hosted agent on next launch.
+          restoreIntent: node.data.hostedAgent.restoreIntent,
         },
       },
     }
@@ -244,7 +248,7 @@ export function useWorkspaceCanvasPtyTaskCompletion({
     const unsubscribeState = ptyEventHub.onState(event => {
       setNodes(prevNodes => {
         const nextAgentNodes = prevNodes.map(node => {
-          if (node.data.kind !== 'agent' || node.data.sessionId !== event.sessionId) {
+          if (node.data.kind !== 'agent' || !matchesTerminalRuntimeEvent(node.data, event)) {
             return node
           }
 
@@ -278,7 +282,7 @@ export function useWorkspaceCanvasPtyTaskCompletion({
         const nextAgentNodes = prevNodes.map(node => {
           if (
             node.data.kind !== 'agent' ||
-            node.data.sessionId !== event.sessionId ||
+            !matchesTerminalRuntimeEvent(node.data, event) ||
             !node.data.agent
           ) {
             return node

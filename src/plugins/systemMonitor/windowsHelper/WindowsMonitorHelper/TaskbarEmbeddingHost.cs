@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 
 namespace WindowsMonitorHelper;
@@ -11,6 +12,10 @@ internal sealed class TaskbarEmbeddingHost
     private const int MinTaskListWidth = 80;
     private const int Win11LeftInset = 2;
     private const int Win11RightInset = 2;
+    private const uint EmbeddedWindowPositionFlags =
+        NativeMethods.SwpNoActivate | NativeMethods.SwpFrameChanged;
+    private const uint OverlayWindowPositionFlags =
+        NativeMethods.SwpNoActivate | NativeMethods.SwpFrameChanged;
 
     private bool originalWindowStyleCaptured;
     private nint originalWindowStyle;
@@ -18,60 +23,118 @@ internal sealed class TaskbarEmbeddingHost
     private IntPtr attachedParentHandle = IntPtr.Zero;
     private IntPtr reservedHandle = IntPtr.Zero;
     private Rectangle originalReservedBounds = Rectangle.Empty;
+    private Rectangle? lastAppliedBounds;
+    private string lastStage = "idle";
+    private string? lastParentWindowClass;
+    private Rectangle? lastEmbeddedBounds;
+    private Rectangle? lastAnchorRect;
+    private Rectangle? lastNotifyRect;
+    private Rectangle? lastTaskbarRect;
+    public bool IsOverlayMode { get; private set; }
 
     public TaskbarEmbeddingResult AttachOrUpdate(Form form, Size widgetSize)
     {
         ArgumentNullException.ThrowIfNull(form);
+        lastStage = "validate_handle";
         if (!form.IsHandleCreated)
         {
-            return TaskbarEmbeddingResult.Fail("任务栏监控窗口句柄尚未创建。");
+            return Fail("任务栏监控窗口句柄尚未创建。");
         }
 
+        lastStage = "resolve_context";
         TaskbarHostContext context = ResolveContext();
         if (context.Error is not null)
         {
             Detach(form);
-            return TaskbarEmbeddingResult.Fail(context.Error);
+            return Fail(context.Error);
         }
 
         try
         {
-            EnsureChildWindowStyle(form.Handle);
-            EnsureParent(form.Handle, context.ParentHandle);
-            if (context.ResizeTargetHandle != IntPtr.Zero)
+            lastTaskbarRect = context.TaskbarRect;
+            lastNotifyRect = context.NotifyRect;
+            lastAnchorRect = context.AnchorRect;
+            if (context.IsWindows11)
             {
-                ReserveTaskListSpace(context, widgetSize.Width);
+                IsOverlayMode = true;
+                lastStage = "ensure_overlay_style";
+                EnsureOverlayWindowStyle(form.Handle);
+                lastParentWindowClass = GetClassName(context.ParentHandle);
             }
             else
             {
-                RestoreReservedSpace();
+                IsOverlayMode = false;
+                lastStage = "ensure_child_style";
+                EnsureChildWindowStyle(form.Handle);
+                lastStage = "ensure_parent";
+                EnsureParent(form.Handle, context.ParentHandle);
+                if (context.ResizeTargetHandle != IntPtr.Zero)
+                {
+                    lastStage = "reserve_tasklist_space";
+                    ReserveTaskListSpace(context, widgetSize.Width);
+                }
+                else
+                {
+                    RestoreReservedSpace();
+                }
             }
 
+            lastStage = "calculate_bounds";
             Rectangle bounds = CalculateEmbeddedBounds(context, widgetSize);
-            if (bounds.X < 0 || bounds.Width <= 0 || bounds.Right > context.ParentRect.Width)
+            bool invalidBounds = context.IsWindows11
+                ? bounds.Width <= 0 || bounds.Height <= 0
+                : bounds.X < 0 || bounds.Width <= 0 || bounds.Right > context.ParentRect.Width;
+            if (invalidBounds)
             {
                 throw new InvalidOperationException("当前任务栏可用空间不足，无法嵌入监控窗口。");
             }
 
-            MoveOrThrow(form.Handle, bounds);
-            NativeMethods.ShowWindow(form.Handle, ShowWindowCommand.ShowNoActivate);
-            return TaskbarEmbeddingResult.Success(bounds);
+            bool boundsChanged = !lastAppliedBounds.HasValue || lastAppliedBounds.Value != bounds;
+
+            if (boundsChanged && context.IsWindows11)
+            {
+                lastStage = "move_overlay_window";
+                MoveOverlayWindowOrThrow(form.Handle, bounds);
+            }
+            else if (boundsChanged)
+            {
+                lastStage = "move_embedded_window";
+                MoveEmbeddedWindowOrThrow(form.Handle, bounds);
+            }
+
+            if (!NativeMethods.IsWindowVisible(form.Handle))
+            {
+                lastStage = "show_window";
+                NativeMethods.ShowWindow(form.Handle, ShowWindowCommand.ShowNoActivate);
+            }
+            lastStage = "embedded";
+            lastAppliedBounds = bounds;
+            lastEmbeddedBounds = bounds;
+            return TaskbarEmbeddingResult.Success(bounds, lastStage, lastParentWindowClass);
         }
         catch (Exception exception)
         {
             Detach(form);
-            return TaskbarEmbeddingResult.Fail(exception.Message);
+            return Fail(exception.Message);
         }
     }
 
     public void Detach(Form form)
     {
         ArgumentNullException.ThrowIfNull(form);
+        lastStage = "detaching";
         RestoreReservedSpace();
 
         if (!form.IsHandleCreated)
         {
+            IsOverlayMode = false;
             attachedParentHandle = IntPtr.Zero;
+            lastAppliedBounds = null;
+            lastEmbeddedBounds = null;
+            lastParentWindowClass = null;
+            lastAnchorRect = null;
+            lastNotifyRect = null;
+            lastTaskbarRect = null;
             return;
         }
 
@@ -82,7 +145,32 @@ internal sealed class TaskbarEmbeddingHost
 
         RestoreOriginalWindowStyle(form.Handle);
         NativeMethods.ShowWindow(form.Handle, ShowWindowCommand.Hide);
+        IsOverlayMode = false;
         attachedParentHandle = IntPtr.Zero;
+        lastAppliedBounds = null;
+        lastEmbeddedBounds = null;
+        lastParentWindowClass = null;
+        lastAnchorRect = null;
+        lastNotifyRect = null;
+        lastTaskbarRect = null;
+        lastStage = "detached";
+    }
+
+    public TaskbarWidgetDebugInfo BuildDebugInfo()
+    {
+        return new TaskbarWidgetDebugInfo(
+            null,
+            null,
+            null,
+            null,
+            lastStage,
+            lastParentWindowClass,
+            FormatBounds(lastEmbeddedBounds),
+            null,
+            null,
+            FormatBounds(lastAnchorRect),
+            FormatBounds(lastNotifyRect),
+            FormatBounds(lastTaskbarRect));
     }
 
     private static TaskbarHostContext ResolveContext()
@@ -106,11 +194,14 @@ internal sealed class TaskbarEmbeddingHost
             return TaskbarHostContext.Fail("当前仅支持主屏底部任务栏嵌入。");
         }
 
-        bool isWindows11 = NativeMethods.FindWindowEx(
+        IntPtr bridgeHandle = NativeMethods.FindWindowEx(
             taskbarHandle,
             IntPtr.Zero,
             "Windows.UI.Composition.DesktopWindowContentBridge",
-            null) != IntPtr.Zero;
+            null);
+        bool isWindows11 =
+            bridgeHandle != IntPtr.Zero ||
+            Environment.OSVersion.Version.Build >= 22000;
 
         if (isWindows11)
         {
@@ -120,16 +211,19 @@ internal sealed class TaskbarEmbeddingHost
                 return TaskbarHostContext.Fail("未找到 Windows 11 任务栏通知区窗口。");
             }
 
+            Rectangle notifyRect = GetWindowRectangleOrThrow(notifyHandle, "读取 Windows 11 通知区位置失败。");
+            Rectangle? anchorRect = FindWindows11AnchorRect(notifyHandle, notifyRect);
             return new TaskbarHostContext(
                 taskbarHandle,
-                taskbarHandle,
+                notifyHandle,
                 IntPtr.Zero,
                 true,
                 taskbarRect,
-                taskbarRect,
-                GetWindowRectangleOrThrow(notifyHandle, "读取 Windows 11 通知区位置失败。"),
+                notifyRect,
+                notifyRect,
                 null,
-                null);
+                null,
+                anchorRect);
         }
 
         IntPtr parentHandle = NativeMethods.FindWindowEx(taskbarHandle, IntPtr.Zero, "ReBarWindow32", null);
@@ -194,6 +288,39 @@ internal sealed class TaskbarEmbeddingHost
             NativeMethods.SwpFrameChanged);
     }
 
+    private void EnsureOverlayWindowStyle(IntPtr handle)
+    {
+        if (!originalWindowStyleCaptured)
+        {
+            originalWindowStyle = NativeMethods.GetWindowLongPtr(handle, NativeMethods.GwlStyle);
+            originalWindowExStyle = NativeMethods.GetWindowLongPtr(handle, NativeMethods.GwlExStyle);
+            originalWindowStyleCaptured = true;
+        }
+
+        nint overlayStyle = (originalWindowStyle | NativeMethods.WsPopup) & ~NativeMethods.WsChild;
+        nint overlayExStyle =
+            (originalWindowExStyle |
+             NativeMethods.WsExToolWindow |
+             NativeMethods.WsExNoActivate |
+             NativeMethods.WsExLayered) &
+            ~NativeMethods.WsExAppWindow;
+
+        NativeMethods.SetWindowLongPtr(handle, NativeMethods.GwlStyle, overlayStyle);
+        NativeMethods.SetWindowLongPtr(handle, NativeMethods.GwlExStyle, overlayExStyle);
+        NativeMethods.SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            0,
+            0,
+            0,
+            0,
+            NativeMethods.SwpNoMove |
+            NativeMethods.SwpNoSize |
+            NativeMethods.SwpNoZOrder |
+            NativeMethods.SwpNoActivate |
+            NativeMethods.SwpFrameChanged);
+    }
+
     private void RestoreOriginalWindowStyle(IntPtr handle)
     {
         if (!originalWindowStyleCaptured)
@@ -221,6 +348,7 @@ internal sealed class TaskbarEmbeddingHost
     {
         if (attachedParentHandle == parentHandle && NativeMethods.GetParent(handle) == parentHandle)
         {
+            lastParentWindowClass = GetClassName(parentHandle);
             return;
         }
 
@@ -239,6 +367,7 @@ internal sealed class TaskbarEmbeddingHost
         }
 
         attachedParentHandle = parentHandle;
+        lastParentWindowClass = GetClassName(parentHandle);
     }
 
     private void ReserveTaskListSpace(TaskbarHostContext context, int widgetWidth)
@@ -304,9 +433,10 @@ internal sealed class TaskbarEmbeddingHost
                 throw new InvalidOperationException("Windows 11 通知区信息缺失。");
             }
 
-            Rectangle notifyRect = context.NotifyRect.Value;
-            int widgetX = notifyRect.Left - context.ParentRect.Left - widgetSize.Width - WidgetSpacing - Win11RightInset;
-            int widgetY = Math.Max(0, (context.ParentRect.Height - widgetSize.Height) / 2);
+            Rectangle anchorRect = context.AnchorRect ?? context.NotifyRect.Value;
+            Rectangle taskbarRect = context.TaskbarRect;
+            int widgetX = Math.Max(0, anchorRect.Left - widgetSize.Width - WidgetSpacing - Win11RightInset);
+            int widgetY = taskbarRect.Top + Math.Max(0, (taskbarRect.Height - widgetSize.Height) / 2);
             return new Rectangle(widgetX, widgetY, widgetSize.Width, widgetSize.Height);
         }
 
@@ -349,18 +479,127 @@ internal sealed class TaskbarEmbeddingHost
             throw new Win32Exception(Marshal.GetLastWin32Error(), "调整任务栏监控窗口位置失败。");
         }
     }
-}
 
-internal sealed record TaskbarEmbeddingResult(bool IsEmbedded, string? Error, Rectangle? Bounds)
-{
-    public static TaskbarEmbeddingResult Success(Rectangle bounds)
+    private static void MoveEmbeddedWindowOrThrow(IntPtr handle, Rectangle bounds)
     {
-        return new TaskbarEmbeddingResult(true, null, bounds);
+        if (!NativeMethods.SetWindowPos(
+                handle,
+                NativeMethods.HwndTop,
+                bounds.X,
+                bounds.Y,
+                bounds.Width,
+                bounds.Height,
+                EmbeddedWindowPositionFlags))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "更新任务栏监控窗口层级失败。");
+        }
     }
 
-    public static TaskbarEmbeddingResult Fail(string error)
+    private static void MoveOverlayWindowOrThrow(IntPtr handle, Rectangle bounds)
     {
-        return new TaskbarEmbeddingResult(false, error, null);
+        if (!NativeMethods.SetWindowPos(
+                handle,
+                NativeMethods.HwndTopMost,
+                bounds.X,
+                bounds.Y,
+                bounds.Width,
+                bounds.Height,
+                OverlayWindowPositionFlags))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "更新任务栏覆盖窗口层级失败。");
+        }
+    }
+
+    private TaskbarEmbeddingResult Fail(string error)
+    {
+        return TaskbarEmbeddingResult.Fail(error, lastStage, lastParentWindowClass, lastEmbeddedBounds);
+    }
+
+    private static string? GetClassName(IntPtr handle)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        StringBuilder buffer = new(256);
+        int copied = NativeMethods.GetClassName(handle, buffer, buffer.Capacity);
+        return copied > 0 ? buffer.ToString(0, copied) : null;
+    }
+
+    private static string? FormatBounds(Rectangle? bounds)
+    {
+        return bounds is { } rect ? $"{rect.X},{rect.Y},{rect.Width},{rect.Height}" : null;
+    }
+
+    private static Rectangle? FindWindows11AnchorRect(IntPtr notifyHandle, Rectangle notifyRect)
+    {
+        Rectangle? best = null;
+        foreach (IntPtr child in EnumerateDescendantWindows(notifyHandle))
+        {
+            if (!NativeMethods.IsWindowVisible(child))
+            {
+                continue;
+            }
+
+            if (!NativeMethods.GetWindowRect(child, out Rect rawRect))
+            {
+                continue;
+            }
+
+            Rectangle rect = Rectangle.FromLTRB(rawRect.Left, rawRect.Top, rawRect.Right, rawRect.Bottom);
+            if (rect.Width <= 0 || rect.Height <= 0)
+            {
+                continue;
+            }
+
+            if (!notifyRect.IntersectsWith(rect))
+            {
+                continue;
+            }
+
+            best = best is null || rect.Left < best.Value.Left ? rect : best;
+        }
+
+        return best;
+    }
+
+    private static IEnumerable<IntPtr> EnumerateDescendantWindows(IntPtr parentHandle)
+    {
+        IntPtr child = IntPtr.Zero;
+        while ((child = NativeMethods.FindWindowEx(parentHandle, child, null, null)) != IntPtr.Zero)
+        {
+            yield return child;
+            foreach (IntPtr descendant in EnumerateDescendantWindows(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+}
+
+internal sealed record TaskbarEmbeddingResult(
+    bool IsEmbedded,
+    string? Error,
+    Rectangle? Bounds,
+    string? Stage,
+    string? ParentWindowClass)
+{
+    public static TaskbarEmbeddingResult Success(
+        Rectangle bounds,
+        string? stage,
+        string? parentWindowClass)
+    {
+        return new TaskbarEmbeddingResult(true, null, bounds, stage, parentWindowClass);
+    }
+
+    public static TaskbarEmbeddingResult Fail(
+        string error,
+        string? stage,
+        string? parentWindowClass,
+        Rectangle? bounds)
+    {
+        return new TaskbarEmbeddingResult(false, error, bounds, stage, parentWindowClass);
     }
 }
 
@@ -373,7 +612,8 @@ internal sealed record TaskbarHostContext(
     Rectangle ParentRect,
     Rectangle? NotifyRect,
     Rectangle? ResizeTargetRect,
-    string? Error)
+    string? Error,
+    Rectangle? AnchorRect = null)
 {
     public static TaskbarHostContext Fail(string error)
     {
@@ -386,6 +626,7 @@ internal sealed record TaskbarHostContext(
             Rectangle.Empty,
             null,
             null,
-            error);
+            error,
+            null);
     }
 }

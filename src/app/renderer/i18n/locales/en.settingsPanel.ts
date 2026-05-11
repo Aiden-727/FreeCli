@@ -159,8 +159,9 @@ export const enSettingsPanel = {
   notifications: {
     title: 'Notifications',
     agentStandbyBanner: {
-      enabledLabel: 'Agent standby banner',
-      enabledHelp: 'Show a top-right banner when an agent transitions from working to standby.',
+      enabledLabel: 'Agent attention banner',
+      enabledHelp:
+        'Show a top-right banner when an agent needs approval, needs input, or fails to recover.',
       contextTitle: 'Banner context',
       contextHelp: 'Choose what context chips are shown in the banner.',
       showTask: 'Show task',

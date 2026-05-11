@@ -155,6 +155,54 @@ describe('QuotaMonitorHistoryStore', () => {
     expect(history.estimatedRemainingHours).toBeGreaterThan(0)
   })
 
+  historyStoreIt('keeps daily trend buckets aligned with local calendar days near UTC boundaries', async () => {
+    const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
+    stores.add(store)
+    const profileId = 'timezone-profile'
+
+    await store.appendSnapshot({
+      profileId,
+      tokenName: 'Timezone',
+      fetchedAt: '2026-04-01T16:30:00.000Z',
+      todayUsedQuota: 10,
+      todayUsageCount: 1,
+      remainQuotaValue: 90,
+      remainQuotaDisplay: '90',
+      expiredTimeFormatted: '2026-12-31 23:59:59',
+      statusText: '正常',
+      remainRatio: 0.9,
+    })
+    await store.appendSnapshot({
+      profileId,
+      tokenName: 'Timezone',
+      fetchedAt: '2026-04-01T17:30:00.000Z',
+      todayUsedQuota: 18,
+      todayUsageCount: 2,
+      remainQuotaValue: 82,
+      remainQuotaDisplay: '82',
+      expiredTimeFormatted: '2026-12-31 23:59:59',
+      statusText: '正常',
+      remainRatio: 0.82,
+    })
+
+    const history = await store.buildProfileHistory({
+      profileId,
+      tokenName: 'Timezone',
+      dailyRangeDays: 2,
+      hourlyRangeHours: 2,
+      keyType: 'normal',
+      dailyInitialQuota: 0,
+      hourlyIncreaseQuota: 0,
+      quotaCap: 0,
+      now: createLocalDate(2026, 4, 2, 8, 0),
+    })
+
+    expect(history.dailyTrend).toHaveLength(2)
+    expect(history.dailyTrend.map(point => point.quota)).toEqual([18, 0])
+    expect(history.dailyTrend.map(point => point.count)).toEqual([2, 0])
+    expect(history.hourlyTrend).toHaveLength(2)
+  })
+
   historyStoreIt('deduplicates persisted model logs and builds model summaries and token trends', async () => {
     const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
     stores.add(store)

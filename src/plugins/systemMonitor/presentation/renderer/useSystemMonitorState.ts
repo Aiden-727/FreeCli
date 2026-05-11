@@ -33,6 +33,27 @@ function getFallbackState(): SystemMonitorStateDto {
       downloadBytes: 0,
     },
     recentDaysTraffic: [],
+    taskbarDiagnostics: {
+      requestedEnabled: false,
+      visible: false,
+      embedded: false,
+      error: null,
+      lastCheckedAt: null,
+      debug: {
+        sessionHidden: null,
+        hasLatestSnapshot: null,
+        hasLayout: null,
+        handleCreated: null,
+        stage: null,
+        parentWindowClass: null,
+        bounds: null,
+        backgroundColor: null,
+        foregroundColor: null,
+        anchorRect: null,
+        notifyRect: null,
+        taskbarRect: null,
+      },
+    },
     lastError: null,
   }
 }

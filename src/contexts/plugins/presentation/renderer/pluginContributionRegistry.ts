@@ -29,6 +29,18 @@ const workspaceOverlayWidgetCache = new Map<BuiltinPluginId, LazyWorkspaceOverla
 const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
   Record<BuiltinPluginId, RendererContributionDefinition>
 > = {
+  'eye-care': {
+    headerWidget: async () =>
+      await import('../../../../plugins/eyeCare/presentation/renderer/EyeCareHeaderWidget'),
+    controlCenterWidget: async () =>
+      await import(
+        '../../../../plugins/eyeCare/presentation/renderer/EyeCareControlCenterWidget'
+      ),
+    settingsSection: async () =>
+      await import('../../../../plugins/eyeCare/presentation/renderer/EyeCareSettingsSection'),
+    workspaceOverlayWidget: async () =>
+      await import('../../../../plugins/eyeCare/presentation/renderer/EyeCareBreakOverlay'),
+  },
   'input-stats': {
     controlCenterWidget: async () =>
       await import(
@@ -38,10 +50,6 @@ const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
       await import('../../../../plugins/inputStats/presentation/renderer/InputStatsSettingsSection'),
   },
   'system-monitor': {
-    headerWidget: async () =>
-      await import(
-        '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorHeaderWidget'
-      ),
     controlCenterWidget: async () =>
       await import(
         '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorControlCenterWidget'

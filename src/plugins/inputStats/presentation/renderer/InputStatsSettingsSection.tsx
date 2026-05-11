@@ -243,54 +243,70 @@ export default function InputStatsSettingsSection({
         </PluginSectionCard>
 
         <PluginSectionCard title={t('pluginManager.plugins.inputStats.configurationTitle')}>
-          <div className="input-stats-config__settings-grid">
-            <div className="plugin-manager-panel__field-stack">
-              <label htmlFor="input-stats-poll-interval">
-                {t('pluginManager.plugins.inputStats.pollIntervalLabel')}
-              </label>
-              <input
-                id="input-stats-poll-interval"
-                className="cove-field"
-                data-testid="input-stats-poll-interval"
-                type="number"
-                min={3000}
-                max={120000}
-                step={1000}
-                value={inputStatsSettings.pollIntervalMs}
-                onChange={event => {
-                  updateSettings(current => ({
-                    ...current,
-                    pollIntervalMs: Number.parseInt(event.target.value, 10) || 15000,
-                  }))
-                }}
-              />
+          <div className="input-stats-config__grid">
+            <div className="plugin-manager-panel__compact-board">
+              <div className="plugin-manager-panel__compact-board-head">
+                <span className="plugin-manager-panel__compact-board-pill">采集节奏</span>
+                <span className="plugin-manager-panel__compact-board-hint">控制 helper 刷新频率</span>
+              </div>
+              <div className="input-stats-config__settings-grid">
+                <div className="plugin-manager-panel__field-stack">
+                  <label htmlFor="input-stats-poll-interval">
+                    {t('pluginManager.plugins.inputStats.pollIntervalLabel')}
+                  </label>
+                  <input
+                    id="input-stats-poll-interval"
+                    className="cove-field"
+                    data-testid="input-stats-poll-interval"
+                    type="number"
+                    min={3000}
+                    max={120000}
+                    step={1000}
+                    value={inputStatsSettings.pollIntervalMs}
+                    onChange={event => {
+                      updateSettings(current => ({
+                        ...current,
+                        pollIntervalMs: Number.parseInt(event.target.value, 10) || 15000,
+                      }))
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="plugin-manager-panel__field-stack">
-              <label htmlFor="input-stats-top-keys-range">
-                {t('pluginManager.plugins.inputStats.topKeysRangeLabel')}
-              </label>
-              <select
-                id="input-stats-top-keys-range"
-                className="cove-field"
-                data-testid="input-stats-top-keys-range"
-                value={inputStatsSettings.topKeysRange}
-                onChange={event => {
-                  const nextValue = Number.parseInt(event.target.value, 10)
-                  updateSettings(current => ({
-                    ...current,
-                    topKeysRange: [0, 1, 7, 15, 30].includes(nextValue)
-                      ? (nextValue as 0 | 1 | 7 | 15 | 30)
-                      : 7,
-                  }))
-                }}
-              >
-                <option value={1}>{t('pluginManager.plugins.inputStats.rangeToday')}</option>
-                <option value={7}>{t('pluginManager.plugins.inputStats.range7Days')}</option>
-                <option value={15}>{t('pluginManager.plugins.inputStats.range15Days')}</option>
-                <option value={30}>{t('pluginManager.plugins.inputStats.range30Days')}</option>
-                <option value={0}>{t('pluginManager.plugins.inputStats.rangeAll')}</option>
-              </select>
+            <div className="plugin-manager-panel__compact-board">
+              <div className="plugin-manager-panel__compact-board-head">
+                <span className="plugin-manager-panel__compact-board-pill">热力图区间</span>
+                <span className="plugin-manager-panel__compact-board-hint">键盘分布与排行榜使用同一范围</span>
+              </div>
+              <div className="input-stats-config__settings-grid">
+                <div className="plugin-manager-panel__field-stack">
+                  <label htmlFor="input-stats-top-keys-range">
+                    {t('pluginManager.plugins.inputStats.topKeysRangeLabel')}
+                  </label>
+                  <select
+                    id="input-stats-top-keys-range"
+                    className="cove-field"
+                    data-testid="input-stats-top-keys-range"
+                    value={inputStatsSettings.topKeysRange}
+                    onChange={event => {
+                      const nextValue = Number.parseInt(event.target.value, 10)
+                      updateSettings(current => ({
+                        ...current,
+                        topKeysRange: [0, 1, 7, 15, 30].includes(nextValue)
+                          ? (nextValue as 0 | 1 | 7 | 15 | 30)
+                          : 7,
+                      }))
+                    }}
+                  >
+                    <option value={1}>{t('pluginManager.plugins.inputStats.rangeToday')}</option>
+                    <option value={7}>{t('pluginManager.plugins.inputStats.range7Days')}</option>
+                    <option value={15}>{t('pluginManager.plugins.inputStats.range15Days')}</option>
+                    <option value={30}>{t('pluginManager.plugins.inputStats.range30Days')}</option>
+                    <option value={0}>{t('pluginManager.plugins.inputStats.rangeAll')}</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </PluginSectionCard>

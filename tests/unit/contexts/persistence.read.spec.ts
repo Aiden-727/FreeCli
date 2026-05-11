@@ -163,10 +163,13 @@ describe('workspace persistence (read/normalize)', () => {
     expect(restored?.workspaces[0].nodes[0].scrollback).toBeNull()
     expect(restored?.workspaces[0].nodes[0].hostedAgent?.provider).toBe('codex')
     expect(restored?.workspaces[0].nodes[0].hostedAgent?.resumeSessionId).toBe('session-manual-1')
+    expect(restored?.workspaces[0].nodes[0].hostedAgent?.bindingId).toBeTruthy()
     expect(restored?.workspaces[0].nodes[1].kind).toBe('task')
     expect(restored?.workspaces[0].nodes[1].task?.status).toBe('doing')
+    expect(restored?.workspaces[0].nodes[1].task?.linkedAgentBindingId).toBeTruthy()
     expect(restored?.workspaces[0].nodes[2].kind).toBe('agent')
     expect(restored?.workspaces[0].nodes[2].agent?.provider).toBe('codex')
+    expect(restored?.workspaces[0].nodes[2].agent?.bindingId).toBeTruthy()
     expect(restored?.workspaces[0].nodes[2].agent?.resumeSessionId).toBe(
       '019c3e32-52ff-7b00-94ac-e6c5a56b4aa4',
     )

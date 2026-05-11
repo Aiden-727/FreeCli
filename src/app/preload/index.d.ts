@@ -1,4 +1,6 @@
 import type {
+  EyeCareStateDto,
+  SyncEyeCareSettingsInput,
   AttachTerminalInput,
   CopyWorkspacePathInput,
   CreateGitWorktreeInput,
@@ -92,6 +94,7 @@ import type {
   WriteDiagnosticLogInput,
   TerminalDataEvent,
   TerminalExitEvent,
+  TerminalSessionAttentionEvent,
   TerminalSessionMetadataEvent,
   TerminalSessionStateEvent,
   WorkspaceDirectory,
@@ -124,6 +127,8 @@ export interface FreeCliApi {
     clearUserDataAndRestart: () => Promise<void>
     getUserDataInfo: () => Promise<AppUserDataInfo>
     writeDiagnosticLog: (payload: WriteDiagnosticLogInput) => Promise<void>
+    notifyWindowClosePrepared: () => void
+    onPrepareWindowClose: (listener: () => void) => UnsubscribeFn
   }
   windowChrome: {
     setTheme: (payload: SetWindowChromeThemeInput) => Promise<void>
@@ -182,6 +187,16 @@ export interface FreeCliApi {
     syncRuntimeState: (
       payload: SyncPluginRuntimeStateInput,
     ) => Promise<SyncPluginRuntimeStateResult>
+    eyeCare: {
+      syncSettings: (payload: SyncEyeCareSettingsInput) => Promise<EyeCareStateDto>
+      getState: () => Promise<EyeCareStateDto>
+      startCycle: () => Promise<EyeCareStateDto>
+      pause: () => Promise<EyeCareStateDto>
+      resume: () => Promise<EyeCareStateDto>
+      stop: () => Promise<EyeCareStateDto>
+      postponeBreak: () => Promise<EyeCareStateDto>
+      onState: (listener: (state: EyeCareStateDto) => void) => UnsubscribeFn
+    }
     inputStats: {
       syncSettings: (payload: SyncInputStatsSettingsInput) => Promise<InputStatsStateDto>
       getState: () => Promise<InputStatsStateDto>
@@ -277,6 +292,7 @@ export interface FreeCliApi {
     onData: (listener: (event: TerminalDataEvent) => void) => UnsubscribeFn
     onExit: (listener: (event: TerminalExitEvent) => void) => UnsubscribeFn
     onState: (listener: (event: TerminalSessionStateEvent) => void) => UnsubscribeFn
+    onAttention: (listener: (event: TerminalSessionAttentionEvent) => void) => UnsubscribeFn
     onMetadata: (listener: (event: TerminalSessionMetadataEvent) => void) => UnsubscribeFn
   }
   agent: {

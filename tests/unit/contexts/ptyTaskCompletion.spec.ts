@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { updateWorkspacesWithAgentExit } from '../../../src/app/renderer/shell/hooks/usePtyWorkspaceRuntimeSync'
 import {
   applyAgentExitToNodes,
+  applyHostedTerminalExitToNodes,
   applyHostedTerminalMetadataToNodes,
 } from '../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/hooks/usePtyTaskCompletion'
 import type { WorkspaceState } from '../../../src/contexts/workspace/presentation/renderer/types'
@@ -208,6 +209,7 @@ describe('PTY task completion side effects', () => {
             expectedDirectory: '/tmp/workspace',
             agent: null,
             hostedAgent: {
+              bindingId: 'binding-1',
               provider: 'codex',
               launchMode: 'new',
               resumeSessionId: null,
@@ -230,6 +232,7 @@ describe('PTY task completion side effects', () => {
       ],
       {
         sessionId: 'session-1',
+        bindingId: 'binding-1',
         resumeSessionId: 'resume-1',
         effectiveModel: 'gpt-5.4',
         reasoningEffort: 'high',
@@ -245,5 +248,112 @@ describe('PTY task completion side effects', () => {
       reasoningEffort: 'high',
       displayModelLabel: 'gpt-5.4 high',
     })
+  })
+
+  it('preserves hosted terminal restore intent after runtime exit', () => {
+    const result = applyHostedTerminalExitToNodes(
+      [
+        {
+          id: 'terminal-1',
+          type: 'terminal',
+          position: { x: 0, y: 0 },
+          width: 320,
+          height: 240,
+          data: {
+            kind: 'terminal',
+            title: 'codex',
+            sessionId: 'session-1',
+            status: 'running',
+            startedAt: null,
+            endedAt: null,
+            exitCode: null,
+            lastError: null,
+            scrollback: null,
+            executionDirectory: '/tmp/workspace',
+            expectedDirectory: '/tmp/workspace',
+            agent: null,
+            hostedAgent: {
+              bindingId: 'binding-1',
+              provider: 'codex',
+              launchMode: 'resume',
+              resumeSessionId: 'resume-1',
+              resumeSessionIdVerified: true,
+              model: null,
+              effectiveModel: null,
+              reasoningEffort: null,
+              displayModelLabel: null,
+              cwd: '/tmp/workspace',
+              command: 'codex resume resume-1',
+              startedAt: '2026-04-12T00:00:00.000Z',
+              restoreIntent: true,
+              state: 'active',
+            },
+            task: null,
+            note: null,
+            image: null,
+          },
+        },
+      ],
+      {
+        sessionId: 'session-1',
+        bindingId: 'binding-1',
+        exitCode: 0,
+      },
+    )
+
+    expect(result.didChange).toBe(true)
+    expect(result.nextNodes[0]?.data.status).toBe('exited')
+    expect(result.nextNodes[0]?.data.hostedAgent).toMatchObject({
+      state: 'inactive',
+      restoreIntent: true,
+    })
+  })
+
+  it('matches agent exit by bindingId before sessionId', () => {
+    const result = applyAgentExitToNodes(
+      [
+        {
+          id: 'agent-1',
+          type: 'terminal',
+          position: { x: 0, y: 0 },
+          width: 320,
+          height: 240,
+          data: {
+            kind: 'agent',
+            title: 'Agent',
+            sessionId: 'stale-session',
+            status: 'running',
+            startedAt: null,
+            endedAt: null,
+            exitCode: null,
+            lastError: null,
+            scrollback: null,
+            agent: {
+              bindingId: 'binding-1',
+              provider: 'codex',
+              prompt: 'Ship it',
+              model: null,
+              effectiveModel: null,
+              launchMode: 'new',
+              resumeSessionId: null,
+              resumeSessionIdVerified: false,
+              executionDirectory: '/tmp/workspace',
+              expectedDirectory: '/tmp/workspace',
+              directoryMode: 'workspace',
+              customDirectory: null,
+              shouldCreateDirectory: false,
+              taskId: 'task-1',
+            },
+            task: null,
+            note: null,
+            image: null,
+          },
+        },
+      ],
+      { sessionId: 'new-session', bindingId: 'binding-1', exitCode: 0 },
+    )
+
+    expect(result.didChange).toBe(true)
+    expect(result.nextNodes[0]?.data.status).toBe('exited')
   })
 })

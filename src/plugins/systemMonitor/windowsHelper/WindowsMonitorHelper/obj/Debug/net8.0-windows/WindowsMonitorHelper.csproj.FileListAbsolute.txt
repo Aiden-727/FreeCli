@@ -1,0 +1,6 @@
+D:\Project\FreeCli\src\plugins\systemMonitor\windowsHelper\WindowsMonitorHelper\obj\Debug\net8.0-windows\WindowsMonitorHelper.csproj.AssemblyReference.cache
+D:\Project\FreeCli\src\plugins\systemMonitor\windowsHelper\WindowsMonitorHelper\obj\Debug\net8.0-windows\WindowsMonitorHelper.GeneratedMSBuildEditorConfig.editorconfig
+D:\Project\FreeCli\src\plugins\systemMonitor\windowsHelper\WindowsMonitorHelper\obj\Debug\net8.0-windows\WindowsMonitorHelper.AssemblyInfoInputs.cache
+D:\Project\FreeCli\src\plugins\systemMonitor\windowsHelper\WindowsMonitorHelper\obj\Debug\net8.0-windows\WindowsMonitorHelper.AssemblyInfo.cs
+D:\Project\FreeCli\src\plugins\systemMonitor\windowsHelper\WindowsMonitorHelper\obj\Debug\net8.0-windows\WindowsMonitorHelper.csproj.CoreCompileInputs.cache
+D:\Project\FreeCli\src\plugins\systemMonitor\windowsHelper\WindowsMonitorHelper\obj\Debug\net8.0-windows\WindowsMonitorHelper.sourcelink.json

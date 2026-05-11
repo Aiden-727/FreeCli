@@ -786,6 +786,20 @@ export default function App(): React.JSX.Element {
     }
   }, [flushPersistNow, handleShowMessage, isClearingUserData, isRestartingApp, t])
 
+  useEffect(() => {
+    const subscribe = window.freecliApi?.appLifecycle?.onPrepareWindowClose
+    const notifyPrepared = window.freecliApi?.appLifecycle?.notifyWindowClosePrepared
+    if (typeof subscribe !== 'function' || typeof notifyPrepared !== 'function') {
+      return
+    }
+
+    return subscribe(() => {
+      void flushPersistNow().finally(() => {
+        notifyPrepared()
+      })
+    })
+  }, [flushPersistNow])
+
   return (
     <>
       <div

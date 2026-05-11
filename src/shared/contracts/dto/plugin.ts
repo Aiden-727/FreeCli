@@ -27,6 +27,45 @@ export interface WorkspaceAssistantSettingsDto {
   assistantNotes: string
 }
 
+export type EyeCareMode = 'gentle' | 'forced-blur'
+export type EyeCarePhase = 'idle' | 'working' | 'breaking' | 'paused'
+
+export interface EyeCareSettingsDto {
+  workDurationMinutes: number
+  breakDurationSeconds: number
+  mode: EyeCareMode
+  strictMode: boolean
+  allowPostpone: boolean
+  postponeMinutes: number
+  allowSkip: boolean
+  autoStartNextCycle: boolean
+}
+
+export interface EyeCareStateDto {
+  status: 'disabled' | 'idle' | 'running'
+  phase: EyeCarePhase
+  phaseStartedAt: string | null
+  phaseEndsAt: string | null
+  remainingSeconds: number
+  cycleIndex: number
+  completedBreakCountToday: number
+  lastBreakFinishedAt: string | null
+  isOverlayVisible: boolean
+  isPaused: boolean
+  isStopped: boolean
+  isRunning: boolean
+  canStart: boolean
+  canPause: boolean
+  canResume: boolean
+  canStop: boolean
+  canSkip: boolean
+  canPostpone: boolean
+}
+
+export interface SyncEyeCareSettingsInput {
+  settings: EyeCareSettingsDto
+}
+
 export interface WorkspaceAssistantInsightDto {
   id: string
   tone: WorkspaceAssistantTone
@@ -247,6 +286,14 @@ export interface SystemMonitorTaskbarWidgetSettingsDto {
   alwaysOnTop: boolean
   fontSize: number
   displayItems: SystemMonitorTaskbarDisplayItem[]
+  followSystemTheme: boolean
+  speedShortModeEnabled: boolean
+  separateValueUnitWithSpace: boolean
+  useByteUnit: boolean
+  hideUnit: boolean
+  hidePercent: boolean
+  valueRightAligned: boolean
+  digitsNumber: number
 }
 
 export interface SystemMonitorSettingsDto {
@@ -279,6 +326,28 @@ export interface SystemMonitorErrorDto {
   detail: string | null
 }
 
+export interface SystemMonitorTaskbarDiagnosticsDto {
+  requestedEnabled: boolean
+  visible: boolean
+  embedded: boolean
+  error: string | null
+  lastCheckedAt: string | null
+  debug: {
+    sessionHidden: boolean | null
+    hasLatestSnapshot: boolean | null
+    hasLayout: boolean | null
+    handleCreated: boolean | null
+    stage: string | null
+    parentWindowClass: string | null
+    bounds: string | null
+    backgroundColor: string | null
+    foregroundColor: string | null
+    anchorRect: string | null
+    notifyRect: string | null
+    taskbarRect: string | null
+  }
+}
+
 export type SystemMonitorStateStatus =
   | 'disabled'
   | 'unsupported'
@@ -300,6 +369,7 @@ export interface SystemMonitorStateDto {
   history: SystemMonitorSnapshotDto[]
   todayTraffic: SystemMonitorDailyTrafficDto
   recentDaysTraffic: SystemMonitorDailyTrafficDto[]
+  taskbarDiagnostics: SystemMonitorTaskbarDiagnosticsDto
   lastError: SystemMonitorErrorDto | null
 }
 

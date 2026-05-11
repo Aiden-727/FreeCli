@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AgentStandbyNotification } from '../components/AppNotifications'
+import type { AgentStandbyNotification, AppNotification } from '../components/AppNotifications'
 import type { GitHubPullRequestSummary, GitWorktreeInfo } from '@shared/contracts/dto'
 import type { WorkspaceState } from '@contexts/workspace/presentation/renderer/types'
 import { useAppStore } from '../store/useAppStore'
@@ -94,10 +94,10 @@ function resolveOwningSpace(
 }
 
 function updateNotification(
-  previous: AgentStandbyNotification[],
+  previous: AppNotification[],
   id: string,
-  updater: (notification: AgentStandbyNotification) => AgentStandbyNotification,
-): AgentStandbyNotification[] {
+  updater: (notification: AppNotification) => AppNotification,
+): AppNotification[] {
   let didChange = false
   const next = previous.map(notification => {
     if (notification.id !== id) {
@@ -121,7 +121,7 @@ export function useAgentStandbyNotifications({
 }: {
   maxVisible?: number
 } = {}): {
-  notifications: AgentStandbyNotification[]
+  notifications: AppNotification[]
   dismiss: (id: string) => void
 } {
   const platform =
@@ -140,7 +140,7 @@ export function useAgentStandbyNotifications({
   const shouldResolvePullRequest =
     isStandbyBannerEnabled && showPullRequest && githubPullRequestsEnabled
 
-  const [notifications, setNotifications] = useState<AgentStandbyNotification[]>([])
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
   const worktreeCacheRef = useRef<Map<string, { fetchedAt: number; worktrees: GitWorktreeInfo[] }>>(
     new Map(),
   )
@@ -241,7 +241,7 @@ export function useAgentStandbyNotifications({
     [platform],
   )
 
-  const handleAgentEnteredStandby = useCallback(
+  const handleAgentNeedsAttention = useCallback(
     (payload: AgentStandbyNotificationPayload) => {
       if (!isStandbyBannerEnabled) {
         return
@@ -256,10 +256,13 @@ export function useAgentStandbyNotifications({
           return previous
         }
 
+        const id = `${payload.attentionReason}:${payload.bindingId ?? payload.sessionId}`
         const next: AgentStandbyNotification = {
-          kind: 'agent-standby',
-          id: payload.sessionId,
+          kind: 'agent-attention',
+          id,
           sessionId: payload.sessionId,
+          bindingId: payload.bindingId,
+          attentionReason: payload.attentionReason,
           workspaceId: payload.workspaceId,
           workspaceName: payload.workspaceName,
           workspacePath: payload.workspacePath,
@@ -276,9 +279,16 @@ export function useAgentStandbyNotifications({
           createdAt: Date.now(),
         }
 
-        if (!shouldResolveBranch && !shouldResolvePullRequest) {
-          const updated = [next, ...previous]
-          return updated.length > maxVisible ? updated.slice(0, maxVisible) : updated
+        if (
+          previous.some(notification => {
+            if (notification.kind === 'agent-recovery') {
+              return notification.id === id
+            }
+
+            return notification.id === id
+          })
+        ) {
+          return previous
         }
 
         const updated = [next, ...previous]
@@ -294,11 +304,88 @@ export function useAgentStandbyNotifications({
     ],
   )
 
-  const handleAgentEnteredWorking = useCallback((sessionId: string) => {
-    setNotifications(previous =>
-      previous.filter(notification => notification.sessionId !== sessionId),
-    )
-  }, [])
+  const handleAgentEnteredWorking = useCallback(
+    ({ sessionId, bindingId }: { sessionId: string; bindingId: string | null }) => {
+      setNotifications(previous =>
+        previous.filter(notification => {
+          if (bindingId && notification.bindingId) {
+            return notification.bindingId !== bindingId
+          }
+
+          return notification.sessionId !== sessionId
+        }),
+      )
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (!isStandbyBannerEnabled) {
+      return
+    }
+
+    setNotifications(previous => {
+      const seenIds = new Set(previous.map(notification => notification.id))
+      const nextRecoveryNotifications: AppNotification[] = []
+
+      for (const workspace of workspaces) {
+        for (const node of workspace.nodes) {
+          if (node.data.kind !== 'terminal' || !node.data.hostedAgent) {
+            continue
+          }
+
+          const recoveryMessage = node.data.lastError?.trim()
+          if (
+            node.data.hostedAgent.state !== 'unavailable' ||
+            !recoveryMessage ||
+            recoveryMessage.length === 0
+          ) {
+            continue
+          }
+
+          const id = `recovery:${node.data.hostedAgent.bindingId ?? node.data.sessionId ?? node.id}`
+          if (seenIds.has(id)) {
+            continue
+          }
+
+          const taskTitle = resolveTaskTitle(workspace, node.data.agent?.taskId ?? null)
+          const space = resolveOwningSpace(workspace, node.id, node.data.agent?.taskId ?? null)
+          nextRecoveryNotifications.push({
+            kind: 'agent-recovery',
+            id,
+            sessionId: node.data.sessionId,
+            bindingId: node.data.hostedAgent.bindingId ?? null,
+            attentionReason: 'recovery',
+            workspaceId: workspace.id,
+            workspaceName: workspace.name,
+            workspacePath: workspace.path,
+            nodeId: node.id,
+            title: node.data.title,
+            taskId: node.data.agent?.taskId ?? null,
+            taskTitle,
+            spaceId: space?.id ?? null,
+            spaceName: space?.name ?? null,
+            spaceDirectoryPath: space?.directoryPath ?? null,
+            executionDirectory:
+              node.data.executionDirectory ??
+              node.data.hostedAgent.cwd ??
+              workspace.path,
+            message: recoveryMessage,
+            gitContext: null,
+            pullRequest: null,
+            createdAt: Date.now(),
+          })
+        }
+      }
+
+      if (nextRecoveryNotifications.length === 0) {
+        return previous
+      }
+
+      const updated = [...nextRecoveryNotifications, ...previous]
+      return updated.length > maxVisible ? updated.slice(0, maxVisible) : updated
+    })
+  }, [isStandbyBannerEnabled, maxVisible, workspaces])
 
   useEffect(() => {
     if (isStandbyBannerEnabled) {
@@ -444,7 +531,7 @@ export function useAgentStandbyNotifications({
 
   useAgentStandbyNotificationWatcher({
     enabled: isStandbyBannerEnabled,
-    onAgentEnteredStandby: handleAgentEnteredStandby,
+    onAgentNeedsAttention: handleAgentNeedsAttention,
     onAgentEnteredWorking: handleAgentEnteredWorking,
   })
 

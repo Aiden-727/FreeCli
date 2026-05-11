@@ -21,6 +21,7 @@ import { TerminalSessionManager } from './sessionManager'
 
 export interface StartSessionStateWatcherInput {
   sessionId: string
+  bindingId?: string
   provider: AgentProviderId
   cwd: string
   launchMode: AgentLaunchMode
@@ -37,6 +38,7 @@ export interface PtyRuntime {
   write: (sessionId: string, data: string, encoding?: TerminalWriteEncoding) => void
   resize: (sessionId: string, cols: number, rows: number) => void
   kill: (sessionId: string) => void
+  deactivateTransientSessions: () => void
   attach: (contentsId: number, sessionId: string) => void
   detach: (contentsId: number, sessionId: string) => void
   snapshot: (sessionId: string) => string
@@ -229,6 +231,13 @@ export function createPtyRuntime(): PtyRuntime {
       clearSessionProbeState(sessionId)
       ptyHost.kill(sessionId)
     },
+    deactivateTransientSessions: () => {
+      for (const sessionId of manager.listActiveSessionIds()) {
+        manager.kill(sessionId, { suppressExitBroadcast: true })
+        clearSessionProbeState(sessionId)
+        ptyHost.kill(sessionId)
+      }
+    },
     attach: (contentsId, sessionId) => {
       manager.attach(contentsId, sessionId)
     },
@@ -240,6 +249,7 @@ export function createPtyRuntime(): PtyRuntime {
     },
     startSessionStateWatcher: ({
       sessionId,
+      bindingId,
       provider,
       cwd,
       launchMode,
@@ -249,6 +259,7 @@ export function createPtyRuntime(): PtyRuntime {
     }: StartSessionStateWatcherInput) => {
       manager.startSessionStateWatcher({
         sessionId,
+        bindingId,
         provider,
         cwd,
         launchMode,
@@ -265,6 +276,10 @@ export function createPtyRuntime(): PtyRuntime {
         }
       : {}),
     dispose: () => {
+      for (const sessionId of manager.listActiveSessionIds()) {
+        manager.kill(sessionId)
+        ptyHost.kill(sessionId)
+      }
       manager.dispose()
       terminalProbeBufferBySession.clear()
       ptyHost.dispose()

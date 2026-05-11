@@ -79,6 +79,7 @@ function buildCurrentMetricItems(
   ]
 }
 
+
 function getNiceTrendMax(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     return 1

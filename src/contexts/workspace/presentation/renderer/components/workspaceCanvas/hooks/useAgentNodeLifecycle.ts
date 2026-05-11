@@ -144,6 +144,7 @@ export function useWorkspaceCanvasAgentNodeLifecycle({
 
       try {
         const launched = await window.freecliApi.agent.launch({
+          bindingId: launchData.bindingId,
           provider: launchData.provider,
           cwd: launchData.executionDirectory,
           prompt: launchData.prompt,

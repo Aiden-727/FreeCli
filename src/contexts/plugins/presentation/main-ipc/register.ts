@@ -4,6 +4,7 @@ import { registerHandledIpc } from '../../../../app/main/ipc/handle'
 import type { IpcRegistrationDisposable } from '../../../../app/main/ipc/types'
 import { IPC_CHANNELS } from '../../../../shared/contracts/ipc'
 import type {
+  EyeCareStateDto,
   AcceptGitWorklogPendingImportInput,
   DismissGitWorklogPendingImportInput,
   GitWorklogStateDto,
@@ -18,6 +19,7 @@ import type {
   QuotaMonitorStateDto,
   ResolveGitWorklogRepositoryResult,
   SystemMonitorStateDto,
+  SyncEyeCareSettingsInput,
   SyncInputStatsSettingsInput,
   SyncWorkspaceAssistantWorkspaceSnapshotInput,
   SyncSystemMonitorSettingsInput,
@@ -42,11 +44,13 @@ import { GitWorklogHistoryStore } from '../../../../plugins/gitWorklog/infrastru
 import { OssBackupPluginController } from '../../../../plugins/ossBackup/presentation/main/OssBackupPluginController'
 import { SystemMonitorPluginController } from '../../../../plugins/systemMonitor/presentation/main/SystemMonitorPluginController'
 import { WorkspaceAssistantPluginController } from '../../../../plugins/workspaceAssistant/presentation/main/WorkspaceAssistantPluginController'
+import { EyeCarePluginController } from '../../../../plugins/eyeCare/presentation/main/EyeCarePluginController'
 import { createAppError } from '../../../../shared/errors/appError'
 import {
   normalizeAcceptGitWorklogPendingImportPayload,
   normalizeDismissGitWorklogPendingImportPayload,
   normalizeNotifyOssBackupPersistedSettingsPayload,
+  normalizeSyncEyeCareSettingsPayload,
   normalizeRepairGitWorklogRepositoriesPayload,
   normalizeRefreshGitWorklogWorkspacePayload,
   normalizeSyncInputStatsSettingsPayload,
@@ -82,6 +86,7 @@ export function registerPluginIpcHandlers(
     historyStore: gitWorklogHistoryStore,
   })
 
+  const eyeCareController = new EyeCarePluginController()
   const inputStatsController = new InputStatsPluginController()
   const systemMonitorController = new SystemMonitorPluginController({
     userDataPath,
@@ -121,6 +126,7 @@ export function registerPluginIpcHandlers(
   const workspaceAssistantController = new WorkspaceAssistantPluginController()
   const pluginRuntimeHost = new MainPluginRuntimeHost({
     ...getBuiltinPluginRuntimeFactories(),
+    'eye-care': eyeCareController.createRuntimeFactory(),
     'input-stats': inputStatsController.createRuntimeFactory(),
     'system-monitor': systemMonitorController.createRuntimeFactory(),
     'quota-monitor': quotaMonitorController.createRuntimeFactory(),
@@ -138,6 +144,51 @@ export function registerPluginIpcHandlers(
       )
       return { activePluginIds }
     },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto, SyncEyeCareSettingsInput>(
+    IPC_CHANNELS.pluginsEyeCareSyncSettings,
+    async (_event, payload): Promise<EyeCareStateDto> => {
+      const normalized = normalizeSyncEyeCareSettingsPayload(payload)
+      return eyeCareController.syncSettings(normalized.settings)
+    },
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCareGetState,
+    (): EyeCareStateDto => eyeCareController.getState(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCareStartCycle,
+    (): EyeCareStateDto => eyeCareController.startCycle(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCarePause,
+    (): EyeCareStateDto => eyeCareController.pause(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCareResume,
+    (): EyeCareStateDto => eyeCareController.resume(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCareStop,
+    (): EyeCareStateDto => eyeCareController.stop(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCarePostponeBreak,
+    (): EyeCareStateDto => eyeCareController.postponeBreak(),
     { defaultErrorCode: 'common.unexpected' },
   )
 
@@ -405,6 +456,13 @@ export function registerPluginIpcHandlers(
   return {
     dispose: async () => {
       ipcMain.removeHandler(IPC_CHANNELS.pluginsSyncRuntimeState)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareSyncSettings)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareGetState)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareStartCycle)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCarePause)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareResume)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareStop)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCarePostponeBreak)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsInputStatsSyncSettings)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsInputStatsGetState)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsInputStatsRefresh)
@@ -439,6 +497,7 @@ export function registerPluginIpcHandlers(
       ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantPrompt)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsWorkspaceAssistantStopPrompt)
       await pluginRuntimeHost.dispose()
+      await eyeCareController.dispose()
       await inputStatsController.dispose()
       await systemMonitorController.dispose()
       await quotaMonitorController.dispose()

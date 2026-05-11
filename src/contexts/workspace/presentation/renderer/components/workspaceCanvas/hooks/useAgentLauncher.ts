@@ -9,6 +9,7 @@ import {
 import { resolveSpaceWorkingDirectory } from '@contexts/space/application/resolveSpaceWorkingDirectory'
 import type { AgentNodeData, Point, TerminalNodeData, WorkspaceSpaceState } from '../../../types'
 import { clearResumeSessionBinding } from '../../../utils/agentResumeBinding'
+import { generateSessionBindingId } from '@contexts/session/domain/sessionBindingId'
 import { resolveDefaultAgentWindowSize } from '../constants'
 import { resolveNodePlacementAnchorFromViewportCenter, toErrorMessage } from '../helpers'
 import type { ContextMenuState, CreateNodeInput, ShowWorkspaceCanvasMessage } from '../types'
@@ -77,10 +78,12 @@ export function useWorkspaceCanvasAgentLauncher({
             cursorAnchor,
             resolveDefaultAgentWindowSize(standardWindowSizeBucket),
           )
+          const bindingId = generateSessionBindingId()
           const model = resolveAgentModel(agentSettings, provider)
           const anchorSpace = findContainingSpaceByAnchor(spacesRef.current, cursorAnchor)
           const executionDirectory = resolveSpaceWorkingDirectory(anchorSpace, workspacePath)
           const launched = await window.freecliApi.agent.launch({
+            bindingId,
             provider,
             cwd: executionDirectory,
             prompt: '',
@@ -101,6 +104,7 @@ export function useWorkspaceCanvasAgentLauncher({
               targetSpaceRect: anchorSpace?.rect ?? null,
             },
             agent: {
+              bindingId,
               provider,
               prompt: '',
               model,

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, nativeImage, ipcMain } from 'electron'
 import { isAbsolute, join, relative, resolve, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -15,14 +15,20 @@ import { createPtyRuntime } from '../../contexts/terminal/presentation/main-ipc/
 import { applyLaunchGraphicsMode, resolveLaunchGraphicsMode } from './graphicsMode'
 import { createAppRestartController } from './restartController'
 import { resolveDiagnosticLogPath, writeDiagnosticLogEntry } from './diagnostics/diagnosticLogger'
+import { createBackgroundLifecycleController } from './backgroundLifecycleController'
 
 let ipcDisposable: ReturnType<typeof registerIpcHandlers> | null = null
 let controlSurfaceDisposable: ReturnType<typeof registerControlSurfaceServer> | null = null
 let mainRuntimeDisposePromise: Promise<void> | null = null
 let mainRuntimeDisposed = false
+let activeMainWindow: BrowserWindow | null = null
+let sharedPtyRuntime: ReturnType<typeof createPtyRuntime> | null = null
+let fullQuitRequested = false
+let destroyTray: (() => void) | null = null
 const APP_USER_DATA_DIRECTORY_NAME = 'freecli'
 const FREECLI_APP_USER_MODEL_ID = 'dev.deadwave.freecli'
 const MAIN_WINDOW_TITLE = 'FreeCli'
+const WINDOW_CLOSE_PREPARE_TIMEOUT_MS = 1500
 
 if (process.env['NODE_ENV'] === 'test') {
   // GitHub Actions macOS runners often treat the Electron window as occluded/backgrounded even in
@@ -283,6 +289,52 @@ function writeMainDiagnostic(options: {
   }
 }
 
+async function prepareWindowClose(window: BrowserWindow): Promise<void> {
+  if (window.isDestroyed()) {
+    return
+  }
+
+  const webContents = window.webContents
+  if (webContents.isDestroyed() || webContents.getType() !== 'window') {
+    return
+  }
+
+  await new Promise<void>(resolve => {
+    let settled = false
+    const cleanup = (): void => {
+      ipcMain.removeListener(IPC_CHANNELS.appLifecycleWindowClosePrepared, handlePrepared)
+      clearTimeout(timeout)
+    }
+    const finish = (): void => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      cleanup()
+      resolve()
+    }
+    const handlePrepared = (event: Electron.IpcMainEvent): void => {
+      if (event.sender.id !== webContents.id) {
+        return
+      }
+
+      finish()
+    }
+    const timeout = setTimeout(() => {
+      finish()
+    }, WINDOW_CLOSE_PREPARE_TIMEOUT_MS)
+
+    ipcMain.on(IPC_CHANNELS.appLifecycleWindowClosePrepared, handlePrepared)
+
+    try {
+      webContents.send(IPC_CHANNELS.appLifecyclePrepareWindowClose)
+    } catch {
+      finish()
+    }
+  })
+}
+
 async function disposeMainRuntime(): Promise<void> {
   if (mainRuntimeDisposed) {
     return
@@ -373,6 +425,7 @@ function createWindow(): void {
       ...(keepRendererActiveInBackground ? { backgroundThrottling: false } : {}),
     },
   })
+  activeMainWindow = mainWindow
 
   writeMainDiagnostic({
     source: 'window',
@@ -406,6 +459,12 @@ function createWindow(): void {
       message: 'ready-to-show',
     })
     showWindow()
+  })
+
+  mainWindow.on('closed', () => {
+    if (activeMainWindow === mainWindow) {
+      activeMainWindow = null
+    }
   })
 
   mainWindow.webContents.on('did-start-loading', () => {
@@ -510,6 +569,15 @@ function createWindow(): void {
   }
 }
 
+function bindMainWindowCloseHandling(
+  mainWindow: BrowserWindow,
+  backgroundLifecycle: ReturnType<typeof createBackgroundLifecycleController>,
+): void {
+  mainWindow.on('close', event => {
+    backgroundLifecycle.handleMainWindowClose(event, mainWindow)
+  })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
@@ -583,6 +651,7 @@ app.whenReady().then(async () => {
 
   const approvedWorkspaces = createApprovedWorkspaceStore()
   const ptyRuntime = createPtyRuntime()
+  sharedPtyRuntime = ptyRuntime
 
   ipcDisposable = registerIpcHandlers({
     approvedWorkspaces,
@@ -598,7 +667,44 @@ app.whenReady().then(async () => {
     controlSurfaceDisposable = registerControlSurfaceServer({ approvedWorkspaces, ptyRuntime })
   }
 
+  const backgroundLifecycle = createBackgroundLifecycleController({
+    app,
+    browserWindow: BrowserWindow,
+    icon: runtimeIconImage,
+    onShowMainWindow: () => {
+      const currentWindow = activeMainWindow
+      if (!currentWindow || currentWindow.isDestroyed()) {
+        createWindow()
+        if (activeMainWindow) {
+          bindMainWindowCloseHandling(activeMainWindow, backgroundLifecycle)
+        }
+        return
+      }
+
+      if (currentWindow.isMinimized()) {
+        currentWindow.restore()
+      }
+      currentWindow.show()
+      currentWindow.focus()
+    },
+    onBeforeHideToTray: async window => {
+      if (window instanceof BrowserWindow) {
+        await prepareWindowClose(window)
+        sharedPtyRuntime?.deactivateTransientSessions()
+      }
+    },
+    onBeforeFullQuit: () => {
+      fullQuitRequested = true
+    },
+  })
+  destroyTray = () => backgroundLifecycle.dispose()
+  backgroundLifecycle.ensureTrayVisible()
+
   createWindow()
+
+  if (activeMainWindow) {
+    bindMainWindowCloseHandling(activeMainWindow, backgroundLifecycle)
+  }
 
   app.on('activate', function () {
     if (restartController.isRestartPending()) {
@@ -609,6 +715,9 @@ app.whenReady().then(async () => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      if (activeMainWindow) {
+        bindMainWindowCloseHandling(activeMainWindow, backgroundLifecycle)
+      }
     }
   })
 })
@@ -634,12 +743,16 @@ process.on('unhandledRejection', reason => {
 // Quit when all windows are closed.
 // Tests must fully exit on macOS as well, otherwise Playwright can leave Electron running.
 app.on('window-all-closed', () => {
-  if (process.env.NODE_ENV === 'test' || process.platform !== 'darwin') {
+  if (fullQuitRequested || process.env.NODE_ENV === 'test') {
     app.quit()
   }
 })
 
 app.on('before-quit', event => {
+  fullQuitRequested = true
+  destroyTray?.()
+  destroyTray = null
+
   if (mainRuntimeDisposed || typeof event?.preventDefault !== 'function') {
     return
   }
@@ -655,4 +768,8 @@ app.on('before-quit', event => {
 app.on('will-quit', () => {
   void disposeMainRuntime()
   restartController.dispose()
+  sharedPtyRuntime = null
+  activeMainWindow = null
+  destroyTray?.()
+  destroyTray = null
 })

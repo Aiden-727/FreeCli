@@ -12,6 +12,7 @@ import {
   resolveRuntimeStatusFromSessionState,
 } from '../utils/terminalRuntimeStatus'
 import { isWorkspaceArchived } from '../utils/workspaceArchive'
+import { matchesTerminalRuntimeEvent } from '@contexts/workspace/presentation/renderer/utils/terminalBindingMatch'
 
 function shouldIgnoreAgentStatusUpdate(status: TerminalNodeData['status']): boolean {
   return isFinalTerminalRuntimeStatus(status)
@@ -39,10 +40,12 @@ function updateWorkspacesWithSessionNodes(
   workspaces: WorkspaceState[],
   {
     sessionId,
+    bindingId,
     excludeWorkspaceId,
     updateNode,
   }: {
     sessionId: string
+    bindingId?: string | null
     excludeWorkspaceId: string | null
     updateNode: (node: Node<TerminalNodeData>) => Node<TerminalNodeData> | null
   },
@@ -60,7 +63,7 @@ function updateWorkspacesWithSessionNodes(
     let workspaceDidChange = false
 
     const nextNodes = workspace.nodes.map(node => {
-      if (node.data.sessionId !== sessionId) {
+      if (!matchesTerminalRuntimeEvent(node.data, { sessionId, bindingId })) {
         return node
       }
 
@@ -87,12 +90,14 @@ function updateWorkspacesWithSessionNodes(
 export function updateWorkspacesWithAgentExit({
   workspaces,
   sessionId,
+  bindingId,
   excludeWorkspaceId,
   exitCode,
   now,
 }: {
   workspaces: WorkspaceState[]
   sessionId: string
+  bindingId?: string | null
   excludeWorkspaceId: string | null
   exitCode: number
   now: string
@@ -110,7 +115,7 @@ export function updateWorkspacesWithAgentExit({
     let workspaceDidChange = false
 
     const nextNodes = workspace.nodes.map(node => {
-      if (node.data.kind !== 'agent' || node.data.sessionId !== sessionId) {
+      if (node.data.kind !== 'agent' || !matchesTerminalRuntimeEvent(node.data, { sessionId, bindingId })) {
         return node
       }
 
@@ -145,6 +150,7 @@ export function updateWorkspacesWithAgentExit({
 export function updateWorkspacesWithHostedTerminalMetadata({
   workspaces,
   sessionId,
+  bindingId,
   excludeWorkspaceId,
   resumeSessionId,
   effectiveModel,
@@ -153,6 +159,7 @@ export function updateWorkspacesWithHostedTerminalMetadata({
 }: {
   workspaces: WorkspaceState[]
   sessionId: string
+  bindingId?: string | null
   excludeWorkspaceId: string | null
   resumeSessionId: string | null
   effectiveModel: string | null
@@ -180,6 +187,7 @@ export function updateWorkspacesWithHostedTerminalMetadata({
 
   return updateWorkspacesWithSessionNodes(workspaces, {
     sessionId,
+    bindingId,
     excludeWorkspaceId,
     updateNode: node => {
       if (node.data.kind !== 'terminal' || !node.data.hostedAgent) {
@@ -238,6 +246,7 @@ export function usePtyWorkspaceRuntimeSync({
         const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
         const result = updateWorkspacesWithSessionNodes(previous, {
           sessionId: event.sessionId,
+          bindingId: event.bindingId,
           excludeWorkspaceId,
           updateNode: node => {
             if (shouldIgnoreAgentStatusUpdate(node.data.status)) {
@@ -321,6 +330,7 @@ export function usePtyWorkspaceRuntimeSync({
       setWorkspaces(previous => {
         const result = updateWorkspacesWithSessionNodes(previous, {
           sessionId: event.sessionId,
+          bindingId: event.bindingId,
           excludeWorkspaceId,
           updateNode: node => {
             if (node.data.kind === 'agent') {
@@ -407,6 +417,7 @@ export function usePtyWorkspaceRuntimeSync({
         const nextStatus = event.exitCode === 0 ? ('exited' as const) : ('failed' as const)
         const result = updateWorkspacesWithSessionNodes(previous, {
           sessionId: event.sessionId,
+          bindingId: event.bindingId,
           excludeWorkspaceId,
           updateNode: node => {
             if (node.data.kind === 'agent') {

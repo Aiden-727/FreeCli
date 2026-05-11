@@ -9,7 +9,7 @@
   position: absolute;
   top: calc(var(--cove-app-header-height) + 10px);
   right: 12px;
-  width: min(360px, calc(100vw - 24px));
+  width: min(480px, calc(100vw - 24px));
   border: 1px solid var(--cove-border-subtle);
   border-radius: 18px;
   background: var(--cove-surface-strong);
@@ -51,15 +51,16 @@
 .control-center__tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .control-center-tile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 10px;
-  border-radius: 16px;
+  gap: 12px;
+  min-height: 96px;
+  padding: 12px 14px;
+  border-radius: 18px;
   border: 1px solid var(--cove-border-subtle);
   background: rgba(255, 255, 255, 0.03);
   color: var(--cove-text);
@@ -96,8 +97,8 @@
 }
 
 .control-center-tile__icon {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -116,58 +117,177 @@
 .control-center-tile__text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .control-center-tile__label {
-  font-size: calc(13px * var(--cove-ui-font-scale));
+  font-size: calc(14px * var(--cove-ui-font-scale));
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.18;
 }
 
 .control-center-tile__subtitle {
   font-size: calc(11px * var(--cove-ui-font-scale));
   color: var(--cove-text-muted);
-  line-height: 1.1;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.control-center-tile__subtitle--stack {
+.control-center-tile__pill-row,
+.control-center-tile__eye-care-pill-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.control-center-tile__plugin-lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: initial;
+  gap: 7px;
+  min-width: 0;
 }
 
-.control-center-tile__metric-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-}
-
-.control-center-tile__metric {
+.control-center-tile__plugin-line {
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.control-center-tile__metric-value {
-  font-size: calc(12px * var(--cove-ui-font-scale));
-  font-weight: 600;
+.control-center-tile__plugin-line--input {
+  gap: 10px;
+}
+
+.control-center-tile__plugin-value {
+  font-size: calc(14px * var(--cove-ui-font-scale));
+  line-height: 1;
+  font-weight: 700;
   color: var(--cove-text);
   font-variant-numeric: tabular-nums;
 }
 
-.control-center-tile__metric-label {
-  font-size: calc(10px * var(--cove-ui-font-scale));
+.control-center-tile__eye-care-phase-pill,
+.control-center-tile__eye-care-countdown-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--cove-border-subtle) 78%, white 22%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cove-surface-hover) 72%, transparent);
+}
+
+.control-center-tile__eye-care-phase-pill {
+  flex: 0 1 auto;
+  max-width: 7.2ch;
+}
+
+.control-center-tile__eye-care-phase-pill--metric {
+  max-width: none;
+  gap: 6px;
+}
+
+.control-center-tile__eye-care-countdown-value {
+  flex: 0 0 auto;
+  min-width: 5.6ch;
+}
+
+.control-center-tile__eye-care-phase-pill--working {
+  border-color: color-mix(in srgb, var(--cove-accent) 32%, white 12%);
+  background: color-mix(in srgb, var(--cove-accent) 12%, var(--cove-surface-hover));
+  color: color-mix(in srgb, var(--cove-accent) 78%, var(--cove-text) 22%);
+}
+
+.control-center-tile__eye-care-phase-pill--breaking {
+  border-color: color-mix(in srgb, var(--cove-warning) 36%, white 8%);
+  background: color-mix(in srgb, var(--cove-warning) 14%, var(--cove-surface-hover));
+  color: color-mix(in srgb, var(--cove-warning) 78%, var(--cove-text) 22%);
+}
+
+.control-center-tile__eye-care-phase-pill--paused {
+  border-color: color-mix(in srgb, #f97316 34%, white 10%);
+  background: color-mix(in srgb, #f97316 12%, var(--cove-surface-hover));
+  color: color-mix(in srgb, #ea580c 78%, var(--cove-text) 22%);
+}
+
+.control-center-tile__eye-care-phase-pill--idle,
+.control-center-tile__eye-care-phase-pill--disabled {
+  color: var(--cove-text-muted);
+}
+
+.control-center-tile__system-pill--normal {
+  border-color: color-mix(in srgb, var(--cove-positive) 28%, white 14%);
+  background: color-mix(in srgb, var(--cove-positive) 10%, var(--cove-surface-hover));
+  color: color-mix(in srgb, var(--cove-positive) 76%, var(--cove-text) 24%);
+}
+
+.control-center-tile__system-pill--warn {
+  border-color: color-mix(in srgb, var(--cove-warning) 36%, white 8%);
+  background: color-mix(in srgb, var(--cove-warning) 14%, var(--cove-surface-hover));
+  color: color-mix(in srgb, var(--cove-warning) 78%, var(--cove-text) 22%);
+}
+
+.control-center-tile__system-pill--danger {
+  border-color: color-mix(in srgb, var(--cove-danger) 34%, white 10%);
+  background: color-mix(in srgb, var(--cove-danger) 12%, var(--cove-surface-hover));
+  color: color-mix(in srgb, var(--cove-danger) 76%, var(--cove-text) 24%);
+}
+
+.control-center-tile--eye-care
+  .control-center-tile__eye-care-phase-pill--breaking
+  + .control-center-tile__eye-care-countdown-value {
+  margin-left: 4px;
+}
+
+.control-center-tile__data-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--cove-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.control-center-tile__data-pill-label {
   color: var(--cove-text-faint);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: calc(11px * var(--cove-ui-font-scale));
+}
+
+.control-center__header + .control-center__tiles .control-center-tile {
+  gap: 10px;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.control-center__header + .control-center__tiles .control-center-tile__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+}
+
+.control-center__header + .control-center__tiles .control-center-tile__text {
+  gap: 3px;
+}
+
+.control-center__header + .control-center__tiles .control-center-tile__label {
+  font-size: calc(12px * var(--cove-ui-font-scale));
+}
+
+.control-center__header + .control-center__tiles .control-center-tile__subtitle {
+  font-size: calc(10px * var(--cove-ui-font-scale));
 }
 
 .control-center-tile__icon--quota {

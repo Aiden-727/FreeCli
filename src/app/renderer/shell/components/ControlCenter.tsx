@@ -46,6 +46,14 @@ export function ControlCenter({
     [],
   )
 
+  const getControlCenterThemeLabel = (theme: UiTheme): string => {
+    if (theme === 'system') {
+      return '跟随系统'
+    }
+
+    return getUiThemeLabel(t, theme)
+  }
+
   useEffect(() => {
     if (!isOpen) {
       return
@@ -212,7 +220,7 @@ export function ControlCenter({
                   }}
                 >
                   <Icon aria-hidden="true" size={16} />
-                  <span>{getUiThemeLabel(t, option.value)}</span>
+                  <span>{getControlCenterThemeLabel(option.value)}</span>
                 </button>
               )
             })}

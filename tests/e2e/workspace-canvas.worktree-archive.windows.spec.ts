@@ -192,7 +192,7 @@ test.describe('Workspace Canvas - Worktree Archive (Windows)', () => {
 
         await expect(window.locator('[data-testid="space-worktree-window"]')).toHaveCount(0)
         await expect(window.locator('[data-testid="app-message"]')).toContainText(
-          'Space archived, but the worktree directory could not be removed.',
+          /Space archived, but the worktree directory could not be removed\.|Space 已归档，但 worktree 目录未能删除。/,
         )
 
         await expect

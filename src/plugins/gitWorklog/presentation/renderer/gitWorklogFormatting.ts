@@ -43,6 +43,50 @@ export function getGitWorklogRecentPoints(
   return points.slice(-windowSize)
 }
 
+export function getGitWorklogCalendarWindowPoints(
+  points: GitWorklogDailyPointDto[],
+  windowSize: number,
+  anchorDay?: string | null,
+): GitWorklogDailyPointDto[] {
+  if (points.length === 0) {
+    return []
+  }
+
+  const normalizedWindowSize =
+    Number.isFinite(windowSize) && windowSize > 0 ? Math.floor(windowSize) : 1
+  const pointsByDay = new Map(points.map(point => [point.day, point] as const))
+  const latestPointDay = resolveLatestPointDay(points)
+  const endDay = resolveAnchorDay(anchorDay, latestPointDay)
+  if (!endDay) {
+    return points.slice(-normalizedWindowSize)
+  }
+
+  const startDay = new Date(endDay)
+  startDay.setDate(startDay.getDate() - (normalizedWindowSize - 1))
+
+  const windowPoints: GitWorklogDailyPointDto[] = []
+  for (let cursor = new Date(startDay); cursor <= endDay; cursor.setDate(cursor.getDate() + 1)) {
+    const currentDay = formatDay(cursor)
+    const existing = pointsByDay.get(currentDay)
+    if (existing) {
+      windowPoints.push(existing)
+      continue
+    }
+
+    windowPoints.push({
+      day: currentDay,
+      label: formatMonthDay(cursor),
+      commitCount: 0,
+      filesChanged: 0,
+      additions: 0,
+      deletions: 0,
+      changedLines: 0,
+    })
+  }
+
+  return windowPoints
+}
+
 function parseDay(day: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
     return null
@@ -58,4 +102,42 @@ function trimTrailingZeroes(value: string): string {
   }
 
   return value
+}
+
+function resolveLatestPointDay(points: GitWorklogDailyPointDto[]): Date | null {
+  let latest: Date | null = null
+  for (const point of points) {
+    const parsed = parseDay(point.day)
+    if (!parsed) {
+      continue
+    }
+
+    if (!latest || parsed.getTime() > latest.getTime()) {
+      latest = parsed
+    }
+  }
+
+  return latest
+}
+
+function resolveAnchorDay(anchorDay: string | null | undefined, latestPointDay: Date | null): Date | null {
+  const parsedAnchor = anchorDay ? parseDay(anchorDay) : null
+  if (parsedAnchor) {
+    return parsedAnchor
+  }
+
+  return latestPointDay
+}
+
+function formatDay(value: Date): string {
+  const year = `${value.getFullYear()}`.padStart(4, '0')
+  const month = `${value.getMonth() + 1}`.padStart(2, '0')
+  const day = `${value.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatMonthDay(value: Date): string {
+  const month = `${value.getMonth() + 1}`.padStart(2, '0')
+  const day = `${value.getDate()}`.padStart(2, '0')
+  return `${month}/${day}`
 }

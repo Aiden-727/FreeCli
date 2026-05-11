@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../../shared/contracts/ipc'
 import type {
+  EyeCareSettingsDto,
+  EyeCareStateDto,
   AttachTerminalInput,
   AcceptGitWorklogPendingImportInput,
   CopyWorkspacePathInput,
@@ -55,6 +57,7 @@ import type {
   SyncWorkspaceAssistantSettingsInput,
   SyncWorkspaceAssistantWorkspaceSnapshotInput,
   SyncInputStatsSettingsInput,
+  SyncEyeCareSettingsInput,
   SyncSystemMonitorSettingsInput,
   SyncOssBackupSettingsInput,
   SyncGitWorklogSettingsInput,
@@ -98,6 +101,7 @@ import type {
   WriteDiagnosticLogInput,
   TerminalDataEvent,
   TerminalExitEvent,
+  TerminalSessionAttentionEvent,
   TerminalSessionMetadataEvent,
   TerminalSessionStateEvent,
   WorkspaceDirectory,
@@ -135,6 +139,20 @@ const freecliApi = {
       invokeIpc(IPC_CHANNELS.appLifecycleGetUserDataInfo),
     writeDiagnosticLog: (payload: WriteDiagnosticLogInput): Promise<void> =>
       invokeIpc(IPC_CHANNELS.appLifecycleWriteDiagnosticLog, payload),
+    notifyWindowClosePrepared: (): void => {
+      ipcRenderer.send(IPC_CHANNELS.appLifecycleWindowClosePrepared)
+    },
+    onPrepareWindowClose: (listener: () => void): UnsubscribeFn => {
+      const handler = () => {
+        listener()
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.appLifecyclePrepareWindowClose, handler)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.appLifecyclePrepareWindowClose, handler)
+      }
+    },
   },
   windowChrome: {
     setTheme: (payload: SetWindowChromeThemeInput): Promise<void> =>
@@ -229,6 +247,28 @@ const freecliApi = {
       payload: SyncPluginRuntimeStateInput,
     ): Promise<SyncPluginRuntimeStateResult> =>
       invokeIpc(IPC_CHANNELS.pluginsSyncRuntimeState, payload),
+    eyeCare: {
+      syncSettings: (payload: SyncEyeCareSettingsInput): Promise<EyeCareStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsEyeCareSyncSettings, payload),
+      getState: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCareGetState),
+      startCycle: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCareStartCycle),
+      pause: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCarePause),
+      resume: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCareResume),
+      stop: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCareStop),
+      postponeBreak: (): Promise<EyeCareStateDto> =>
+        invokeIpc(IPC_CHANNELS.pluginsEyeCarePostponeBreak),
+      onState: (listener: (state: EyeCareStateDto) => void): UnsubscribeFn => {
+        const handler = (_event: Electron.IpcRendererEvent, payload: EyeCareStateDto) => {
+          listener(payload)
+        }
+
+        ipcRenderer.on(IPC_CHANNELS.pluginsEyeCareState, handler)
+
+        return () => {
+          ipcRenderer.removeListener(IPC_CHANNELS.pluginsEyeCareState, handler)
+        }
+      },
+    },
     inputStats: {
       syncSettings: (payload: SyncInputStatsSettingsInput): Promise<InputStatsStateDto> =>
         invokeIpc(IPC_CHANNELS.pluginsInputStatsSyncSettings, payload),
@@ -465,6 +505,20 @@ const freecliApi = {
 
       return () => {
         ipcRenderer.removeListener(IPC_CHANNELS.ptyState, handler)
+      }
+    },
+    onAttention: (listener: (event: TerminalSessionAttentionEvent) => void): UnsubscribeFn => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: TerminalSessionAttentionEvent,
+      ) => {
+        listener(payload)
+      }
+
+      ipcRenderer.on(IPC_CHANNELS.ptyAttention, handler)
+
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.ptyAttention, handler)
       }
     },
     onMetadata: (listener: (event: TerminalSessionMetadataEvent) => void): UnsubscribeFn => {

@@ -107,6 +107,112 @@ export async function seedWorkspaceState(
     workspaces: payload.workspaces,
     ...(payload.settings ? { settings: payload.settings } : {}),
   }
+  const expectedVisibleWorkspaceCount = payload.workspaces.filter(
+    workspace => workspace.lifecycleState !== 'archived',
+  ).length
+  const expectedWorkspaces = payload.workspaces.map(workspace => ({
+    id: workspace.id,
+    nodeIds: workspace.nodes.map(node => node.id),
+  }))
+
+  const waitForSeededWorkspaceRender = async (): Promise<boolean> => {
+    try {
+      await expect(window.locator('.app-shell')).toBeVisible({ timeout: 10_000 })
+      await expect(window.locator('.workspace-main')).toBeVisible({ timeout: 10_000 })
+
+      await expect
+        .poll(
+          async () => {
+            return await window.evaluate(
+              async ({ workspaceExpectations, minimumVisibleWorkspaceCount }) => {
+                const raw = await window.freecliApi.persistence.readWorkspaceStateRaw()
+                if (!raw) {
+                  return {
+                    canvasReady: false,
+                    rawReady: false,
+                    sidebarCollapsed: false,
+                    visibleWorkspaceCount: 0,
+                  }
+                }
+
+                let rawReady = false
+                try {
+                  const parsed = JSON.parse(raw) as {
+                    workspaces?: Array<{
+                      id?: string
+                      nodes?: Array<{
+                        id?: string
+                      }>
+                    }>
+                  }
+
+                  if (Array.isArray(parsed.workspaces)) {
+                    const workspaceById = new Map(
+                      parsed.workspaces
+                        .filter(workspace => typeof workspace.id === 'string')
+                        .map(workspace => [workspace.id as string, workspace]),
+                    )
+
+                    rawReady = workspaceExpectations.every(expectedWorkspace => {
+                      const loadedWorkspace = workspaceById.get(expectedWorkspace.id)
+                      if (!loadedWorkspace || !Array.isArray(loadedWorkspace.nodes)) {
+                        return false
+                      }
+
+                      const loadedNodeIds = loadedWorkspace.nodes
+                        .map(node => (typeof node.id === 'string' ? node.id : ''))
+                        .filter(id => id.length > 0)
+
+                      if (loadedNodeIds.length !== expectedWorkspace.nodeIds.length) {
+                        return false
+                      }
+
+                      return expectedWorkspace.nodeIds.every(nodeId => loadedNodeIds.includes(nodeId))
+                    })
+                  }
+                } catch {
+                  rawReady = false
+                }
+
+                const appShell = document.querySelector('.app-shell')
+                const sidebarCollapsed = appShell?.classList.contains('app-shell--sidebar-collapsed') ?? false
+                const canvasReady =
+                  document.querySelector('.workspace-canvas .react-flow__pane') instanceof HTMLElement
+                const visibleWorkspaceCount = document.querySelectorAll('.workspace-item').length
+                const sidebarReady =
+                  minimumVisibleWorkspaceCount === 0 ||
+                  sidebarCollapsed ||
+                  visibleWorkspaceCount >= minimumVisibleWorkspaceCount
+
+                return {
+                  canvasReady,
+                  rawReady,
+                  sidebarCollapsed,
+                  visibleWorkspaceCount,
+                  uiReady: canvasReady && sidebarReady,
+                }
+              },
+              {
+                workspaceExpectations: expectedWorkspaces,
+                minimumVisibleWorkspaceCount: expectedVisibleWorkspaceCount,
+              },
+            )
+          },
+          {
+            timeout: 10_000,
+            intervals: [100, 250, 500, 1_000],
+          },
+        )
+        .toMatchObject({
+          rawReady: true,
+          uiReady: true,
+        })
+
+      return true
+    } catch {
+      return false
+    }
+  }
 
   const trySeed = async (attempt: number): Promise<boolean> => {
     if (attempt >= 3) {
@@ -128,64 +234,7 @@ export async function seedWorkspaceState(
     }
 
     await window.reload({ waitUntil: 'domcontentloaded' })
-
-    const expectedWorkspaces = payload.workspaces.map(workspace => ({
-      id: workspace.id,
-      nodeIds: workspace.nodes.map(node => node.id),
-    }))
-
-    const seededReady = await window.evaluate(async workspaceExpectations => {
-      const raw = await window.freecliApi.persistence.readWorkspaceStateRaw()
-      if (!raw) {
-        return false
-      }
-
-      try {
-        const parsed = JSON.parse(raw) as {
-          workspaces?: Array<{
-            id?: string
-            nodes?: Array<{
-              id?: string
-            }>
-          }>
-        }
-
-        if (!Array.isArray(parsed.workspaces)) {
-          return false
-        }
-
-        const workspaceById = new Map(
-          parsed.workspaces
-            .filter(workspace => typeof workspace.id === 'string')
-            .map(workspace => [workspace.id as string, workspace]),
-        )
-
-        return workspaceExpectations.every(expectedWorkspace => {
-          const loadedWorkspace = workspaceById.get(expectedWorkspace.id)
-          if (!loadedWorkspace || !Array.isArray(loadedWorkspace.nodes)) {
-            return false
-          }
-
-          const loadedNodeIds = loadedWorkspace.nodes
-            .map(node => (typeof node.id === 'string' ? node.id : ''))
-            .filter(id => id.length > 0)
-
-          if (loadedNodeIds.length !== expectedWorkspace.nodeIds.length) {
-            return false
-          }
-
-          return expectedWorkspace.nodeIds.every(nodeId => loadedNodeIds.includes(nodeId))
-        })
-      } catch {
-        return false
-      }
-    }, expectedWorkspaces)
-
-    const expectedVisibleWorkspaceCount = payload.workspaces.filter(
-      workspace => workspace.lifecycleState !== 'archived',
-    ).length
-    const workspaceCount = await window.locator('.workspace-item').count()
-    if (seededReady && workspaceCount >= expectedVisibleWorkspaceCount) {
+    if (await waitForSeededWorkspaceRender()) {
       return true
     }
 
