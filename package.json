@@ -39,6 +39,10 @@
         "to": "release-manifest.json"
       },
       {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      },
+      {
         "from": "build-resources/system-monitor-helper",
         "to": "system-monitor-helper"
       }

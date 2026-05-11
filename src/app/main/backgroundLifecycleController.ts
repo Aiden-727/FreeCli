@@ -1,4 +1,4 @@
-import type { App, BrowserWindow, NativeImage, Tray } from 'electron'
+import type { App, NativeImage, Tray } from 'electron'
 import { Menu, Tray as ElectronTray } from 'electron'
 
 interface MainWindowLike {
@@ -19,7 +19,7 @@ interface BrowserWindowApi {
 interface BackgroundLifecycleControllerDeps {
   app: Pick<App, 'on' | 'quit'>
   browserWindow: BrowserWindowApi
-  createTray?: (image?: NativeImage) => Tray
+  createTray?: (image: NativeImage) => Tray
   icon?: NativeImage | null
   onShowMainWindow: () => void
   onBeforeHideToTray: (window: MainWindowLike) => void | Promise<void>
@@ -47,12 +47,16 @@ export function createBackgroundLifecycleController({
   let fullQuitRequested = false
   let tray: Tray | null = null
 
-  const ensureTray = (): Tray => {
+  const ensureTray = (): Tray | null => {
+    if (!icon) {
+      return null
+    }
+
     if (tray) {
       return tray
     }
 
-    tray = createTray(icon ?? undefined)
+    tray = createTray(icon)
     tray.setToolTip('FreeCli')
     tray.addListener('double-click', () => {
       onShowMainWindow()
@@ -98,13 +102,20 @@ export function createBackgroundLifecycleController({
         return
       }
 
+      const nextTray = ensureTray()
+      if (!nextTray) {
+        fullQuitRequested = true
+        onBeforeFullQuit()
+        return
+      }
+
       event.preventDefault?.()
       void Promise.resolve(onBeforeHideToTray(window)).finally(() => {
         if (window.isDestroyed?.()) {
           return
         }
 
-        ensureTray()
+        tray = nextTray
         window.destroy?.()
       })
     },
