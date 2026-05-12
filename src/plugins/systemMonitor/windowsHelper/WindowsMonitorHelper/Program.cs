@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Net.NetworkInformation;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Windows.Forms;
 
 namespace WindowsMonitorHelper;
 
@@ -31,28 +30,18 @@ internal static class Program
 
     private sealed class MonitorRuntime : IDisposable
     {
-        private const int StartupTaskbarRefreshDelayMs = 220;
-        private const int TaskbarKeepAliveRefreshIntervalMs = 250;
         private readonly object gate = new();
         private readonly StreamWriter stdout;
         private readonly JsonSerializerOptions jsonOptions = JsonOptions;
         private readonly System.Threading.Timer sampleTimer;
-        private readonly System.Threading.Timer delayedTaskbarRefreshTimer;
-        private readonly System.Threading.Timer taskbarKeepAliveTimer;
         private readonly PerformanceCounter? cpuCounter;
         private readonly PerformanceCounterCategory? gpuCategory;
         private readonly List<GpuCounterHandle> gpuCounters = [];
-        private readonly Thread uiThread;
-        private readonly ManualResetEventSlim uiReady = new(false);
-        private readonly ApplicationContext uiContext = new();
-        private TaskbarMonitorForm? taskbarForm;
         private SampleSnapshot latestSnapshot;
-        private TaskbarWidgetRuntimeStatus taskbarWidgetRuntimeStatus = TaskbarWidgetRuntimeStatus.Disabled;
         private RuntimeConfig config = new();
         private NetworkTotals? previousNetworkTotals;
         private DateTimeOffset? previousNetworkRecordedAt;
         private bool disposed;
-        private string? uiStartupError;
 
         public MonitorRuntime()
         {
@@ -68,25 +57,6 @@ internal static class Program
 
             latestSnapshot = CaptureSnapshot(DateTimeOffset.UtcNow);
             sampleTimer = new System.Threading.Timer(SampleTick, null, Timeout.Infinite, Timeout.Infinite);
-            delayedTaskbarRefreshTimer = new System.Threading.Timer(
-                DelayedTaskbarRefreshTick,
-                null,
-                Timeout.Infinite,
-                Timeout.Infinite);
-            taskbarKeepAliveTimer = new System.Threading.Timer(
-                TaskbarKeepAliveTick,
-                null,
-                Timeout.Infinite,
-                Timeout.Infinite);
-
-            uiThread = new Thread(RunUiThread)
-            {
-                IsBackground = true,
-                Name = "FreeCliSystemMonitorTaskbarUi",
-            };
-            uiThread.SetApartmentState(ApartmentState.STA);
-            uiThread.Start();
-            uiReady.Wait();
         }
 
         public async Task RunAsync(CancellationToken cancellationToken)
@@ -123,43 +93,11 @@ internal static class Program
 
             disposed = true;
             sampleTimer.Dispose();
-            delayedTaskbarRefreshTimer.Dispose();
-            taskbarKeepAliveTimer.Dispose();
             cpuCounter?.Dispose();
             foreach (GpuCounterHandle counter in gpuCounters)
             {
                 counter.Dispose();
             }
-
-            if (taskbarForm?.IsHandleCreated == true)
-            {
-                try
-                {
-                    taskbarForm.BeginInvoke(
-                        new Action(() =>
-                        {
-                            taskbarForm?.Close();
-                            uiContext.ExitThread();
-                        }));
-                }
-                catch
-                {
-                    // Ignore UI shutdown races.
-                }
-            }
-            else
-            {
-                try
-                {
-                    uiContext.ExitThread();
-                }
-                catch
-                {
-                    // Ignore shutdown races.
-                }
-            }
-
-            uiReady.Dispose();
         }
 
         private async Task HandleCommandAsync(string line, CancellationToken cancellationToken)
@@ -176,40 +114,19 @@ internal static class Program
                 switch (command.Type)
                 {
                     case "configure":
-                        TaskbarWidgetRuntimeStatus configuredTaskbarStatus;
                         lock (gate)
                         {
                             config = command.Config ?? new RuntimeConfig();
                             RefreshGpuCounters();
                         }
 
-                        configuredTaskbarStatus = UpdateTaskbarVisibility();
-                        lock (gate)
-                        {
-                            taskbarWidgetRuntimeStatus = configuredTaskbarStatus;
-                            delayedTaskbarRefreshTimer.Change(
-                                config.TaskbarWidgetEnabled ? StartupTaskbarRefreshDelayMs : Timeout.Infinite,
-                                Timeout.Infinite);
-                            taskbarKeepAliveTimer.Change(
-                                config.TaskbarWidgetEnabled ? TaskbarKeepAliveRefreshIntervalMs : Timeout.Infinite,
-                                config.TaskbarWidgetEnabled ? TaskbarKeepAliveRefreshIntervalMs : Timeout.Infinite);
-                        }
-
                         await WriteEnvelopeAsync(
-                            new HelperEnvelope(
-                                true,
-                                new ConfigurePayload(true, configuredTaskbarStatus),
-                                null,
-                                null),
+                            new HelperEnvelope(true, new ConfigurePayload(true), null, null),
                             cancellationToken);
                         break;
                     case "snapshot":
                         await WriteEnvelopeAsync(
-                            new HelperEnvelope(
-                                true,
-                                new SnapshotPayload(GetLatestSnapshot(), GetTaskbarWidgetRuntimeStatus()),
-                                null,
-                                null),
+                            new HelperEnvelope(true, new SnapshotPayload(GetLatestSnapshot()), null, null),
                             cancellationToken);
                         break;
                     case "stop":
@@ -252,75 +169,10 @@ internal static class Program
                 {
                     latestSnapshot = snapshot;
                 }
-
-                if (taskbarForm?.IsHandleCreated == true)
-                {
-                    try
-                    {
-                        taskbarForm.BeginInvoke(
-                            new Action(() =>
-                            {
-                                if (taskbarForm is null)
-                                {
-                                    return;
-                                }
-
-                                TaskbarWidgetRuntimeStatus status = taskbarForm.ApplySnapshot(
-                                    snapshot,
-                                    config.TaskbarWidgetEnabled,
-                                    config.TaskbarWidget);
-                                lock (gate)
-                                {
-                                    taskbarWidgetRuntimeStatus = status;
-                                }
-                            }));
-                    }
-                    catch
-                    {
-                        // Ignore UI races; the next tick will repaint.
-                    }
-                }
             }
             catch
             {
                 // Keep sampling alive; the main process degrades gracefully on null GPU data.
-            }
-        }
-
-        private void DelayedTaskbarRefreshTick(object? state)
-        {
-            try
-            {
-                TaskbarWidgetRuntimeStatus status = UpdateTaskbarVisibility();
-                lock (gate)
-                {
-                    taskbarWidgetRuntimeStatus = status;
-                }
-            }
-            catch
-            {
-                // 启动补偿刷新失败不影响后续定时采样；下一次 tick 会继续纠正。
-            }
-        }
-
-        private void TaskbarKeepAliveTick(object? state)
-        {
-            try
-            {
-                if (!config.TaskbarWidgetEnabled)
-                {
-                    return;
-                }
-
-                TaskbarWidgetRuntimeStatus status = UpdateTaskbarVisibility();
-                lock (gate)
-                {
-                    taskbarWidgetRuntimeStatus = status;
-                }
-            }
-            catch
-            {
-                // 保活刷新只负责尽快纠正任务栏宿主变化，失败时交给下一轮继续恢复。
             }
         }
 
@@ -535,93 +387,6 @@ internal static class Program
             return hasValue ? ClampPercent(peak) : null;
         }
 
-        private void RunUiThread()
-        {
-            try
-            {
-                Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                taskbarForm = new TaskbarMonitorForm();
-                _ = taskbarForm.Handle;
-            }
-            catch (Exception exception)
-            {
-                uiStartupError = exception.Message;
-            }
-            finally
-            {
-                uiReady.Set();
-            }
-
-            if (uiStartupError is not null)
-            {
-                return;
-            }
-
-            Application.Run(uiContext);
-        }
-
-        private TaskbarWidgetRuntimeStatus UpdateTaskbarVisibility()
-        {
-            if (!string.IsNullOrWhiteSpace(uiStartupError))
-            {
-                return TaskbarWidgetRuntimeStatus.Failed($"任务栏监控 UI 初始化失败：{uiStartupError}");
-            }
-
-            if (taskbarForm?.IsHandleCreated != true)
-            {
-                return config.TaskbarWidgetEnabled
-                    ? TaskbarWidgetRuntimeStatus.Failed("任务栏监控窗口句柄尚未创建。")
-                    : TaskbarWidgetRuntimeStatus.Disabled;
-            }
-
-            try
-            {
-                if (taskbarForm.InvokeRequired)
-                {
-                    TaskbarWidgetRuntimeStatus? status = null;
-                    taskbarForm.Invoke(
-                        new Action(() =>
-                        {
-                            if (taskbarForm is null)
-                            {
-                                return;
-                            }
-
-                            status = taskbarForm.ApplySnapshot(
-                                GetLatestSnapshot(),
-                                config.TaskbarWidgetEnabled,
-                                config.TaskbarWidget);
-                            lock (gate)
-                            {
-                                taskbarWidgetRuntimeStatus = status ?? TaskbarWidgetRuntimeStatus.Disabled;
-                            }
-                        }));
-
-                    return status ?? TaskbarWidgetRuntimeStatus.Failed("任务栏监控窗口未返回有效状态。");
-                }
-
-                return taskbarForm.ApplySnapshot(
-                    GetLatestSnapshot(),
-                    config.TaskbarWidgetEnabled,
-                    config.TaskbarWidget);
-            }
-            catch
-            {
-                // Ignore UI races.
-                return TaskbarWidgetRuntimeStatus.Failed("任务栏监控窗口更新失败。");
-            }
-        }
-
-        private TaskbarWidgetRuntimeStatus GetTaskbarWidgetRuntimeStatus()
-        {
-            lock (gate)
-            {
-                return taskbarWidgetRuntimeStatus;
-            }
-        }
-
         private static int ClampPercent(float value)
         {
             if (float.IsNaN(value) || float.IsInfinity(value))
@@ -638,17 +403,11 @@ internal static class Program
     private sealed record RuntimeConfig
     {
         public string GpuMode { get; init; } = "off";
-
-        public bool TaskbarWidgetEnabled { get; init; }
-
-        public TaskbarWidgetConfig TaskbarWidget { get; init; } = new();
     }
 
-    private sealed record ConfigurePayload(bool Configured, TaskbarWidgetRuntimeStatus TaskbarWidgetStatus);
+    private sealed record ConfigurePayload(bool Configured);
 
-    private sealed record SnapshotPayload(
-        SampleSnapshot Snapshot,
-        TaskbarWidgetRuntimeStatus TaskbarWidgetStatus);
+    private sealed record SnapshotPayload(SampleSnapshot Snapshot);
 
     private sealed record NetworkTotals(long UploadBytesTotal, long DownloadBytesTotal);
 

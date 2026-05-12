@@ -383,10 +383,6 @@ export const zhCN = {
           off: '关闭',
           total: '总占用（按需）',
         },
-        taskbarWidgetRetiredTitle: '任务栏小窗已下线',
-        taskbarWidgetRetiredSummary: '该功能已从设置页移除，后续会基于稳定方案重做。',
-        taskbarWidgetRetiredDescription:
-          '历史实现与调研记录已保留，但当前版本不再尝试在系统任务栏中展示监测小窗，以避免空白、闪动和宿主兼容问题。',
         historyTitle: '近期累计',
         historySummaryDays: '最近 {{value}} 天',
         todayTrafficTitle: '今日累计流量',

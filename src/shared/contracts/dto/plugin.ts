@@ -273,27 +273,15 @@ export interface SyncInputStatsSettingsInput {
 
 export type SystemMonitorHistoryRangeDays = 1 | 7 | 30
 export type SystemMonitorGpuMode = 'off' | 'total'
-export type SystemMonitorTaskbarDisplayItem =
+export type SystemMonitorHeaderDisplayItem =
   | 'download'
   | 'upload'
   | 'cpu'
   | 'memory'
   | 'gpu'
 
-export interface SystemMonitorTaskbarWidgetSettingsDto {
-  notifyIconEnabled: boolean
-  compactModeEnabled: boolean
-  alwaysOnTop: boolean
-  fontSize: number
-  displayItems: SystemMonitorTaskbarDisplayItem[]
-  followSystemTheme: boolean
-  speedShortModeEnabled: boolean
-  separateValueUnitWithSpace: boolean
-  useByteUnit: boolean
-  hideUnit: boolean
-  hidePercent: boolean
-  valueRightAligned: boolean
-  digitsNumber: number
+export interface SystemMonitorHeaderSettingsDto {
+  displayItems: SystemMonitorHeaderDisplayItem[]
 }
 
 export interface SystemMonitorSettingsDto {
@@ -302,8 +290,7 @@ export interface SystemMonitorSettingsDto {
   saveIntervalMs: number
   historyRangeDays: SystemMonitorHistoryRangeDays
   gpuMode: SystemMonitorGpuMode
-  taskbarWidgetEnabled: boolean
-  taskbarWidget: SystemMonitorTaskbarWidgetSettingsDto
+  header: SystemMonitorHeaderSettingsDto
 }
 
 export interface SystemMonitorSnapshotDto {
@@ -324,28 +311,6 @@ export interface SystemMonitorDailyTrafficDto {
 export interface SystemMonitorErrorDto {
   message: string
   detail: string | null
-}
-
-export interface SystemMonitorTaskbarDiagnosticsDto {
-  requestedEnabled: boolean
-  visible: boolean
-  embedded: boolean
-  error: string | null
-  lastCheckedAt: string | null
-  debug: {
-    sessionHidden: boolean | null
-    hasLatestSnapshot: boolean | null
-    hasLayout: boolean | null
-    handleCreated: boolean | null
-    stage: string | null
-    parentWindowClass: string | null
-    bounds: string | null
-    backgroundColor: string | null
-    foregroundColor: string | null
-    anchorRect: string | null
-    notifyRect: string | null
-    taskbarRect: string | null
-  }
 }
 
 export type SystemMonitorStateStatus =
@@ -369,7 +334,6 @@ export interface SystemMonitorStateDto {
   history: SystemMonitorSnapshotDto[]
   todayTraffic: SystemMonitorDailyTrafficDto
   recentDaysTraffic: SystemMonitorDailyTrafficDto[]
-  taskbarDiagnostics: SystemMonitorTaskbarDiagnosticsDto
   lastError: SystemMonitorErrorDto | null
 }
 

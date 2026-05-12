@@ -4,7 +4,6 @@ import type {
   SystemMonitorErrorDto,
   SystemMonitorSettingsDto,
   SystemMonitorStateDto,
-  SystemMonitorTaskbarDiagnosticsDto,
 } from '@shared/contracts/dto'
 import { IPC_CHANNELS } from '@shared/contracts/ipc'
 import { DEFAULT_SYSTEM_MONITOR_SETTINGS } from '@contexts/plugins/domain/systemMonitorSettings'
@@ -52,27 +51,6 @@ function createEmptyState(
       downloadBytes: 0,
     },
     recentDaysTraffic: [],
-    taskbarDiagnostics: {
-      requestedEnabled: false,
-      visible: false,
-      embedded: false,
-      error: null,
-      lastCheckedAt: null,
-      debug: {
-        sessionHidden: null,
-        hasLatestSnapshot: null,
-        hasLayout: null,
-        handleCreated: null,
-        stage: null,
-        parentWindowClass: null,
-        bounds: null,
-        backgroundColor: null,
-        foregroundColor: null,
-        anchorRect: null,
-        notifyRect: null,
-        taskbarRect: null,
-      },
-    },
     lastError: null,
   }
 }
@@ -92,7 +70,6 @@ function toErrorDto(error: unknown): SystemMonitorErrorDto {
 }
 
 const CONFIG_REFRESH_DEBOUNCE_MS = 400
-const TASKBAR_WIDGET_RUNTIME_ENABLED = false
 
 export class SystemMonitorPluginController {
   private readonly store: SystemMonitorStore
@@ -108,8 +85,6 @@ export class SystemMonitorPluginController {
   private currentRefreshPromise: Promise<SystemMonitorStateDto> | null = null
   private previousRawSample: SystemMonitorRawSample | null = null
   private lastRefreshStartedAtMs: number | null = null
-  private taskbarDiagnostics: SystemMonitorTaskbarDiagnosticsDto =
-    createEmptyState(DEFAULT_SYSTEM_MONITOR_SETTINGS, false).taskbarDiagnostics
 
   public constructor(options?: {
     emitState?: (state: SystemMonitorStateDto) => void
@@ -149,7 +124,6 @@ export class SystemMonitorPluginController {
       isEnabled: this.isEnabled,
       settings,
       historyRangeDays: settings.historyRangeDays,
-      taskbarDiagnostics: this.resolveTaskbarDiagnostics(settings),
       status: this.resolveStatus(),
     })
 
@@ -241,7 +215,6 @@ export class SystemMonitorPluginController {
       ...this.state,
       isEnabled: false,
       isMonitoring: false,
-      taskbarDiagnostics: this.resolveTaskbarDiagnostics(this.settings),
       status: 'disabled',
     })
   }
@@ -253,14 +226,6 @@ export class SystemMonitorPluginController {
     try {
       await this.syncHelperConfiguration()
       const rawSample = await this.helperClient.getSnapshot()
-      this.taskbarDiagnostics = {
-        requestedEnabled: rawSample.taskbarWidgetStatus.requestedEnabled,
-        visible: rawSample.taskbarWidgetStatus.visible,
-        embedded: rawSample.taskbarWidgetStatus.embedded,
-        error: rawSample.taskbarWidgetStatus.error,
-        lastCheckedAt: refreshAt.toISOString(),
-        debug: rawSample.taskbarWidgetStatus.debug,
-      }
       const deltaSample = this.toStoreSample(rawSample)
       this.previousRawSample = rawSample
       await this.store.appendSample(deltaSample)
@@ -357,7 +322,6 @@ export class SystemMonitorPluginController {
       status: options?.status ?? this.resolveStatus(),
       lastUpdatedAt: options?.lastUpdatedAt ?? this.state.lastUpdatedAt,
       settings: this.settings,
-      taskbarDiagnostics: this.resolveTaskbarDiagnostics(this.settings),
       current: snapshot.current,
       historyRangeDays: this.settings.historyRangeDays,
       history: snapshot.history,
@@ -438,49 +402,9 @@ export class SystemMonitorPluginController {
   }
 
   private async syncHelperConfiguration(): Promise<void> {
-    const result = await this.helperClient.configure({
+    await this.helperClient.configure({
       gpuMode: this.settings.gpuMode,
-      taskbarWidgetEnabled: TASKBAR_WIDGET_RUNTIME_ENABLED,
-      taskbarWidget: this.settings.taskbarWidget,
     })
-    this.taskbarDiagnostics = {
-      requestedEnabled: result.taskbarWidgetStatus.requestedEnabled,
-      visible: result.taskbarWidgetStatus.visible,
-      embedded: result.taskbarWidgetStatus.embedded,
-      error: result.taskbarWidgetStatus.error,
-      lastCheckedAt: new Date().toISOString(),
-      debug: result.taskbarWidgetStatus.debug,
-    }
-  }
-
-  private resolveTaskbarDiagnostics(
-    settings: SystemMonitorSettingsDto,
-  ): SystemMonitorTaskbarDiagnosticsDto {
-    if (!TASKBAR_WIDGET_RUNTIME_ENABLED || !settings.taskbarWidgetEnabled) {
-      return {
-        requestedEnabled: false,
-        visible: false,
-        embedded: false,
-        error: null,
-        lastCheckedAt: this.taskbarDiagnostics.lastCheckedAt,
-        debug: {
-          sessionHidden: null,
-          hasLatestSnapshot: null,
-          hasLayout: null,
-          handleCreated: null,
-          stage: null,
-          parentWindowClass: null,
-          bounds: null,
-          backgroundColor: null,
-          foregroundColor: null,
-          anchorRect: null,
-          notifyRect: null,
-          taskbarRect: null,
-        },
-      }
-    }
-
-    return this.taskbarDiagnostics
   }
 
   private applyState(nextState: SystemMonitorStateDto): void {

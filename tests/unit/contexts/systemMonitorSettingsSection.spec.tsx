@@ -27,21 +27,8 @@ function installSystemMonitorApiMock() {
               saveIntervalMs: 30000,
               historyRangeDays: 7,
               gpuMode: 'off',
-              taskbarWidgetEnabled: false,
-              taskbarWidget: {
-                notifyIconEnabled: false,
-                compactModeEnabled: true,
-                alwaysOnTop: true,
-                fontSize: 9,
+              header: {
                 displayItems: ['download', 'upload', 'cpu'],
-                followSystemTheme: true,
-                speedShortModeEnabled: false,
-                separateValueUnitWithSpace: true,
-                useByteUnit: true,
-                hideUnit: false,
-                hidePercent: false,
-                valueRightAligned: true,
-                digitsNumber: 4,
               },
             },
             current: {
@@ -76,13 +63,6 @@ function installSystemMonitorApiMock() {
                 downloadBytes: 16384,
               },
             ],
-            taskbarDiagnostics: {
-              requestedEnabled: false,
-              visible: false,
-              embedded: false,
-              error: null,
-              lastCheckedAt: '2026-04-15T10:00:00.000Z',
-            },
             lastError: null,
           }),
           refresh: vi.fn(),
@@ -131,8 +111,6 @@ describe('SystemMonitorSettingsSection', () => {
     })
     fireEvent.click(screen.getByTestId('system-monitor-gpu-mode-trigger'))
     fireEvent.click(screen.getByRole('option', { name: '总占用（按需）' }))
-    fireEvent.click(screen.getByTestId('system-monitor-taskbar-widget-enabled'))
-    fireEvent.click(screen.getByTestId('system-monitor-taskbar-follow-theme-enabled'))
 
     expect(onChange).toHaveBeenNthCalledWith(
       1,
@@ -150,28 +128,6 @@ describe('SystemMonitorSettingsSection', () => {
         plugins: expect.objectContaining({
           systemMonitor: expect.objectContaining({
             gpuMode: 'total',
-          }),
-        }),
-      }),
-    )
-    expect(onChange).toHaveBeenNthCalledWith(
-      3,
-      expect.objectContaining({
-        plugins: expect.objectContaining({
-          systemMonitor: expect.objectContaining({
-            taskbarWidgetEnabled: true,
-          }),
-        }),
-      }),
-    )
-    expect(onChange).toHaveBeenNthCalledWith(
-      4,
-      expect.objectContaining({
-        plugins: expect.objectContaining({
-          systemMonitor: expect.objectContaining({
-            taskbarWidget: expect.objectContaining({
-              followSystemTheme: false,
-            }),
           }),
         }),
       }),

@@ -394,11 +394,6 @@ export const en = {
           off: 'Off',
           total: 'Total usage (on demand)',
         },
-        taskbarWidgetRetiredTitle: 'Taskbar widget retired',
-        taskbarWidgetRetiredSummary:
-          'This capability has been removed from settings and will be rebuilt on a stable integration path later.',
-        taskbarWidgetRetiredDescription:
-          'The historical implementation and investigation notes are preserved, but the current build no longer tries to render a monitor widget inside the Windows taskbar to avoid blank, flickering, and host-compatibility issues.',
         historyTitle: 'Recent totals',
         historySummaryDays: 'Last {{value}} days',
         todayTrafficTitle: 'Today traffic',

@@ -1,14 +1,14 @@
 import React from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
-import type { SystemMonitorStateDto, SystemMonitorTaskbarDisplayItem } from '@shared/contracts/dto'
+import type { SystemMonitorHeaderDisplayItem, SystemMonitorStateDto } from '@shared/contracts/dto'
 import { AnimatedNumberText } from '../../../shared/presentation/renderer/AnimatedNumberText'
 import type { HeaderPluginWidgetProps } from '../../../../contexts/plugins/presentation/renderer/types'
 import { formatHeaderPercent, formatHeaderSpeed } from './systemMonitorFormatting'
 import { useSystemMonitorState } from './useSystemMonitorState'
 
 interface HeaderMetricItem {
-  key: SystemMonitorTaskbarDisplayItem
+  key: SystemMonitorHeaderDisplayItem
   label: React.ReactNode
   value: number | null
   formatter: (value: number) => string
@@ -45,7 +45,7 @@ function buildHeaderMetricItems(
   state: SystemMonitorStateDto,
   t: ReturnType<typeof useTranslation>['t'],
 ): HeaderMetricItem[] {
-  return state.settings.taskbarWidget.displayItems.map(item => {
+  return state.settings.header.displayItems.map(item => {
     switch (item) {
       case 'download':
         return {

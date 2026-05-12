@@ -357,7 +357,7 @@ function WorkspaceSidebarItem({
           isDragging ? 'workspace-item--dragging' : ''
         } ${isDropTarget ? 'workspace-item--drop-target' : ''} ${
           isArchived ? 'workspace-item--archived' : ''
-        }`}
+        } ${isStatusPopoverOpen ? 'workspace-item--status-popover-open' : ''}`}
         style={dragStyle}
         aria-grabbed={isDragging}
         data-drop-placement={dropPlacement ?? undefined}

@@ -78,7 +78,43 @@ describe('terminal output scheduler', () => {
     expect(requestAnimationFrameSpy).toHaveBeenCalled()
   })
 
-  it('does not force an extra refresh for plain ascii writes away from the bottom prompt line', () => {
+  it('refreshes the active prompt line for short ascii writes away from the bottom prompt line', () => {
+    const refresh = vi.fn()
+    const write = vi.fn((_: string, callback?: () => void) => {
+      callback?.()
+    })
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(callback => {
+        callback(16)
+        return 1
+      })
+
+    const scheduler = createTerminalOutputScheduler({
+      terminal: {
+        write,
+        refresh,
+        rows: 24,
+        buffer: {
+          active: {
+            cursorY: 5,
+          },
+        },
+      } as never,
+      scrollbackBuffer: {
+        append: vi.fn(),
+      },
+      markScrollbackDirty: vi.fn(),
+    })
+
+    scheduler.handleChunk('plain ascii')
+
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalledWith(4, 6)
+    expect(requestAnimationFrameSpy).toHaveBeenCalled()
+  })
+
+  it('does not force an extra refresh for multiline writes', () => {
     const refresh = vi.fn()
     const write = vi.fn((_: string, callback?: () => void) => {
       callback?.()
@@ -101,7 +137,7 @@ describe('terminal output scheduler', () => {
       markScrollbackDirty: vi.fn(),
     })
 
-    scheduler.handleChunk('plain ascii')
+    scheduler.handleChunk('line 1\nline 2')
 
     expect(write).toHaveBeenCalledTimes(1)
     expect(refresh).not.toHaveBeenCalled()

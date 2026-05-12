@@ -73,7 +73,7 @@ const BUILTIN_PLUGIN_MANIFESTS: Record<BuiltinPluginId, PluginManifest> = {
     settingsKey: 'systemMonitor',
     cloudBackupRole: 'none',
     contributes: {
-      headerWidget: false,
+      headerWidget: true,
       controlCenterWidget: true,
       settingsSection: true,
       mainRuntime: true,

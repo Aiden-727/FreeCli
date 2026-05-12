@@ -29,7 +29,7 @@ describe('SystemMonitorControlCenterWidget', () => {
     delete (window as unknown as { freecliApi?: unknown }).freecliApi
   })
 
-  it('renders traffic and cpu summaries and opens plugin manager', async () => {
+  it('renders cpu and memory summaries and opens plugin manager', async () => {
     installSystemMonitorApiMock({
       isEnabled: true,
       isSupported: true,
@@ -42,21 +42,8 @@ describe('SystemMonitorControlCenterWidget', () => {
         saveIntervalMs: 30000,
         historyRangeDays: 7,
         gpuMode: 'off',
-        taskbarWidgetEnabled: false,
-        taskbarWidget: {
-          notifyIconEnabled: false,
-          compactModeEnabled: true,
-          alwaysOnTop: true,
-          fontSize: 9,
+        header: {
           displayItems: ['download', 'upload', 'cpu'],
-          followSystemTheme: true,
-          speedShortModeEnabled: false,
-          separateValueUnitWithSpace: true,
-          useByteUnit: true,
-          hideUnit: false,
-          hidePercent: false,
-          valueRightAligned: true,
-          digitsNumber: 4,
         },
       },
       current: {
@@ -75,13 +62,6 @@ describe('SystemMonitorControlCenterWidget', () => {
         downloadBytes: 16384,
       },
       recentDaysTraffic: [],
-      taskbarDiagnostics: {
-        requestedEnabled: false,
-        visible: false,
-        embedded: false,
-        error: null,
-        lastCheckedAt: '2026-04-15T10:00:00.000Z',
-      },
       lastError: null,
     })
 
@@ -90,9 +70,8 @@ describe('SystemMonitorControlCenterWidget', () => {
 
     const button = await screen.findByTestId('control-center-plugin-system-monitor')
     const scope = within(button)
-    expect(scope.getByText('4 KB/s')).toBeVisible()
-    expect(scope.getByText('2 KB/s')).toBeVisible()
     expect(scope.getByText('37%')).toBeVisible()
+    expect(scope.getByText('55%')).toBeVisible()
 
     fireEvent.click(button)
     expect(onOpenPluginManager).toHaveBeenCalledWith('system-monitor')

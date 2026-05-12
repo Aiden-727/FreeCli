@@ -37,6 +37,7 @@
 1. 终端字体栈必须显式包含 CJK monospace fallback，避免中文宽字符落到不可控的系统 fallback。
 2. Windows / WSL 终端保持 `rescaleOverlappingGlyphs` 开启，优先修正宽字符与 fallback 字体的 cell 重叠。
 3. 针对包含宽字符的输出，只允许做“小范围前景 refresh”，禁止回到整屏高频重绘。
+4. 针对短小的单行输入/回显块，无论是否位于底部最后几行，都允许补一次“活跃行附近”的小范围 refresh，避免字符已写入但要等 `Enter` 才显现。
 
 ## 禁止项（高风险改法）
 

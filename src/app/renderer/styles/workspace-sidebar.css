@@ -399,6 +399,10 @@
   transform: translate3d(0, 0, 0);
 }
 
+.workspace-item--status-popover-open {
+  z-index: 24;
+}
+
 .workspace-item:hover {
   background: var(--cove-surface-hover);
 }
@@ -733,23 +737,28 @@
   position: absolute;
   left: 0;
   top: calc(100% + 12px);
-  z-index: 16;
+  z-index: 40;
   min-width: 220px;
   max-width: min(320px, calc(100vw - 72px));
   padding: 10px 12px;
+  overflow: hidden;
+  isolation: isolate;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--cove-border) 88%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--cove-surface-strong) 88%, transparent) 0%,
-    color-mix(in srgb, var(--cove-surface) 84%, transparent) 100%
-  );
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0) 54%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.52) 0%,
+      rgba(255, 255, 255, 0.34) 100%
+    );
+  backdrop-filter: blur(36px) saturate(190%);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
   box-shadow:
-    0 18px 34px color-mix(in srgb, var(--cove-shadow-color-panel) 40%, transparent),
-    0 6px 14px color-mix(in srgb, var(--cove-shadow-color-panel) 18%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+    0 22px 42px color-mix(in srgb, var(--cove-shadow-color-panel) 32%, transparent),
+    0 8px 18px color-mix(in srgb, var(--cove-shadow-color-panel) 14%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -773,7 +782,25 @@
   transform: rotate(45deg);
   border-left: 1px solid color-mix(in srgb, var(--cove-border) 82%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--cove-border) 82%, transparent);
-  background: color-mix(in srgb, var(--cove-surface-strong) 90%, transparent);
+  background: rgba(255, 255, 255, 0.46);
+  z-index: 1;
+}
+
+.workspace-item__status-popover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.04) 100%),
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 42%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.workspace-item__status-popover > * {
+  position: relative;
+  z-index: 1;
 }
 
 .workspace-item__status-popover--open {

@@ -18,7 +18,6 @@ type ScrollbackBuffer = {
 }
 
 const INLINE_ACTIVE_LINE_REFRESH_MAX_CHARS = 256
-const BOTTOM_REFRESH_RISK_ROW_WINDOW = 2
 
 function resolveLocalRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'>): {
   start: number
@@ -48,12 +47,11 @@ function shouldScheduleLocalRefresh(
   }
 
   const cursorY = terminal.buffer.active.cursorY
-  if (!Number.isFinite(cursorY)) {
+  if (!Number.isFinite(cursorY) || cursorY < 0 || cursorY >= terminal.rows) {
     return false
   }
 
-  const firstRiskyRow = Math.max(0, terminal.rows - BOTTOM_REFRESH_RISK_ROW_WINDOW)
-  return cursorY >= firstRiskyRow
+  return true
 }
 
 export function createTerminalOutputScheduler({

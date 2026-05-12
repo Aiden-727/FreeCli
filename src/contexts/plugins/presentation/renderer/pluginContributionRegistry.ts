@@ -50,6 +50,10 @@ const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
       await import('../../../../plugins/inputStats/presentation/renderer/InputStatsSettingsSection'),
   },
   'system-monitor': {
+    headerWidget: async () =>
+      await import(
+        '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorHeaderWidget'
+      ),
     controlCenterWidget: async () =>
       await import(
         '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorControlCenterWidget'

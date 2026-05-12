@@ -326,8 +326,7 @@ describe('agent settings normalization', () => {
           saveIntervalMs: 100,
           historyRangeDays: 999,
           gpuMonitoringEnabled: true,
-          taskbarWidgetEnabled: true,
-          notifyIconEnabled: true,
+          taskbarDisplayItems: ['download', 'upload', 'cpu'],
         },
       },
     })
@@ -338,21 +337,8 @@ describe('agent settings normalization', () => {
       saveIntervalMs: 10000,
       historyRangeDays: 7,
       gpuMode: 'total',
-      taskbarWidgetEnabled: true,
-      taskbarWidget: {
-        notifyIconEnabled: true,
-        compactModeEnabled: true,
-        alwaysOnTop: true,
-        fontSize: 9,
+      header: {
         displayItems: ['download', 'upload', 'cpu'],
-        followSystemTheme: true,
-        speedShortModeEnabled: false,
-        separateValueUnitWithSpace: true,
-        useByteUnit: true,
-        hideUnit: false,
-        hidePercent: false,
-        valueRightAligned: true,
-        digitsNumber: 4,
       },
     })
   })
@@ -517,7 +503,7 @@ describe('agent settings normalization', () => {
       endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
       region: 'oss-cn-hangzhou',
       bucket: 'freecli-backup',
-      objectKey: 'freecli',
+      objectKey: 'freecli/custom.json',
       accessKeyId: 'test-id',
       accessKeySecret: 'test-secret',
       autoBackupEnabled: true,

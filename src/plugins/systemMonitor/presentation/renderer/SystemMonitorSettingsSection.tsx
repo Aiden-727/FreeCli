@@ -216,16 +216,14 @@ export default function SystemMonitorSettingsSection({
 
             <div className="plugin-manager-panel__compact-board">
               <div className="plugin-manager-panel__compact-board-head">
-                <span className="plugin-manager-panel__compact-board-pill">
-                  {t('pluginManager.plugins.systemMonitor.taskbarWidgetRetiredTitle')}
-                </span>
+                <span className="plugin-manager-panel__compact-board-pill">说明</span>
                 <span className="plugin-manager-panel__compact-board-hint">
-                  {t('pluginManager.plugins.systemMonitor.taskbarWidgetRetiredSummary')}
+                  仅保留应用内监控入口与采样主链
                 </span>
               </div>
               <div className="quota-monitor-overview__banner">
-                <strong>{t('pluginManager.plugins.systemMonitor.taskbarWidgetRetiredTitle')}</strong>
-                <span>{t('pluginManager.plugins.systemMonitor.taskbarWidgetRetiredDescription')}</span>
+                <strong>应用内展示</strong>
+                <span>系统监控当前只保留头部入口、控制中心卡片和插件页总览，不再提供 Windows 原生任务栏小窗能力。</span>
               </div>
             </div>
           </div>

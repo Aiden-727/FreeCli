@@ -393,7 +393,7 @@ test.describe('Control Center', () => {
     }
   })
 
-  test('keeps system monitor out of header widgets and still opens the system monitor page', async () => {
+  test('shows system monitor header widget and still opens the system monitor page', async () => {
     const { electronApp, window } = await launchApp()
 
     try {
@@ -416,49 +416,23 @@ test.describe('Control Center', () => {
               saveIntervalMs: 30000,
               historyRangeDays: 7,
               gpuMode: 'off',
-              taskbarWidgetEnabled: true,
-              taskbarWidget: {
-                notifyIconEnabled: true,
-                compactModeEnabled: true,
-                alwaysOnTop: true,
-                fontSize: 9,
+              header: {
                 displayItems: ['download', 'upload', 'cpu'],
-                followSystemTheme: true,
-                speedShortModeEnabled: false,
-                separateValueUnitWithSpace: true,
-                useByteUnit: true,
-                hideUnit: false,
-                hidePercent: false,
-                valueRightAligned: true,
-                digitsNumber: 4,
               },
             },
           },
         },
       })
 
-      const cloudWidget = window.locator('[data-testid="app-header-oss-backup-status"]')
-      await expect(cloudWidget).toBeVisible()
+      const systemMonitorWidget = window.locator('[data-testid="app-header-system-monitor"]')
+      await expect(systemMonitorWidget).toBeVisible()
+      await expect(window.locator('[data-testid="app-header-system-monitor-download"]')).toBeVisible()
+      await expect(window.locator('[data-testid="app-header-system-monitor-upload"]')).toBeVisible()
+      await expect(window.locator('[data-testid="app-header-system-monitor-cpu"]')).toBeVisible()
 
-      const cloudVisualStyle = await cloudWidget.evaluate(element => {
-        const style = window.getComputedStyle(element)
-        return {
-          borderRadius: style.borderRadius,
-          width: style.width,
-          height: style.height,
-        }
-      })
-
-      expect(cloudVisualStyle.borderRadius).toBe('8px')
-      expect(cloudVisualStyle.width).toBe('28px')
-      expect(cloudVisualStyle.height).toBe('28px')
-      await expect(window.locator('[data-testid="app-header-oss-backup-status-badge"] svg')).toBeVisible()
-      await expect(window.locator('[data-testid="app-header-system-monitor"]')).toHaveCount(0)
-
-      await window.locator('[data-testid="app-header-plugins"]').click()
+      await systemMonitorWidget.click()
 
       await expect(window.locator('[data-testid="plugin-manager"]')).toBeVisible()
-      await window.locator('[data-testid="plugin-manager-nav-system-monitor"]').click()
       await expect(
         window.locator('[data-testid="plugin-manager-plugin-system-monitor-section"]'),
       ).toBeVisible()

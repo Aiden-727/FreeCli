@@ -24,14 +24,7 @@ describe('SystemMonitorPluginController', () => {
     vi.spyOn(Date, 'now').mockImplementation(() => nowRef.value)
 
     const helperClient = {
-      configure: vi.fn().mockResolvedValue({
-        taskbarWidgetStatus: {
-          requestedEnabled: false,
-          visible: false,
-          embedded: false,
-          error: null,
-        },
-      }),
+      configure: vi.fn().mockResolvedValue(undefined),
       getSnapshot: vi.fn().mockImplementation(async () => {
         nowRef.value += 220
         return {
@@ -100,14 +93,7 @@ describe('SystemMonitorPluginController', () => {
 
   it('moves to error state with helper diagnostics when the first snapshot fails', async () => {
     const helperClient = {
-      configure: vi.fn().mockResolvedValue({
-        taskbarWidgetStatus: {
-          requestedEnabled: false,
-          visible: false,
-          embedded: false,
-          error: null,
-        },
-      }),
+      configure: vi.fn().mockResolvedValue(undefined),
       getSnapshot: vi
         .fn()
         .mockRejectedValue(
