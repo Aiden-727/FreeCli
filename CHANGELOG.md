@@ -74,6 +74,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.0.2] - 2026-05-12
+
+Welcome to FreeCli 0.0.2! This release focuses on...
+
+### 🚀 Added
+- TBD
+
+### 💅 Changed
+- TBD
+
+### 🐞 Fixed
+- TBD
 ## [0.0.3] - 2026-04-12
 
 Welcome to FreeCli 0.0.3! This release focuses on...
