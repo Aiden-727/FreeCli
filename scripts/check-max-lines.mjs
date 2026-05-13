@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const MAX_LINES = 500
+const MAX_ALLOWED_GROWTH_FOR_EXISTING_OVERSIZED_FILE = 20
 const CHECKED_EXTENSIONS = new Set([
   '.ts',
   '.tsx',
@@ -42,6 +43,18 @@ function resolveFilesFromStaged() {
     .split(/\r\n|\r|\n/)
     .map(line => line.trim())
     .filter(line => line.length > 0)
+}
+
+function readHeadFile(filePath) {
+  const result = spawnSync('git', ['show', `HEAD:${filePath}`], {
+    encoding: 'utf8',
+  })
+
+  if (result.status !== 0) {
+    return null
+  }
+
+  return result.stdout
 }
 
 const files = process.argv.length > 2 ? process.argv.slice(2) : resolveFilesFromStaged()
@@ -99,7 +112,22 @@ for (const file of files) {
   }
 
   const lineCount = countLines(content)
-  if (lineCount > MAX_LINES) {
+  if (lineCount <= MAX_LINES) {
+    continue
+  }
+
+  const previousContent = readHeadFile(file)
+  if (previousContent === null) {
+    violations.push({ file, lineCount })
+    continue
+  }
+
+  const previousLineCount = countLines(previousContent)
+  const becameOversized = previousLineCount <= MAX_LINES
+  const grewOversizedFile =
+    previousLineCount > MAX_LINES &&
+    lineCount - previousLineCount > MAX_ALLOWED_GROWTH_FOR_EXISTING_OVERSIZED_FILE
+  if (becameOversized || grewOversizedFile) {
     violations.push({ file, lineCount })
   }
 }
@@ -108,7 +136,9 @@ if (violations.length === 0) {
   process.exit(0)
 }
 
-process.stderr.write(`Found files that exceed ${MAX_LINES} lines:\n`)
+process.stderr.write(
+  `Found staged files that newly exceed ${MAX_LINES} lines or increase existing oversized files:\n`,
+)
 for (const violation of violations) {
   process.stderr.write(`- ${violation.file}: ${violation.lineCount} lines\n`)
 }

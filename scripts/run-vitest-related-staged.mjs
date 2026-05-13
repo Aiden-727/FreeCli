@@ -27,6 +27,7 @@ const TEST_RELATED_EXTENSIONS = new Set([
   '.mts',
   '.cts',
 ])
+const WINDOWS_MAX_COMMAND_ARGUMENT_CHARS = 6000
 
 function resolveFilesFromStaged() {
   const result = spawnSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
@@ -77,15 +78,13 @@ if (files.length === 0) {
   process.exit(0)
 }
 
-const args = ['exec', 'vitest', 'related', '--run', '--passWithNoTests']
+const baseArgs = ['exec', 'vitest', 'related', '--run', '--passWithNoTests']
 
 if (process.platform === 'win32') {
   for (const excludedGlob of WINDOWS_UNSUPPORTED_TEST_GLOBS) {
-    args.push('--exclude', excludedGlob)
+    baseArgs.push('--exclude', excludedGlob)
   }
 }
-
-args.push(...files)
 
 function normalizeWindowsPath(value) {
   return value.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
@@ -142,7 +141,7 @@ function resolveWindowsVitestInvocation() {
 
   return {
     command: process.execPath,
-    args: [
+    baseArgs: [
       path.join(vitestPackageDir, 'vitest.mjs'),
       'related',
       '--run',
@@ -150,20 +149,57 @@ function resolveWindowsVitestInvocation() {
       '--config',
       path.join(driveRoot, 'vitest.config.ts'),
       ...WINDOWS_UNSUPPORTED_TEST_GLOBS.flatMap(excludedGlob => ['--exclude', excludedGlob]),
-      ...files,
     ],
   }
 }
 
+function chunkFilesForWindows(filePaths, baseArgLength) {
+  if (process.platform !== 'win32') {
+    return [filePaths]
+  }
+
+  const chunks = []
+  let currentChunk = []
+  let currentLength = baseArgLength
+
+  for (const file of filePaths) {
+    const nextLength = currentLength + file.length + 1
+    if (currentChunk.length > 0 && nextLength > WINDOWS_MAX_COMMAND_ARGUMENT_CHARS) {
+      chunks.push(currentChunk)
+      currentChunk = [file]
+      currentLength = baseArgLength + file.length + 1
+      continue
+    }
+
+    currentChunk.push(file)
+    currentLength = nextLength
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk)
+  }
+
+  return chunks
+}
+
 const windowsVitestInvocation = resolveWindowsVitestInvocation()
-const result = spawnSync(
-  windowsVitestInvocation?.command ?? PNPM_COMMAND,
-  windowsVitestInvocation?.args ?? args,
-  {
+const command = windowsVitestInvocation?.command ?? PNPM_COMMAND
+const invocationBaseArgs = windowsVitestInvocation?.baseArgs ?? baseArgs
+const fileChunks = chunkFilesForWindows(
+  files,
+  invocationBaseArgs.reduce((sum, arg) => sum + arg.length + 1, 0),
+)
+
+for (const fileChunk of fileChunks) {
+  const result = spawnSync(command, [...invocationBaseArgs, ...fileChunk], {
     encoding: 'utf8',
     shell: process.platform === 'win32',
     stdio: 'inherit',
-  },
-)
+  })
 
-process.exit(result.status ?? 1)
+  if ((result.status ?? 1) !== 0) {
+    process.exit(result.status ?? 1)
+  }
+}
+
+process.exit(0)
