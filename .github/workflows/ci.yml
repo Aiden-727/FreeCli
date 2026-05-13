@@ -110,6 +110,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install Playwright browser
+        run: pnpm exec playwright install chromium
+
       - name: Windows-specific E2E tests
         env:
           FREECLI_E2E_SKIP_BUILD: '1'
