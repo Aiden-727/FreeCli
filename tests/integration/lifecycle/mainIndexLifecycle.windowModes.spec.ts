@@ -66,10 +66,7 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 0))
 }
 
-async function waitForCondition(
-  predicate: () => boolean,
-  attempts: number = 20,
-): Promise<void> {
+async function waitForCondition(predicate: () => boolean, attempts: number = 20): Promise<void> {
   const tick = async (remainingAttempts: number): Promise<void> => {
     if (predicate() || remainingAttempts <= 0) {
       return

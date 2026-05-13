@@ -52,10 +52,7 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, 0))
 }
 
-async function waitForCondition(
-  predicate: () => boolean,
-  attempts: number = 20,
-): Promise<void> {
+async function waitForCondition(predicate: () => boolean, attempts: number = 20): Promise<void> {
   const tick = async (remainingAttempts: number): Promise<void> => {
     if (predicate() || remainingAttempts <= 0) {
       return
@@ -178,17 +175,17 @@ describe('main process lifecycle', () => {
       },
       is: {
         dev: false,
-        },
-      }))
+      },
+    }))
 
-      vi.doMock('../../../src/app/main/runtimeIconVariant', () => ({
-        createDevelopmentRuntimeIcon: vi.fn(() => null),
-      }))
+    vi.doMock('../../../src/app/main/runtimeIconVariant', () => ({
+      createDevelopmentRuntimeIcon: vi.fn(() => null),
+    }))
 
-      vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
-        createPtyRuntime: () => ({
-          deactivateTransientSessions: vi.fn(),
-          dispose: vi.fn(),
+    vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
+      createPtyRuntime: () => ({
+        deactivateTransientSessions: vi.fn(),
+        dispose: vi.fn(),
       }),
     }))
 

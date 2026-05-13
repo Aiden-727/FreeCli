@@ -69,7 +69,9 @@ function bindTerminalMethod<TArgs extends unknown[]>(
   fallback: (...args: TArgs) => unknown,
 ): (...args: TArgs) => unknown {
   const method = (terminal as unknown as Record<string, unknown>)[methodName]
-  return typeof method === 'function' ? (method as (...args: TArgs) => unknown).bind(terminal) : fallback
+  return typeof method === 'function'
+    ? (method as (...args: TArgs) => unknown).bind(terminal)
+    : fallback
 }
 
 export function TerminalNode({
