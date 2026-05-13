@@ -26,7 +26,6 @@ import type {
   CreateNoteNodeOptions,
   UseWorkspaceCanvasNodesStoreResult,
 } from './useNodesStore.types'
-import { generateSessionBindingId } from '@contexts/session/domain/sessionBindingId'
 import { resolveNodesPlacement } from './useNodesStore.resolvePlacement'
 
 interface UseWorkspaceCanvasNodeCreationParams {

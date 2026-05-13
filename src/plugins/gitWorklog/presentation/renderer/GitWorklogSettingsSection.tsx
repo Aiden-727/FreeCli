@@ -5,7 +5,6 @@ import type {
   GitWorklogPendingImportDto,
   GitWorklogRepositoryDto,
   GitWorklogSettingsDto,
-  RepairGitWorklogRepositoriesResultDto,
 } from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
 import type { AgentSettings } from '@contexts/settings/domain/agentSettings'
@@ -149,7 +148,7 @@ export default function GitWorklogSettingsSection({
         setRefreshTarget(current => (current === target ? null : current))
       }
     },
-    [refresh],
+    [refresh, setState],
   )
 
   const isRefreshBusy = React.useCallback(
@@ -283,13 +282,7 @@ export default function GitWorklogSettingsSection({
         }
       })
       .sort((left, right) => left.workspaceName.localeCompare(right.workspaceName))
-  }, [
-    scanWorkspaceIdByRepositoryId,
-    state.availableWorkspaces,
-    state.dismissedImports,
-    state.pendingImports,
-    worklogSettings.repositories,
-  ])
+  }, [state.availableWorkspaces, state.dismissedImports, state.pendingImports, worklogSettings.repositories])
 
   const workspaceScanRows = React.useMemo<GitWorklogWorkspaceScanRow[]>(() => {
     return workspaceScanItems.flatMap(item => {

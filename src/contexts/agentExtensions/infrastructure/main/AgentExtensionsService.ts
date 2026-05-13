@@ -401,14 +401,21 @@ export async function removeAgentMcpServer(input: RemoveAgentMcpServerInput): Pr
 }
 
 function sanitizeSkillName(name: string): string {
-  return name
-    .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+  return Array.from(name.trim())
+    .map(character => {
+      const codePoint = character.codePointAt(0) ?? 0
+      if (codePoint < 32) {
+        return '-'
+      }
+
+      return '<>:"/\\|?*'.includes(character) ? '-' : character
+    })
+    .join('')
     .replace(/\s+/g, '-')
 }
 
 function buildSkillTemplate(name: string): string {
-  return `---\nname: \"${name}\"\ndescription: \"\"\n---\n\n# ${name}\n\n`
+  return `---\nname: "${name}"\ndescription: ""\n---\n\n# ${name}\n\n`
 }
 
 export async function createAgentSkill(

@@ -640,6 +640,7 @@ export interface PluginBackupSnapshotDto {
   appVersion: string
   plugins: {
     enabledIds: string[]
+    eyeCare?: EyeCareSettingsDto
     quotaMonitor?: BackupQuotaMonitorSettingsDto
     gitWorklog?: GitWorklogSettingsDto
     ossBackup?: BackupOssSettingsDto

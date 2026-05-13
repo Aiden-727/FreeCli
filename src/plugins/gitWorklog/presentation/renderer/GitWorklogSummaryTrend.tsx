@@ -103,12 +103,12 @@ export function GitWorklogSummaryTrend({
               role="img"
               aria-label={t('pluginManager.plugins.gitWorklog.summaryTrendTitle')}
             >
-              {tickValues.map((value, index) => {
+              {tickValues.map(value => {
                 const ratio = value / maxValue
                 const y = PADDING_TOP + plotHeight - ratio * plotHeight
                 return (
                   <line
-                    key={`grid-${index}`}
+                    key={`grid-${value}-${Math.round(y)}`}
                     x1={PADDING_LEFT}
                     y1={y}
                     x2={CHART_WIDTH - PADDING_RIGHT}

@@ -5,7 +5,6 @@ import type { FloatingMessageState } from '../hooks/useFloatingMessage'
 import { AppMessage } from './AppMessage'
 import { AppNotifications, type AppNotification } from './AppNotifications'
 import { ControlCenter } from './ControlCenter'
-import { PluginWorkspaceOverlaySlot } from '@contexts/plugins/presentation/renderer/PluginWorkspaceOverlaySlot'
 
 type SetStateAction<T> = T | ((prev: T) => T)
 

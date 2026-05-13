@@ -69,7 +69,7 @@ function ensureWorkspaceMinimapViewportMask(
     overlayGroup.setAttribute('aria-hidden', 'true')
     overlayGroup.setAttribute('pointer-events', 'none')
     minimapSvg.appendChild(overlayGroup)
-  } else if (overlayGroup.parentElement !== minimapSvg || overlayGroup !== minimapSvg.lastElementChild) {
+  } else if (overlayGroup.parentNode !== minimapSvg || overlayGroup !== minimapSvg.lastChild) {
     minimapSvg.appendChild(overlayGroup)
   }
 

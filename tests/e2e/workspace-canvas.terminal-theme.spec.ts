@@ -6,6 +6,60 @@ import {
   testWorkspacePath,
 } from './workspace-canvas.helpers'
 
+async function verifyInlineTerminalInputForThemes(
+  window: Awaited<ReturnType<typeof launchApp>>['window'],
+  testInfo: Parameters<typeof test>[1],
+  themes: readonly ('dark' | 'light')[],
+  index = 0,
+): Promise<void> {
+  const theme = themes[index]
+  if (!theme) {
+    return
+  }
+
+  await clearAndSeedWorkspace(
+    window,
+    [
+      {
+        id: `node-terminal-inline-${theme}`,
+        title: `terminal-inline-${theme}`,
+        position: { x: 160, y: 140 },
+        width: 520,
+        height: 320,
+      },
+    ],
+    {
+      settings: {
+        uiTheme: theme,
+      },
+    },
+  )
+
+  const terminal = window.locator('.terminal-node').first()
+  const xterm = terminal.locator('.xterm')
+  const helperTextarea = terminal.locator('.xterm-helper-textarea')
+  const inlineCommand = `echo INLINE_${theme.toUpperCase()}`
+
+  await expect(terminal).toBeVisible()
+  await expect(xterm).toBeVisible()
+  await xterm.click()
+  await expect(helperTextarea).toBeFocused()
+  await window.keyboard.type(inlineCommand)
+  await expect(terminal).toContainText(inlineCommand)
+
+  const screenshotPath = testInfo.outputPath(`terminal-inline-${theme}.png`)
+  await terminal.screenshot({ path: screenshotPath })
+  await testInfo.attach(`terminal-inline-${theme}`, {
+    path: screenshotPath,
+    contentType: 'image/png',
+  })
+
+  await window.keyboard.press('Enter')
+  await expect(terminal).toContainText(`INLINE_${theme.toUpperCase()}`)
+
+  await verifyInlineTerminalInputForThemes(window, testInfo, themes, index + 1)
+}
+
 test.describe('Workspace Canvas - Terminal Theme', () => {
   test('shows typed terminal input before submit in both themes', async ({
     browserName,
@@ -14,48 +68,7 @@ test.describe('Workspace Canvas - Terminal Theme', () => {
 
     try {
       void browserName
-
-      for (const theme of ['dark', 'light'] as const) {
-        await clearAndSeedWorkspace(
-          window,
-          [
-            {
-              id: `node-terminal-inline-${theme}`,
-              title: `terminal-inline-${theme}`,
-              position: { x: 160, y: 140 },
-              width: 520,
-              height: 320,
-            },
-          ],
-          {
-            settings: {
-              uiTheme: theme,
-            },
-          },
-        )
-
-        const terminal = window.locator('.terminal-node').first()
-        const xterm = terminal.locator('.xterm')
-        const helperTextarea = terminal.locator('.xterm-helper-textarea')
-        const inlineCommand = `echo INLINE_${theme.toUpperCase()}`
-
-        await expect(terminal).toBeVisible()
-        await expect(xterm).toBeVisible()
-        await xterm.click()
-        await expect(helperTextarea).toBeFocused()
-        await window.keyboard.type(inlineCommand)
-        await expect(terminal).toContainText(inlineCommand)
-
-        const screenshotPath = testInfo.outputPath(`terminal-inline-${theme}.png`)
-        await terminal.screenshot({ path: screenshotPath })
-        await testInfo.attach(`terminal-inline-${theme}`, {
-          path: screenshotPath,
-          contentType: 'image/png',
-        })
-
-        await window.keyboard.press('Enter')
-        await expect(terminal).toContainText(`INLINE_${theme.toUpperCase()}`)
-      }
+      await verifyInlineTerminalInputForThemes(window, testInfo, ['dark', 'light'])
     } finally {
       await electronApp.close()
     }

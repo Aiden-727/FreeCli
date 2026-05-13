@@ -257,6 +257,15 @@ function renderInline(text: string): React.ReactNode[] {
   })
 }
 
+function buildStableListKeys(values: readonly string[], prefix: string): string[] {
+  const occurrenceMap = new Map<string, number>()
+  return values.map(value => {
+    const nextCount = (occurrenceMap.get(value) ?? 0) + 1
+    occurrenceMap.set(value, nextCount)
+    return `${prefix}_${value}_${nextCount}`
+  })
+}
+
 export default function WorkspaceAssistantMarkdown({
   content,
 }: {
@@ -293,22 +302,26 @@ export default function WorkspaceAssistantMarkdown({
         }
 
         if (block.type === 'quote') {
+          const lineKeys = buildStableListKeys(block.lines, `${key}_line`)
           return (
             <blockquote key={key} className="workspace-assistant-markdown__quote">
-              {block.lines.map((line, lineIndex) => (
-                <p key={`${key}_line_${lineIndex}`}>{renderInline(line)}</p>
-              ))}
+              {block.lines.map((line, lineIndex) => {
+                const lineKey = lineKeys[lineIndex] ?? `${key}_line_fallback_${line}`
+                return <p key={lineKey}>{renderInline(line)}</p>
+              })}
             </blockquote>
           )
         }
 
         if (block.type === 'list') {
           const ListTag = block.ordered ? 'ol' : 'ul'
+          const itemKeys = buildStableListKeys(block.items, `${key}_item`)
           return (
             <ListTag key={key} className="workspace-assistant-markdown__list">
-              {block.items.map((item, itemIndex) => (
-                <li key={`${key}_item_${itemIndex}`}>{renderInline(item)}</li>
-              ))}
+              {block.items.map((item, itemIndex) => {
+                const itemKey = itemKeys[itemIndex] ?? `${key}_item_fallback_${item}`
+                return <li key={itemKey}>{renderInline(item)}</li>
+              })}
             </ListTag>
           )
         }

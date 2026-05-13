@@ -302,31 +302,32 @@ export class QuotaMonitorHttpClient {
     verifySsl: boolean,
   ): Promise<QuotaMonitorProfileStateDto> {
     const attempts = Math.max(1, settings.retryTimes)
-    let lastError: QuotaMonitorRequestError | null = null
-
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const tryFetch = async (attempt: number): Promise<QuotaMonitorProfileStateDto> => {
       try {
         const payload = await this.requestStats(settings, profile, verifySsl)
         return this.toProfileState(profile, payload)
       } catch (error) {
-        lastError =
+        const nextError =
           error instanceof QuotaMonitorRequestError
             ? error
             : new QuotaMonitorRequestError(
                 createErrorDescriptor('unknown', '未知错误', this.toDetail(error)),
               )
-      }
+        if (attempt >= attempts - 1) {
+          throw (
+            nextError ??
+            new QuotaMonitorRequestError(createErrorDescriptor('unknown', '未知错误', null))
+          )
+        }
 
-      if (attempt < attempts - 1) {
-        await new Promise(resolve => {
-          setTimeout(resolve, Math.min(5000, 800 * 2 ** attempt))
+        await new Promise<void>(resolveRetry => {
+          setTimeout(resolveRetry, Math.min(5000, 800 * 2 ** attempt))
         })
+        return await tryFetch(attempt + 1)
       }
     }
 
-    throw (
-      lastError ?? new QuotaMonitorRequestError(createErrorDescriptor('unknown', '未知错误', null))
-    )
+    return await tryFetch(0)
   }
 
   private async fetchProfileLogsWithSslMode(params: {
@@ -337,9 +338,7 @@ export class QuotaMonitorHttpClient {
     verifySsl: boolean
   }): Promise<QuotaMonitorModelLogPage> {
     const attempts = Math.max(1, params.settings.retryTimes)
-    let lastError: QuotaMonitorRequestError | null = null
-
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const tryFetch = async (attempt: number): Promise<QuotaMonitorModelLogPage> => {
       try {
         const payload = await this.requestLogPage(
           params.settings,
@@ -350,24 +349,27 @@ export class QuotaMonitorHttpClient {
         )
         return this.toLogPage(payload)
       } catch (error) {
-        lastError =
+        const nextError =
           error instanceof QuotaMonitorRequestError
             ? error
             : new QuotaMonitorRequestError(
                 createErrorDescriptor('unknown', '未知错误', this.toDetail(error)),
               )
-      }
+        if (attempt >= attempts - 1) {
+          throw (
+            nextError ??
+            new QuotaMonitorRequestError(createErrorDescriptor('unknown', '未知错误', null))
+          )
+        }
 
-      if (attempt < attempts - 1) {
-        await new Promise(resolve => {
-          setTimeout(resolve, Math.min(5000, 800 * 2 ** attempt))
+        await new Promise<void>(resolveRetry => {
+          setTimeout(resolveRetry, Math.min(5000, 800 * 2 ** attempt))
         })
+        return await tryFetch(attempt + 1)
       }
     }
 
-    throw (
-      lastError ?? new QuotaMonitorRequestError(createErrorDescriptor('unknown', '未知错误', null))
-    )
+    return await tryFetch(0)
   }
 
   private async requestStats(

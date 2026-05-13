@@ -101,7 +101,9 @@ export async function runRawBracketedPasteEchoScenario() {
     process.stdin.resume()
   })
 
-  await sleep(20_000)
+  // Exit promptly after emitting the assertion marker so Electron teardown
+  // does not wait on an otherwise idle raw-mode PTY child.
+  await sleep(50)
 }
 
 export async function runRawAltScreenWheelEchoScenario() {
@@ -158,5 +160,7 @@ export async function runRawAltScreenWheelEchoScenario() {
     process.stdin.resume()
   })
 
-  await sleep(20_000)
+  // Exit promptly after emitting the assertion marker so Electron teardown
+  // does not wait on an otherwise idle raw-mode PTY child.
+  await sleep(50)
 }

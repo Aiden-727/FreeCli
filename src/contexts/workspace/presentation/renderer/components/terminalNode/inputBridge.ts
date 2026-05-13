@@ -3,16 +3,19 @@ type PtyWriteEncoding = 'utf8' | 'binary'
 type PtyWritePayload = {
   data: string
   encoding: PtyWriteEncoding
+  coalesce: boolean
 }
 
 type TerminalClipboardController = {
   getSelection: () => string
   hasSelection: () => boolean
-  paste: (data: string) => void
+  modes?: {
+    bracketedPasteMode?: boolean
+  }
 }
 
 type PtyWriteQueue = {
-  enqueue: (data: string, encoding?: PtyWriteEncoding) => void
+  enqueue: (data: string, encoding?: PtyWriteEncoding, coalesce?: boolean) => void
   flush: () => void
 }
 
@@ -145,17 +148,24 @@ export async function readTextFromClipboard(): Promise<string> {
 
 export async function pasteTextFromClipboard({
   readClipboardText = readTextFromClipboard,
+  ptyWriteQueue,
   terminal,
 }: {
   readClipboardText?: () => Promise<string> | string
-  terminal: Pick<TerminalClipboardController, 'paste'>
+  ptyWriteQueue: PtyWriteQueue
+  terminal: TerminalClipboardController
 }): Promise<void> {
   const text = await readClipboardText()
   if (text.length === 0) {
     return
   }
 
-  terminal.paste(text)
+  const normalizedText = text.replace(/\r?\n/g, '\r')
+  const bracketedText = terminal.modes?.bracketedPasteMode
+    ? `\u001b[200~${normalizedText}\u001b[201~`
+    : normalizedText
+  ptyWriteQueue.enqueue(bracketedText)
+  ptyWriteQueue.flush()
 }
 
 export function handleTerminalCustomKeyEvent({
@@ -172,7 +182,7 @@ export function handleTerminalCustomKeyEvent({
   event: KeyboardEvent
   getPendingPastePromise?: () => Promise<void> | null
   pasteClipboardText?: (
-    options: Pick<Parameters<typeof pasteTextFromClipboard>[0], 'terminal'>,
+    options: Pick<Parameters<typeof pasteTextFromClipboard>[0], 'ptyWriteQueue' | 'terminal'>,
   ) => Promise<void> | void
   onOpenFind?: () => void
   platformInfo?: PlatformInfo
@@ -225,7 +235,7 @@ export function handleTerminalCustomKeyEvent({
     if (event.type === 'keydown' && isWindowsTerminalPasteShortcut(event, platformInfo)) {
       event.preventDefault()
       event.stopPropagation()
-      void pasteClipboardText({ terminal })
+      void pasteClipboardText({ ptyWriteQueue, terminal })
       return false
     }
 
@@ -251,7 +261,7 @@ export function createPtyWriteQueue(
     onStateChange?: (state: PtyWriteQueueState) => void
   },
 ): {
-  enqueue: (data: string, encoding?: PtyWriteEncoding) => void
+  enqueue: (data: string, encoding?: PtyWriteEncoding, coalesce?: boolean) => void
   flush: () => void
   dispose: () => void
 } {
@@ -272,13 +282,19 @@ export function createPtyWriteQueue(
     }
 
     let data = firstPayload.data
-    while (pendingWrites.length > 0 && pendingWrites[0]?.encoding === firstPayload.encoding) {
+    while (
+      pendingWrites.length > 0 &&
+      pendingWrites[0]?.encoding === firstPayload.encoding &&
+      pendingWrites[0]?.coalesce === true &&
+      firstPayload.coalesce === true
+    ) {
       data += pendingWrites.shift()?.data ?? ''
     }
 
     return {
       data,
       encoding: firstPayload.encoding,
+      coalesce: firstPayload.coalesce,
     }
   }
 
@@ -304,12 +320,12 @@ export function createPtyWriteQueue(
   }
 
   return {
-    enqueue: (data, encoding = 'utf8') => {
+    enqueue: (data, encoding = 'utf8', coalesce = true) => {
       if (isDisposed || data.length === 0) {
         return
       }
 
-      pendingWrites.push({ data, encoding })
+      pendingWrites.push({ data, encoding, coalesce })
       emitStateChange()
     },
     flush,

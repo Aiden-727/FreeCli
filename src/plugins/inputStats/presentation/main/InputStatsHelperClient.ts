@@ -127,7 +127,7 @@ export class InputStatsHelperClient {
       }
 
       const hasPendingCommand = this.pending !== null
-      const isCleanExit = signal == null && code === 0
+      const isCleanExit = (signal === null || signal === undefined) && code === 0
       if (!hasPendingCommand && isCleanExit) {
         return
       }
@@ -292,7 +292,7 @@ export class InputStatsHelperClient {
       return false
     }
 
-    return !process.killed && process.exitCode == null
+    return !process.killed && (process.exitCode === null || process.exitCode === undefined)
   }
 
   private markProcessExitAsExpected(process: ChildProcessWithoutNullStreams): void {

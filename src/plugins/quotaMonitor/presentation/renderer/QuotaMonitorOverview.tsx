@@ -791,30 +791,47 @@ function TrendCard({
   React.useEffect(() => {
     setHoveredIndex(null)
   }, [effectiveWindow])
-  const summarySeriesPoints =
-    variant === 'summary-line'
-      ? activeSeries.map(item => ({
-          ...item,
-          points: createTrendPlotPoints(
-            item.values,
-            chartMaxValue,
-            summaryWidth,
-            summaryHeight,
-            summaryPaddingLeft,
-            summaryPaddingRight,
-            summaryPaddingTop,
-            summaryPaddingBottom,
-          ),
-        }))
-      : []
+  const summarySeriesPoints = React.useMemo(
+    () =>
+      variant === 'summary-line'
+        ? activeSeries.map(item => ({
+            ...item,
+            points: createTrendPlotPoints(
+              item.values,
+              chartMaxValue,
+              summaryWidth,
+              summaryHeight,
+              summaryPaddingLeft,
+              summaryPaddingRight,
+              summaryPaddingTop,
+              summaryPaddingBottom,
+            ),
+          }))
+        : [],
+    [
+      activeSeries,
+      chartMaxValue,
+      summaryHeight,
+      summaryPaddingBottom,
+      summaryPaddingLeft,
+      summaryPaddingRight,
+      summaryPaddingTop,
+      summaryWidth,
+      variant,
+    ],
+  )
   const currentPointLayers =
-    variant === 'summary-line'
-      ? summarySeriesPoints.map(item => ({
-          key: item.label,
-          color: item.color,
-          points: item.points,
-        }))
-      : []
+    React.useMemo(
+      () =>
+        variant === 'summary-line'
+          ? summarySeriesPoints.map(item => ({
+              key: item.label,
+              color: item.color,
+              points: item.points,
+            }))
+          : [],
+      [summarySeriesPoints, variant],
+    )
   const renderedPathLayers =
     variant === 'summary-line'
       ? (animatedPointLayers ?? currentPointLayers)
@@ -989,13 +1006,13 @@ function TrendCard({
                   preserveAspectRatio="none"
                   aria-hidden="true"
                 >
-                  {tickValues.map((value, index) => {
+                  {tickValues.map(value => {
                     const ratio = value / chartMaxValue
                     const plotHeight = summaryHeight - summaryPaddingTop - summaryPaddingBottom
                     const y = summaryPaddingTop + plotHeight - ratio * plotHeight
                     return (
                       <line
-                        key={`${testId}-grid-${index}`}
+                        key={`${testId}-grid-${value}-${Math.round(y)}`}
                         className="quota-monitor-overview__summary-trend-grid-line"
                         x1={summaryPaddingLeft}
                         x2={summaryWidth - summaryPaddingRight}
@@ -1043,7 +1060,7 @@ function TrendCard({
 
                     return (
                       <rect
-                        key={`${testId}-hover-zone-${label}-${index}`}
+                        key={`${testId}-hover-zone-${label}-${Math.round(startX)}-${Math.round(endX)}`}
                         className="quota-monitor-overview__summary-trend-hit-area"
                         x={startX}
                         y={summaryPaddingTop}

@@ -65,23 +65,27 @@ export function getGitWorklogCalendarWindowPoints(
   startDay.setDate(startDay.getDate() - (normalizedWindowSize - 1))
 
   const windowPoints: GitWorklogDailyPointDto[] = []
-  for (let cursor = new Date(startDay); cursor <= endDay; cursor.setDate(cursor.getDate() + 1)) {
+  let cursor = new Date(startDay)
+  while (cursor <= endDay) {
     const currentDay = formatDay(cursor)
     const existing = pointsByDay.get(currentDay)
     if (existing) {
       windowPoints.push(existing)
-      continue
+    } else {
+      windowPoints.push({
+        day: currentDay,
+        label: formatMonthDay(cursor),
+        commitCount: 0,
+        filesChanged: 0,
+        additions: 0,
+        deletions: 0,
+        changedLines: 0,
+      })
     }
 
-    windowPoints.push({
-      day: currentDay,
-      label: formatMonthDay(cursor),
-      commitCount: 0,
-      filesChanged: 0,
-      additions: 0,
-      deletions: 0,
-      changedLines: 0,
-    })
+    const nextCursor = new Date(cursor)
+    nextCursor.setDate(nextCursor.getDate() + 1)
+    cursor = nextCursor
   }
 
   return windowPoints

@@ -57,6 +57,17 @@ const onPtyExit = (sessionId: string, exitCode: number): void => {
   send({ type: 'exit', sessionId, exitCode })
 }
 
+function writeWindowsPtyInput(pty: IPty, data: string): void {
+  if (data.length <= 1) {
+    pty.write(data)
+    return
+  }
+
+  for (const char of data) {
+    pty.write(char)
+  }
+}
+
 function spawnPtySession(request: PtyHostSpawnRequest): void {
   const sessionId = crypto.randomUUID()
   const pty = createPtySession(spawn, request)
@@ -82,7 +93,8 @@ function writeToSession(request: PtyHostWriteRequest): void {
 
   if (request.encoding === 'binary') {
     if (process.platform === 'win32') {
-      pty.write(convertHighByteX10MouseReportsToSgr(request.data))
+      const converted = convertHighByteX10MouseReportsToSgr(request.data)
+      writeWindowsPtyInput(pty, converted)
     } else {
       pty.write(Buffer.from(request.data, 'binary'))
     }

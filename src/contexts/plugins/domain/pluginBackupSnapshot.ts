@@ -16,6 +16,7 @@ import {
   normalizeQuotaMonitorSettings,
 } from './quotaMonitorSettings'
 import { DEFAULT_SYSTEM_MONITOR_SETTINGS } from './systemMonitorSettings'
+import { DEFAULT_EYE_CARE_SETTINGS, normalizeEyeCareSettings } from './eyeCareSettings'
 import { normalizeBuiltinPluginIds } from './pluginManifest'
 import { normalizeWorkspaceAssistantSettings } from './workspaceAssistantSettings'
 
@@ -74,6 +75,7 @@ export function createPluginBackupSnapshot(options: {
     appVersion,
     plugins: {
       enabledIds: normalizeBuiltinPluginIds(pluginSettings.enabledIds),
+      eyeCare: normalizeEyeCareSettings(pluginSettings.eyeCare),
       quotaMonitor: sanitizeQuotaMonitorSettings(pluginSettings.quotaMonitor),
       gitWorklog: normalizeGitWorklogSettings(pluginSettings.gitWorklog),
       ossBackup: sanitizeOssBackupSettings(pluginSettings.ossBackup),
@@ -119,6 +121,8 @@ export function normalizePluginBackupSnapshot(snapshot: unknown): PluginBackupSn
     appVersion,
     plugins: {
       enabledIds: normalizeBuiltinPluginIds(plugins.enabledIds),
+      eyeCare:
+        plugins.eyeCare !== undefined ? normalizeEyeCareSettings(plugins.eyeCare) : undefined,
       quotaMonitor:
         plugins.quotaMonitor !== undefined
           ? sanitizeQuotaMonitorSettings(normalizeQuotaMonitorSettings(plugins.quotaMonitor))
@@ -150,6 +154,12 @@ export function mergeRestoredPluginSettings(
       snapshot.plugins.enabledIds.length > 0
         ? normalizeBuiltinPluginIds(snapshot.plugins.enabledIds)
         : current.enabledIds,
+    eyeCare: snapshot.plugins.eyeCare
+      ? normalizeEyeCareSettings({
+          ...current.eyeCare,
+          ...snapshot.plugins.eyeCare,
+        })
+      : current.eyeCare,
     inputStats: current.inputStats,
     systemMonitor: current.systemMonitor,
     quotaMonitor: snapshot.plugins.quotaMonitor
@@ -182,6 +192,7 @@ export function mergeRestoredPluginSettings(
 export function getEmptyPluginSettingsForBackup(): PluginSettings {
   return {
     enabledIds: [],
+    eyeCare: DEFAULT_EYE_CARE_SETTINGS,
     inputStats: DEFAULT_INPUT_STATS_SETTINGS,
     systemMonitor: DEFAULT_SYSTEM_MONITOR_SETTINGS,
     quotaMonitor: DEFAULT_QUOTA_MONITOR_SETTINGS,

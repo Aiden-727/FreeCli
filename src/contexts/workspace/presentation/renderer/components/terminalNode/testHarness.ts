@@ -3,7 +3,10 @@ import type { Terminal } from '@xterm/xterm'
 type TerminalSelectionHandle = Pick<
   Terminal,
   'clearSelection' | 'getSelection' | 'hasSelection' | 'selectAll' | 'cols' | 'rows' | 'element'
->
+> & {
+  emitBinaryInput?: (data: string) => void
+  sessionId?: string
+}
 
 type TerminalSelectionTestApi = {
   clearSelection: (nodeId: string) => boolean
@@ -96,15 +99,27 @@ function getTerminalSelectionTestApi(): TerminalSelectionTestApi | undefined {
         }
       },
       emitBinaryInput: (nodeId, data) => {
-        const terminal = terminalHandles.get(nodeId) as unknown as {
-          _core?: { coreService?: { triggerBinaryEvent?: (payload: string) => void } }
-        }
-        const coreService = terminal?._core?.coreService
-        if (!coreService || typeof coreService.triggerBinaryEvent !== 'function') {
+        const terminal = terminalHandles.get(nodeId)
+        if (!terminal) {
           return false
         }
 
-        coreService.triggerBinaryEvent(data)
+        if (terminal.emitBinaryInput) {
+          terminal.emitBinaryInput(data)
+          return true
+        }
+
+        if (typeof terminal.sessionId !== 'string' || terminal.sessionId.length === 0) {
+          return false
+        }
+
+        void window.freecliApi.pty
+          .write({
+            sessionId: terminal.sessionId,
+            data,
+            encoding: 'binary',
+          })
+          .catch(() => undefined)
         return true
       },
       getSelection: nodeId => terminalHandles.get(nodeId)?.getSelection() ?? null,

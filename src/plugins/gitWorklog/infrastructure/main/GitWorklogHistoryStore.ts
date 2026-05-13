@@ -82,7 +82,11 @@ interface GitWorklogHeatmapCacheEntry {
 
 interface GitWorklogDailyHistoryEntry {
   refsSnapshot: GitWorklogRefSnapshotEntry[]
-  dailyPoints: GitWorklogDailyPointDto[]
+  dailyPoints: Array<
+    GitWorklogDailyPointDto & {
+      files: string[]
+    }
+  >
   builtAt: string
   updatedAt: string
 }

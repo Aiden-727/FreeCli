@@ -4,6 +4,7 @@
     "src/app/renderer/**/*",
     "src/app/renderer/*.d.ts",
     "src/app/preload/**/*",
+    "src/platform/process/pty/**/*",
     "src/plugins/**/presentation/renderer/**/*",
     "src/shared/**/*",
     "src/contexts/**/domain/**/*",

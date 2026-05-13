@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../../shared/contracts/ipc'
 import type {
-  EyeCareSettingsDto,
   EyeCareStateDto,
   AttachTerminalInput,
   AcceptGitWorklogPendingImportInput,

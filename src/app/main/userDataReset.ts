@@ -78,13 +78,11 @@ export async function consumeAndResetUserDataIfNeeded(userDataPath: string): Pro
 
   try {
     const entries = await readdir(resetRootPath)
-    for (const entry of entries) {
-      if (entry === USER_DATA_RESET_MARKER_FILE_NAME) {
-        continue
-      }
-
-      await removePath(join(resetRootPath, entry))
-    }
+    await Promise.all(
+      entries
+        .filter(entry => entry !== USER_DATA_RESET_MARKER_FILE_NAME)
+        .map(entry => removePath(join(resetRootPath, entry))),
+    )
     await removePath(resetRootPath)
   } catch {
     await removePath(resetRootPath)

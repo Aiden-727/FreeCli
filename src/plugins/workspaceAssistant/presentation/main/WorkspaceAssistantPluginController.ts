@@ -580,7 +580,7 @@ export class WorkspaceAssistantPluginController {
     let buffer = ''
     let accumulatedText = ''
 
-    while (true) {
+    const readStreamChunk = async (): Promise<void> => {
       const { done, value } = await reader.read().catch(error => {
         if (abortController.signal.aborted || isAbortError(error)) {
           throw new Error('工作流助手流式回答已被用户停止。')
@@ -589,7 +589,7 @@ export class WorkspaceAssistantPluginController {
         throw error
       })
       if (done) {
-        break
+        return
       }
 
       if (abortController.signal.aborted) {
@@ -648,7 +648,11 @@ export class WorkspaceAssistantPluginController {
           this.patchAssistantReply(assistantMessageId, accumulatedText)
         }
       }
+
+      await readStreamChunk()
     }
+
+    await readStreamChunk()
 
     buffer += decoder.decode()
     if (buffer.trim().length > 0) {

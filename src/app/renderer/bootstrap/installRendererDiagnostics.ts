@@ -17,15 +17,6 @@ async function writeRendererDiagnostic(options: {
   level?: 'info' | 'warn' | 'error'
 }): Promise<void> {
   const api = window.freecliApi?.appLifecycle?.writeDiagnosticLog
-  const line = `[renderer][${options.source}] ${options.message}`
-
-  if (options.level === 'error') {
-    console.error(line, options.detail ?? '')
-  } else if (options.level === 'warn') {
-    console.warn(line, options.detail ?? '')
-  } else {
-    console.info(line, options.detail ?? '')
-  }
 
   if (typeof api !== 'function') {
     return
@@ -39,8 +30,8 @@ async function writeRendererDiagnostic(options: {
       message: options.message,
       detail: options.detail,
     })
-  } catch (error) {
-    console.error('[renderer][diagnostics] failed to write renderer diagnostic log', error)
+  } catch {
+    // Diagnostics logging is best-effort and must never break renderer bootstrap.
   }
 }
 
@@ -71,4 +62,3 @@ export function installRendererDiagnostics(): void {
     })
   })
 }
-

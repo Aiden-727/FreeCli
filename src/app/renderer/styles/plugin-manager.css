@@ -191,18 +191,11 @@
 }
 
 .plugin-manager-panel__plugin-list-shell {
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--cove-quota-subcard-border) 76%, white 24%);
-  border-radius: 22px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--cove-quota-card-surface-alt) 96%, white 4%) 0%,
-    color-mix(in srgb, var(--cove-quota-card-surface) 98%, white 2%) 100%
-  );
-  box-shadow:
-    0 12px 24px color-mix(in srgb, var(--cove-quota-card-shadow) 28%, transparent),
-    0 3px 10px color-mix(in srgb, var(--cove-quota-card-shadow) 16%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 14%, transparent);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .plugin-manager-panel__plugin-row {
@@ -5226,8 +5219,8 @@
 .eye-care-overlay__timer {
   font-size: clamp(88px, 16vw, 156px);
   line-height: 0.88;
-  font-weight: 800;
-  letter-spacing: -0.09em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--cove-eye-care-overlay-title);
   text-shadow: var(--cove-eye-care-overlay-timer-shadow);
@@ -6967,7 +6960,7 @@
   }
 
   .plugin-manager-panel__plugin-list-shell {
-    padding: 10px;
+    padding: 0;
   }
 
   .plugin-manager-panel__control-wide {

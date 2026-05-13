@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, nativeImage, ipcMain } from 'electron'
 import { isAbsolute, join, relative, resolve, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { IPC_CHANNELS } from '../../shared/contracts/ipc'
 import { hydrateCliEnvironmentForAppLaunch } from '../../platform/os/CliEnvironment'
 import { registerIpcHandlers } from './ipc/registerIpcHandlers'
 import { registerControlSurfaceServer } from './controlSurface/registerControlSurfaceServer'
@@ -299,7 +300,7 @@ async function prepareWindowClose(window: BrowserWindow): Promise<void> {
     return
   }
 
-  await new Promise<void>(resolve => {
+  await new Promise<void>(resolveClosePreparation => {
     let settled = false
     const cleanup = (): void => {
       ipcMain.removeListener(IPC_CHANNELS.appLifecycleWindowClosePrepared, handlePrepared)
@@ -312,7 +313,7 @@ async function prepareWindowClose(window: BrowserWindow): Promise<void> {
 
       settled = true
       cleanup()
-      resolve()
+      resolveClosePreparation()
     }
     const handlePrepared = (event: Electron.IpcMainEvent): void => {
       if (event.sender.id !== webContents.id) {

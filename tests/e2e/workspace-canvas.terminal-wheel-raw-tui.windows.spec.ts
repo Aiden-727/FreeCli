@@ -10,7 +10,7 @@ test.describe('Workspace Canvas - Terminal Wheel Raw TUI (Windows)', () => {
 
   test('forwards wheel input to an alternate-screen codex-style TUI', async () => {
     const nodeId = 'node-raw-wheel-windows'
-    const { electronApp, window } = await launchApp({ cleanupUserDataDir: false })
+    const { electronApp, window } = await launchApp()
 
     try {
       await clearAndSeedWorkspace(window, [
@@ -36,21 +36,45 @@ test.describe('Workspace Canvas - Terminal Wheel Raw TUI (Windows)', () => {
       await window.keyboard.press('Enter')
 
       await expect(terminal).toContainText('ALT_SCREEN_WHEEL_READY')
+      await window.waitForTimeout(120)
 
-      const x10WheelReport = '\u001b[M' + String.fromCharCode(32 + 64, 32 + 120, 32 + 120)
-      const dispatched = await window.evaluate(
-        ({ currentNodeId, report }) => {
-          const api = window.__freecliTerminalSelectionTestApi
-          if (!api || typeof api.emitBinaryInput !== 'function') {
-            return false
-          }
+      const sgrWheelReport = '\u001b[<64;120;120M'
+      await expect
+        .poll(
+          async () => {
+            return await window.evaluate(
+              async ({ currentNodeId, report }) => {
+                const currentWindow = window as typeof window & {
+                  __freecliWorkspaceCanvasTestApi?: {
+                    getSessionIdByNodeId: (nodeId: string) => string | null
+                  }
+                }
+                const sessionId =
+                  currentWindow.__freecliWorkspaceCanvasTestApi?.getSessionIdByNodeId(currentNodeId) ??
+                  null
+                if (!sessionId) {
+                  return false
+                }
 
-          return api.emitBinaryInput(currentNodeId, report)
-        },
-        { currentNodeId: nodeId, report: x10WheelReport },
-      )
-
-      expect(dispatched).toBe(true)
+                await Array.from(report).reduce<Promise<void>>((chain, char) => {
+                  return chain.then(() =>
+                    window.freecliApi.pty.write({
+                      sessionId,
+                      data: char,
+                    }),
+                  )
+                }, Promise.resolve())
+                return true
+              },
+              { currentNodeId: nodeId, report: sgrWheelReport },
+            )
+          },
+          {
+            timeout: 5_000,
+            intervals: [100, 150, 250],
+          },
+        )
+        .toBe(true)
 
       await expect(terminal).toContainText('[freecli-test-wheel] wheel-up')
       await expect(terminal).not.toContainText('[freecli-test-wheel] timeout')

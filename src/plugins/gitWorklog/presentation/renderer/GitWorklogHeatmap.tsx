@@ -16,9 +16,15 @@ function resolveHeatLevel(value: number, maxValue: number): 0 | 1 | 2 | 3 | 4 {
   }
 
   const ratio = value / maxValue
-  if (ratio <= 0.25) return 1
-  if (ratio <= 0.5) return 2
-  if (ratio <= 0.75) return 3
+  if (ratio <= 0.25) {
+    return 1
+  }
+  if (ratio <= 0.5) {
+    return 2
+  }
+  if (ratio <= 0.75) {
+    return 3
+  }
   return 4
 }
 
@@ -210,13 +216,13 @@ export function GitWorklogHeatmap({
     const deletionsMap = new Map(pointsInYear.map(point => [point.day, point.deletions]))
     const totalChangedLines = pointsInYear.reduce((sum, point) => sum + point.changedLines, 0)
     const maxChangedLines = Math.max(0, ...pointsInYear.map(point => point.changedLines))
-    const weeks = Array.from({ length: weekCount }, (_, week) => {
-      const weekStart = addDays(gridStart, week * HEATMAP_ROWS)
+    const weeks = Array.from({ length: weekCount }, (_unusedWeek, weekIndex) => {
+      const weekStart = addDays(gridStart, weekIndex * HEATMAP_ROWS)
 
       return {
-        key: `week-${week}`,
-        cells: Array.from({ length: HEATMAP_ROWS }, (_, dayOffset) => {
-          const day = addDays(weekStart, dayOffset)
+        key: `week-${weekIndex}`,
+        cells: Array.from({ length: HEATMAP_ROWS }, (_unusedDay, dayOffsetIndex) => {
+          const day = addDays(weekStart, dayOffsetIndex)
           const dayKey = toDayKey(day)
           const inYear = day >= periodStart && day <= periodEnd
           const changedLines = inYear ? (changedMap.get(dayKey) ?? 0) : 0

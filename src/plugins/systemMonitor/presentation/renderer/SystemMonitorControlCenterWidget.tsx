@@ -3,7 +3,7 @@ import { Activity } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
 import type { ControlCenterPluginWidgetProps } from '../../../../contexts/plugins/presentation/renderer/types'
 import { useSystemMonitorState } from './useSystemMonitorState'
-import { formatPercent, formatSpeed } from './systemMonitorFormatting'
+import { formatPercent } from './systemMonitorFormatting'
 
 export default function SystemMonitorControlCenterWidget({
   onOpenPluginManager,

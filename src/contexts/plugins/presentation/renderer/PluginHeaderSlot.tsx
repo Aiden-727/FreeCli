@@ -3,6 +3,7 @@ import type { BuiltinPluginId } from '../../domain/pluginManifest'
 import { getHeaderPluginWidget } from './pluginContributionRegistry'
 
 const HEADER_WIDGET_ORDER: Record<BuiltinPluginId, number> = {
+  'eye-care': 5,
   'system-monitor': 10,
   'oss-backup': 20,
   'quota-monitor': 30,

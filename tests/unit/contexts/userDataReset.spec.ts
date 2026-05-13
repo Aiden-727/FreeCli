@@ -17,9 +17,7 @@ async function createTempDir(prefix: string): Promise<string> {
 
 describe('userDataReset', () => {
   afterEach(async () => {
-    for (const dir of createdDirs.splice(0)) {
-      await rm(dir, { recursive: true, force: true })
-    }
+    await Promise.all(createdDirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
   })
 
   it('does nothing when no reset marker exists', async () => {

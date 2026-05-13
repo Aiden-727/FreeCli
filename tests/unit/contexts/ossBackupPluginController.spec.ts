@@ -210,7 +210,11 @@ describe('OssBackupPluginController', () => {
     expect(putJson.mock.calls.some(call => call[1] === 'freecli/legacy/latest.json')).toBe(true)
     expect(putJson.mock.calls.some(call => call[1] === 'freecli/legacy/manifest.json')).toBe(true)
     const latestSnapshotCall = putJson.mock.calls.find(call => call[1] === 'freecli/legacy/latest.json')
-    expect((latestSnapshotCall?.[2] as PluginBackupSnapshotDto).plugins.ossBackup?.objectKey).toBe(
+    expect(
+      (
+        latestSnapshotCall?.[2] as PluginBackupSnapshotDto | undefined
+      )?.plugins.ossBackup?.objectKey,
+    ).toBe(
       'freecli/legacy',
     )
 

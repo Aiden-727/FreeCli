@@ -65,7 +65,6 @@ function buildMiniTrendChartModel(points: GitWorklogDailyPointDto[]): MiniTrendC
       MINI_PADDING_BOTTOM,
     ),
   )
-  const plotHeight = MINI_HEIGHT - MINI_PADDING_TOP - MINI_PADDING_BOTTOM
   const tickValues = Array.from({ length: MINI_GRID_LINES }, (_, index) => {
     const ratio = (MINI_GRID_LINES - 1 - index) / (MINI_GRID_LINES - 1)
     return Math.round(maxValue * ratio)
@@ -96,12 +95,12 @@ function renderMiniTrendSvg(model: MiniTrendChartModel, className?: string): Rea
       viewBox={`0 0 ${MINI_WIDTH} ${MINI_HEIGHT}`}
       preserveAspectRatio="none"
     >
-      {model.tickValues.map((value, index) => {
+      {model.tickValues.map(value => {
         const ratio = value / maxValue
         const y = MINI_PADDING_TOP + plotHeight - ratio * plotHeight
         return (
           <line
-            key={`grid-${index}`}
+            key={`grid-${value}-${Math.round(y)}`}
             x1={MINI_PADDING_LEFT}
             y1={y}
             x2={MINI_WIDTH - MINI_PADDING_RIGHT}

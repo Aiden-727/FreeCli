@@ -9,7 +9,8 @@ const tinyPngBase64 =
 test.describe('Workspace Canvas - Terminal Drop (Windows)', () => {
   test.skip(windowsOnly, 'Windows only')
 
-  test('drops an image onto the terminal as a quoted filesystem path', async ({}, testInfo) => {
+  test('drops an image onto the terminal as a quoted filesystem path', async ({ page }, testInfo) => {
+    void page
     const { electronApp, window } = await launchApp()
 
     try {
@@ -82,7 +83,8 @@ test.describe('Workspace Canvas - Terminal Drop (Windows)', () => {
     }
   })
 
-  test('keeps canvas image drop behavior on the pane', async ({}, testInfo) => {
+  test('keeps canvas image drop behavior on the pane', async ({ page }, testInfo) => {
+    void page
     const { electronApp, window } = await launchApp()
 
     try {

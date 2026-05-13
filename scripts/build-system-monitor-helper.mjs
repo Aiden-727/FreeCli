@@ -86,13 +86,6 @@ if (result.status !== 0) {
     hasRequiredPublishedFiles(outputDir)
 
   if (allowFallbackToExistingOutput) {
-    console.warn(
-      [
-        '[system-monitor-helper] dotnet publish failed, falling back to the existing helper output.',
-        'Why: local dev should not be blocked by transient NuGet/network failures when a valid helper build already exists.',
-        `target=${outputDir}`,
-      ].join(' '),
-    )
     process.exit(0)
   }
 
@@ -150,6 +143,6 @@ try {
       'Close any running FreeCli instance and terminate WindowsMonitorHelper.exe before building again.',
       `target=${outputDir}`,
       `detail=${detail}`,
-    ].join(' '),
+    ].join(' '), { cause: error },
   )
 }

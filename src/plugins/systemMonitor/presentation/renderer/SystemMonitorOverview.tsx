@@ -271,13 +271,13 @@ function TrafficTrendCard({
               preserveAspectRatio="none"
               aria-hidden="true"
             >
-              {tickValues.map((value, index) => {
+              {tickValues.map(value => {
                 const ratio = value / chartMaxValue
                 const plotHeight = height - paddingTop - paddingBottom
                 const y = paddingTop + plotHeight - ratio * plotHeight
                 return (
                   <line
-                    key={`${testId}-grid-${index}`}
+                    key={`${testId}-grid-${value}-${Math.round(y)}`}
                     className="quota-monitor-overview__summary-trend-grid-line"
                     x1={paddingLeft}
                     x2={width - paddingRight}

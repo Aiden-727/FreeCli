@@ -6,6 +6,25 @@ import {
   testWorkspacePath,
 } from './workspace-canvas.helpers'
 
+async function verifyDragCheckpoints(
+  drag: Awaited<ReturnType<typeof beginDragMouse>>,
+  window: Page,
+  checkpoints: ReadonlyArray<{ x: number; y: number }>,
+  maxGapX: number,
+  index = 0,
+): Promise<void> {
+  const point = checkpoints[index]
+  if (!point) {
+    return
+  }
+
+  await drag.moveTo(point, { settleAfterMoveMs: 48 })
+  const draggingGap = await measureTaskAgentEdgeGap(window)
+  expect(draggingGap.gapX).toBeLessThan(maxGapX)
+  expect(draggingGap.overlapsVertically).toBe(true)
+  await verifyDragCheckpoints(drag, window, checkpoints, maxGapX, index + 1)
+}
+
 async function measureTaskAgentEdgeGap(window: Page): Promise<{
   edgeRight: number
   edgeTop: number
@@ -151,12 +170,7 @@ test.describe('Workspace Canvas - Task Agent Edge Drag', () => {
           { x: headerBox.x + 420, y: headerBox.y + 140 },
         ]
 
-        for (const point of checkpoints) {
-          await drag.moveTo(point, { settleAfterMoveMs: 48 })
-          const draggingGap = await measureTaskAgentEdgeGap(window)
-          expect(draggingGap.gapX).toBeLessThan(32)
-          expect(draggingGap.overlapsVertically).toBe(true)
-        }
+        await verifyDragCheckpoints(drag, window, checkpoints, 32)
       } finally {
         await drag.release()
       }
@@ -315,12 +329,7 @@ test.describe('Workspace Canvas - Task Agent Edge Drag', () => {
           },
         ]
 
-        for (const point of checkpoints) {
-          await drag.moveTo(point, { settleAfterMoveMs: 48 })
-          const draggingGap = await measureTaskAgentEdgeGap(window)
-          expect(draggingGap.gapX).toBeLessThan(40)
-          expect(draggingGap.overlapsVertically).toBe(true)
-        }
+        await verifyDragCheckpoints(drag, window, checkpoints, 40)
       } finally {
         await drag.release()
       }

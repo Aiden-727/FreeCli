@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 import {
   beginDragMouse,
   createTestUserDataDir,
-  dragMouse,
   launchApp,
   removePathWithRetry,
   seedWorkspaceState,

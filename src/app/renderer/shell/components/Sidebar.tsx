@@ -604,10 +604,6 @@ export function Sidebar({
     [workspaces],
   )
 
-  const activeWorkspaceIds = React.useMemo(
-    () => new Set(activeWorkspaces.map(workspace => workspace.id)),
-    [activeWorkspaces],
-  )
   const archivedWorkspaceIds = React.useMemo(
     () => new Set(archivedWorkspaces.map(workspace => workspace.id)),
     [archivedWorkspaces],
@@ -1045,7 +1041,13 @@ export function Sidebar({
       window.removeEventListener('mousemove', handleWindowMouseMove)
       window.removeEventListener('mouseup', handleWindowMouseUp)
     }
-  }, [finishWorkspaceDrag, resolveWorkspaceDropTarget, setDraggedWorkspace, setResolvedDropTarget])
+  }, [
+    finishWorkspaceDrag,
+    resolveWorkspaceDropTarget,
+    setDraggedWorkspace,
+    setResolvedDropTarget,
+    workspaces,
+  ])
 
   const handleWorkspacePointerDown = React.useCallback(
     (workspaceId: string, event: React.MouseEvent<HTMLButtonElement>) => {

@@ -41,8 +41,6 @@ async function main() {
   const nativeModules = getNativeModulesToRebuild()
   const { rebuild } = await loadElectronRebuild()
 
-  console.log(`[postinstall] Rebuilding Electron native modules: ${nativeModules.join(', ')}`)
-
   await rebuild({
     buildPath: projectDir,
     electronVersion: electronPackageJson.version,
@@ -53,7 +51,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('[postinstall] Failed to rebuild Electron native modules.')
-  console.error(error)
+  process.stderr.write('[postinstall] Failed to rebuild Electron native modules.\n')
+  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`)
   process.exitCode = 1
 })

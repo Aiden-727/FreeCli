@@ -115,9 +115,12 @@ export function AnimatedNumberText({
   const content =
     displayValue === null || !Number.isFinite(displayValue) ? fallback : formatter(displayValue)
 
-  return React.createElement(as, {
-    className,
-    'data-animating': isAnimating ? 'true' : 'false',
-    children: content,
-  })
+  return React.createElement(
+    as,
+    {
+      className,
+      'data-animating': isAnimating ? 'true' : 'false',
+    },
+    content,
+  )
 }

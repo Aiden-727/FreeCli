@@ -721,6 +721,14 @@ export class OssBackupPluginController {
       const localState = await this.loadLocalSyncState()
       const localSnapshots = await this.collectLocalSnapshots(enabledDatasets, objectKeys)
       const remoteManifest = await this.loadRemoteManifestIfExists(objectKeys.manifestKey)
+      const remotePayloadByDatasetId = new Map<OssSyncDatasetId, unknown | null>(
+        await Promise.all(
+          enabledDatasets.map(async datasetId => [
+            datasetId,
+            await this.client.getJsonIfExists(this.settings, objectKeys.datasetObjectKeys[datasetId]),
+          ] as const),
+        ),
+      )
       const localFiles = this.createEmptyFileInfoRecord()
       const remoteFiles = this.createEmptyFileInfoRecord()
 
@@ -797,10 +805,7 @@ export class OssBackupPluginController {
           continue
         }
 
-        const remotePayload = await this.client.getJsonIfExists(
-          this.settings,
-          objectKeys.datasetObjectKeys[datasetId],
-        )
+        const remotePayload = remotePayloadByDatasetId.get(datasetId) ?? null
         if (remotePayload === null) {
           remoteFiles[datasetId] = toSyncFileInfo({
             datasetId,
@@ -1255,8 +1260,8 @@ export class OssBackupPluginController {
     try {
       await Promise.race([
         this.performBackup('exit').then(() => undefined),
-        new Promise<void>(resolve => {
-          setTimeout(resolve, EXIT_BACKUP_TIMEOUT_MS)
+        new Promise<void>(releaseTimeout => {
+          setTimeout(releaseTimeout, EXIT_BACKUP_TIMEOUT_MS)
         }),
       ])
     } catch {
@@ -1366,70 +1371,76 @@ export class OssBackupPluginController {
     enabledDatasets: OssSyncDatasetId[],
     objectKeys: OssObjectKeys,
   ): Promise<Map<OssSyncDatasetId, LocalDatasetSnapshot>> {
-    const snapshots = new Map<OssSyncDatasetId, LocalDatasetSnapshot>()
-    for (const datasetId of enabledDatasets) {
-      let payload: unknown
-      let modifiedAt = new Date().toISOString()
-      let virtualNote: string | null = null
+    const snapshotEntries = await Promise.all(
+      enabledDatasets.map(async datasetId => {
+        let payload: unknown
+        let modifiedAt = new Date().toISOString()
+        let virtualNote: string | null = null
 
-      if (datasetId === 'plugin-settings') {
-        const snapshot = await this.readSnapshotFromPersistence()
-        payload = snapshot
-        modifiedAt = snapshot.createdAt
-      } else if (datasetId === 'input-stats-history') {
-        try {
-          const raw = await readFile(this.inputStatsHistoryPath, 'utf8')
-          payload = normalizeInputStatsHistoryPayload(JSON.parse(raw))
-          const statsMeta = await stat(this.inputStatsHistoryPath)
-          modifiedAt = statsMeta.mtime.toISOString()
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-            throw error
+        if (datasetId === 'plugin-settings') {
+          const snapshot = await this.readSnapshotFromPersistence()
+          payload = snapshot
+          modifiedAt = snapshot.createdAt
+        } else if (datasetId === 'input-stats-history') {
+          try {
+            const raw = await readFile(this.inputStatsHistoryPath, 'utf8')
+            payload = normalizeInputStatsHistoryPayload(JSON.parse(raw))
+            const statsMeta = await stat(this.inputStatsHistoryPath)
+            modifiedAt = statsMeta.mtime.toISOString()
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+              throw error
+            }
+            payload = {
+              version: 1,
+              updatedAt: new Date().toISOString(),
+              days: {},
+            }
+            virtualNote = '本地尚无历史数据，按空集同步'
           }
-          payload = {
-            version: 1,
-            updatedAt: new Date().toISOString(),
-            days: {},
-          }
-          virtualNote = '本地尚无历史数据，按空集同步'
+        } else if (datasetId === 'git-worklog-history') {
+          payload = await this.gitWorklogHistoryStore.exportForSync()
+          modifiedAt =
+            isRecord(payload) && parseIsoDate(payload.exportedAt)
+              ? (parseIsoDate(payload.exportedAt) as string)
+              : new Date().toISOString()
+        } else {
+          payload = await this.quotaHistoryStore.exportForSync()
+          modifiedAt =
+            isRecord(payload) && parseIsoDate(payload.exportedAt)
+              ? (parseIsoDate(payload.exportedAt) as string)
+              : new Date().toISOString()
         }
-      } else if (datasetId === 'git-worklog-history') {
-        payload = await this.gitWorklogHistoryStore.exportForSync()
-        modifiedAt =
-          isRecord(payload) && parseIsoDate(payload.exportedAt)
-            ? (parseIsoDate(payload.exportedAt) as string)
-            : new Date().toISOString()
-      } else {
-        payload = await this.quotaHistoryStore.exportForSync()
-        modifiedAt =
-          isRecord(payload) && parseIsoDate(payload.exportedAt)
-            ? (parseIsoDate(payload.exportedAt) as string)
-            : new Date().toISOString()
-      }
 
-      const serialized = JSON.stringify(payload, null, 2)
-      const canonical = stableStringify(canonicalizeDatasetPayload(datasetId, payload))
-      const checksum = hashSha256(canonical)
-      snapshots.set(datasetId, {
-        datasetId,
-        objectKey: objectKeys.datasetObjectKeys[datasetId],
-        payload,
-        modifiedAt,
-        sizeBytes: Buffer.byteLength(serialized, 'utf8'),
-        checksum,
-        virtualNote,
-      })
-    }
+        const serialized = JSON.stringify(payload, null, 2)
+        const canonical = stableStringify(canonicalizeDatasetPayload(datasetId, payload))
+        const checksum = hashSha256(canonical)
+        return [
+          datasetId,
+          {
+            datasetId,
+            objectKey: objectKeys.datasetObjectKeys[datasetId],
+            payload,
+            modifiedAt,
+            sizeBytes: Buffer.byteLength(serialized, 'utf8'),
+            checksum,
+            virtualNote,
+          } satisfies LocalDatasetSnapshot,
+        ] as const
+      }),
+    )
 
-    return snapshots
+    return new Map(snapshotEntries)
   }
 
   private async uploadLocalSnapshots(
     snapshots: Map<OssSyncDatasetId, LocalDatasetSnapshot>,
   ): Promise<void> {
-    for (const snapshot of snapshots.values()) {
-      await this.client.putJson(this.settings, snapshot.objectKey, snapshot.payload)
-    }
+    await Promise.all(
+      [...snapshots.values()].map(snapshot =>
+        this.client.putJson(this.settings, snapshot.objectKey, snapshot.payload),
+      ),
+    )
   }
 
   private async applyRemoteDatasets(options: {
@@ -1437,31 +1448,38 @@ export class OssBackupPluginController {
     objectKeys: OssObjectKeys
     remoteManifest: OssSyncManifestPayload | null
   }): Promise<PluginBackupSnapshotDto> {
-    let restoredSnapshot: PluginBackupSnapshotDto | null = null
-    for (const datasetId of options.enabledDatasets) {
-      let payload: unknown | null = null
-      if (options.remoteManifest) {
-        if (!options.remoteManifest.files[datasetId]) {
+    const payloadEntries = await Promise.all(
+      options.enabledDatasets.map(async datasetId => {
+        if (options.remoteManifest && !options.remoteManifest.files[datasetId]) {
           throw new Error(`云端清单缺少 ${datasetId} 数据集。`)
         }
-        payload = await this.client.getJsonIfExists(
+
+        const payload = await this.client.getJsonIfExists(
           this.settings,
           options.objectKeys.datasetObjectKeys[datasetId],
         )
-        if (payload === null) {
+        if (options.remoteManifest && payload === null) {
           throw new Error(`云端对象缺少 ${datasetId} 数据集。`)
         }
-      } else {
-        payload = await this.client.getJsonIfExists(
-          this.settings,
-          options.objectKeys.datasetObjectKeys[datasetId],
-        )
-        if (payload === null) {
-          if (datasetId === 'plugin-settings') {
-            throw new Error('云端不存在可恢复的插件配置快照。')
-          }
-          continue
+        return [datasetId, payload] as const
+      }),
+    )
+    const payloadByDatasetId = new Map(payloadEntries)
+    let restoredSnapshot: PluginBackupSnapshotDto | null = null
+
+    const applyDataset = async (index: number): Promise<void> => {
+      const datasetId = options.enabledDatasets[index]
+      if (!datasetId) {
+        return
+      }
+
+      const payload = payloadByDatasetId.get(datasetId) ?? null
+      if (payload === null) {
+        if (datasetId === 'plugin-settings') {
+          throw new Error('云端不存在可恢复的插件配置快照。')
         }
+        await applyDataset(index + 1)
+        return
       }
 
       if (datasetId === 'plugin-settings') {
@@ -1470,21 +1488,27 @@ export class OssBackupPluginController {
           throw new Error('云端备份文件格式无效。')
         }
         restoredSnapshot = snapshot
-        continue
+        await applyDataset(index + 1)
+        return
       }
 
       if (datasetId === 'input-stats-history') {
         await this.importInputStatsHistoryPayload(payload)
-        continue
+        await applyDataset(index + 1)
+        return
       }
 
       if (datasetId === 'git-worklog-history') {
         await this.importGitWorklogHistoryPayload(payload)
-        continue
+        await applyDataset(index + 1)
+        return
       }
 
       await this.importQuotaMonitorHistoryPayload(payload)
+      await applyDataset(index + 1)
     }
+
+    await applyDataset(0)
 
     if (!restoredSnapshot) {
       throw new Error('云端不存在可恢复的插件配置快照。')
@@ -1649,7 +1673,7 @@ export class OssBackupPluginController {
     try {
       const raw = await readFile(this.localSyncStatePath, 'utf8')
       return normalizeLocalSyncState(JSON.parse(raw))
-    } catch (error) {
+    } catch {
       const fallback = createInitialLocalSyncState()
       await this.saveLocalSyncState(fallback)
       return fallback
@@ -1688,8 +1712,8 @@ export class OssBackupPluginController {
   private async runSerialized<T>(task: () => Promise<T>): Promise<T> {
     const previous = this.operationChain
     let release: () => void = () => undefined
-    this.operationChain = new Promise<void>(resolve => {
-      release = resolve
+    this.operationChain = new Promise<void>(releaseOperation => {
+      release = releaseOperation
     })
 
     await previous

@@ -7,7 +7,7 @@ import { useEyeCareState } from './useEyeCareState'
 import { formatEyeCareRemaining } from './eyeCareFormatting'
 
 export default function EyeCareBreakOverlay({
-  onOpenPluginManager,
+  onOpenPluginManager: _onOpenPluginManager,
 }: WorkspaceOverlayPluginWidgetProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const enabled = useAppStore(state => state.agentSettings.plugins.enabledIds.includes('eye-care'))

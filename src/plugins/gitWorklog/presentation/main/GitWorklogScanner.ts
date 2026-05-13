@@ -228,8 +228,12 @@ function buildDayKeys(from: Date, until: Date): string[] {
   const end = new Date(until.getFullYear(), until.getMonth(), until.getDate())
   const keys: string[] = []
 
-  for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+  let cursor = new Date(start)
+  while (cursor <= end) {
     keys.push(dayKey(cursor))
+    const nextCursor = new Date(cursor)
+    nextCursor.setDate(nextCursor.getDate() + 1)
+    cursor = nextCursor
   }
 
   return keys
@@ -830,19 +834,24 @@ export class GitWorklogScanner {
       }
     }
 
-    let totalCodeFiles = 0
-    let totalCodeLines = 0
-    for (const relativePath of relativePaths) {
-      const normalizedPath = relativePath.replaceAll('/', process.platform === 'win32' ? '\\' : '/')
-      const absolutePath = resolve(repoPath, normalizedPath)
-      const lineCount = await countTextFileLines(absolutePath)
-      if (lineCount === null) {
-        continue
-      }
-
-      totalCodeFiles += 1
-      totalCodeLines += lineCount
-    }
+    const lineCounts = await Promise.all(
+      relativePaths.map(async relativePath => {
+        const normalizedPath = relativePath.replaceAll(
+          '/',
+          process.platform === 'win32' ? '\\' : '/',
+        )
+        const absolutePath = resolve(repoPath, normalizedPath)
+        return await countTextFileLines(absolutePath)
+      }),
+    )
+    const numericLineCounts = lineCounts.filter(
+      (lineCount): lineCount is number => typeof lineCount === 'number',
+    )
+    const totalCodeFiles = numericLineCounts.length
+    const totalCodeLines = numericLineCounts.reduce(
+      (sum, lineCount) => sum + lineCount,
+      0,
+    )
 
     const computed: RepoCodeStats = {
       totalCodeFiles,
@@ -1255,21 +1264,29 @@ export class GitWorklogScanner {
     const currentByRef = new Map(currentRefs.map(entry => [entry.refName, entry.oid]))
     let hasNewCommits = currentRefs.length !== previousRefs.length
 
-    for (const previous of previousRefs) {
+    const changedRefs = previousRefs.flatMap(previous => {
       const currentOid = currentByRef.get(previous.refName)
       if (!currentOid) {
-        return { ok: false }
+        return [{ previous, currentOid: null as string | null }]
       }
 
-      if (currentOid !== previous.oid) {
-        hasNewCommits = true
-        const result = await this.runGitCommand(
-          ['-C', repoPath, 'merge-base', '--is-ancestor', previous.oid, currentOid],
-          '校验 Git 增量历史失败',
-        )
-        if (!result.ok) {
-          return { ok: false }
-        }
+      return currentOid !== previous.oid ? [{ previous, currentOid }] : []
+    })
+    if (changedRefs.some(entry => entry.currentOid === null)) {
+      return { ok: false }
+    }
+    if (changedRefs.length > 0) {
+      hasNewCommits = true
+      const validationResults = await Promise.all(
+        changedRefs.map(entry =>
+          this.runGitCommand(
+            ['-C', repoPath, 'merge-base', '--is-ancestor', entry.previous.oid, entry.currentOid!],
+            '校验 Git 增量历史失败',
+          ),
+        ),
+      )
+      if (validationResults.some(result => !result.ok)) {
+        return { ok: false }
       }
     }
 

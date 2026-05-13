@@ -3,12 +3,16 @@ import { Bot, Settings2, Send, Square, X } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
 import { useAppStore } from '@app/renderer/shell/store/useAppStore'
 import type { WorkspaceOverlayPluginWidgetProps } from '@contexts/plugins/presentation/renderer/types'
-import { FreeCliAppError, getAppErrorDebugMessage } from '@shared/errors/appError'
+import {
+  FreeCliAppError,
+  getAppErrorDebugMessage,
+  toAppErrorDescriptor,
+} from '@shared/errors/appError'
 import { useWorkspaceAssistantState } from './useWorkspaceAssistantState'
 import WorkspaceAssistantMarkdown from './WorkspaceAssistantMarkdown'
 
 function formatWorkspaceAssistantError(error: unknown): string {
-  const debugMessage = getAppErrorDebugMessage(error)
+  const debugMessage = getAppErrorDebugMessage(toAppErrorDescriptor(error))
   if (typeof debugMessage === 'string' && debugMessage.trim().length > 0) {
     return debugMessage
   }
@@ -45,6 +49,33 @@ export default function WorkspaceAssistantOverlay({
   const reminderHistoryRef = React.useRef(new Map<string, number>())
   const messagesViewportRef = React.useRef<HTMLDivElement | null>(null)
   const isStreaming = state.status === 'thinking'
+  const isCollapsed = assistantSettings.dockCollapsed
+  const messages = state.conversation
+  const latestAssistantMessage = [...messages]
+    .reverse()
+    .find(message => message.role === 'assistant') ?? null
+  const canStopStreaming = isSending || isStreaming
+  const modelLabel = assistantSettings.modelName.trim() || '未配置模型'
+  const isStreamingReply =
+    isStreaming &&
+    latestAssistantMessage !== null &&
+    latestAssistantMessage.content.trim().length > 0
+  const shouldShowThinkingBubble =
+    isStreaming &&
+    (!latestAssistantMessage || latestAssistantMessage.content.trim().length === 0)
+  const displayMessages = React.useMemo(
+    () =>
+      messages.filter(message => {
+        const isStreamingPlaceholderAssistant =
+          shouldShowThinkingBubble &&
+          latestAssistantMessage?.id === message.id &&
+          message.role === 'assistant' &&
+          message.content.trim().length === 0
+
+        return !isStreamingPlaceholderAssistant
+      }),
+    [latestAssistantMessage?.id, messages, shouldShowThinkingBubble],
+  )
 
   React.useEffect(() => {
     if (!isPluginEnabled || !assistantSettings.proactiveRemindersEnabled) {
@@ -91,34 +122,6 @@ export default function WorkspaceAssistantOverlay({
   if (!isPluginEnabled) {
     return null
   }
-
-  const isCollapsed = assistantSettings.dockCollapsed
-  const messages = state.conversation
-  const latestAssistantMessage = [...messages]
-    .reverse()
-    .find(message => message.role === 'assistant') ?? null
-  const canStopStreaming = isSending || isStreaming
-  const modelLabel = assistantSettings.modelName.trim() || '未配置模型'
-  const isStreamingReply =
-    isStreaming &&
-    latestAssistantMessage !== null &&
-    latestAssistantMessage.content.trim().length > 0
-  const shouldShowThinkingBubble =
-    isStreaming &&
-    (!latestAssistantMessage || latestAssistantMessage.content.trim().length === 0)
-  const displayMessages = React.useMemo(
-    () =>
-      messages.filter(message => {
-        const isStreamingPlaceholderAssistant =
-          shouldShowThinkingBubble &&
-          latestAssistantMessage?.id === message.id &&
-          message.role === 'assistant' &&
-          message.content.trim().length === 0
-
-        return !isStreamingPlaceholderAssistant
-      }),
-    [latestAssistantMessage?.id, messages, shouldShowThinkingBubble],
-  )
 
   return (
     <aside
@@ -248,7 +251,6 @@ export default function WorkspaceAssistantOverlay({
               await sendPrompt(nextPrompt)
             } catch (error) {
               setPrompt(previousPrompt => (previousPrompt.length > 0 ? previousPrompt : nextPrompt))
-              console.error('[workspace-assistant] prompt failed', error)
               setRuntimeError(formatWorkspaceAssistantError(error))
             } finally {
               setIsSending(false)
@@ -277,7 +279,6 @@ export default function WorkspaceAssistantOverlay({
                       await stopPrompt()
                       setRuntimeError(null)
                     } catch (error) {
-                      console.error('[workspace-assistant] stop prompt failed', error)
                       setRuntimeError(formatWorkspaceAssistantError(error))
                     } finally {
                       setIsSending(false)

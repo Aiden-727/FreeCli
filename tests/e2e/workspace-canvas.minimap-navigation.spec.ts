@@ -1,6 +1,20 @@
 import { expect, test } from '@playwright/test'
 import { clearAndSeedWorkspace, launchApp, readCanvasViewport } from './workspace-canvas.helpers'
 
+async function clickMinimapTerminalRepeatedly(
+  minimapTerminal: ReturnType<Awaited<ReturnType<typeof launchApp>>['window']['locator']>,
+  verifyCentered: () => Promise<void>,
+  remainingClicks: number,
+): Promise<void> {
+  if (remainingClicks <= 0) {
+    return
+  }
+
+  await minimapTerminal.click()
+  await verifyCentered()
+  await clickMinimapTerminalRepeatedly(minimapTerminal, verifyCentered, remainingClicks - 1)
+}
+
 async function resolveCssColorToken(
   window: Awaited<ReturnType<typeof launchApp>>['window'],
   tokenName: string,
@@ -263,9 +277,6 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
       const taskMinimapNode = window.locator(
         '[data-testid="workspace-minimap-group-task-minimap-stability-b"]',
       )
-      const taskMinimapFrame = window.locator(
-        '[data-testid="workspace-minimap-node-task-minimap-stability-b"]',
-      )
       await expect(minimap).toBeVisible()
       await expect(viewportMask).toBeVisible()
       await expect(viewportOverlay).toBeVisible()
@@ -364,7 +375,7 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
               hovered: element.classList.contains('hovered'),
               fill: window.getComputedStyle(
                 document.querySelector(
-                  '[data-testid=\"workspace-minimap-node-task-minimap-stability-b\"]',
+                  '[data-testid="workspace-minimap-node-task-minimap-stability-b"]',
                 ) as SVGElement,
               ).fill,
             }
@@ -387,7 +398,7 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
               hovered: element.classList.contains('hovered'),
               fill: window.getComputedStyle(
                 document.querySelector(
-                  '[data-testid=\"workspace-minimap-node-task-minimap-stability-b\"]',
+                  '[data-testid="workspace-minimap-node-task-minimap-stability-b"]',
                 ) as SVGElement,
               ).fill,
             }
@@ -646,15 +657,18 @@ test.describe('Workspace Canvas - Minimap Navigation', () => {
         }
       }
 
-      for (let index = 0; index < 3; index += 1) {
-        await minimapTerminal.click()
-        await expect
-          .poll(async () => {
-            const delta = await readCenterDelta()
-            return delta.dx < 40 && delta.dy < 40
-          })
-          .toBe(true)
-      }
+      await clickMinimapTerminalRepeatedly(
+        minimapTerminal,
+        async () => {
+          await expect
+            .poll(async () => {
+              const delta = await readCenterDelta()
+              return delta.dx < 40 && delta.dy < 40
+            })
+            .toBe(true)
+        },
+        3,
+      )
     } finally {
       await electronApp.close()
     }

@@ -498,10 +498,11 @@ export class QuotaMonitorPluginController {
     state: QuotaMonitorProfileStateDto,
   ): Promise<void> {
     const latestEpoch = await this.historyStore.getLatestModelLogEpoch(profile.id)
-    let page = 1
-    let reachedKnownBoundary = false
+    const syncPage = async (page: number): Promise<void> => {
+      if (page > MAX_MODEL_LOG_PAGES) {
+        return
+      }
 
-    while (page <= MAX_MODEL_LOG_PAGES && !reachedKnownBoundary) {
       const pageResult = await this.client.fetchProfileLogs({
         settings: this.settings,
         profile,
@@ -509,6 +510,7 @@ export class QuotaMonitorPluginController {
         pageSize: MODEL_LOG_PAGE_SIZE,
       })
 
+      let reachedKnownBoundary = false
       const nextLogs = pageResult.logs.filter(log => {
         if (latestEpoch === null) {
           return true
@@ -531,12 +533,18 @@ export class QuotaMonitorPluginController {
         })
       }
 
-      if (pageResult.logs.length === 0 || page >= pageResult.totalPages) {
-        break
+      if (
+        reachedKnownBoundary ||
+        pageResult.logs.length === 0 ||
+        page >= pageResult.totalPages
+      ) {
+        return
       }
 
-      page += 1
+      await syncPage(page + 1)
     }
+
+    await syncPage(1)
   }
 
   private broadcastState = (state: QuotaMonitorStateDto): void => {

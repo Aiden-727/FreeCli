@@ -86,8 +86,18 @@ export class GitWorklogRepositoryRepairService {
     const usedIds = new Set<string>()
     const seenResolvedPaths = new Set<string>()
     const nextRepositories: GitWorklogRepositoryDto[] = []
+    const resolvedRepositoryResults = await Promise.all(
+      currentSettings.repositories.map(async repository => {
+        const pathValue = repository.path.trim()
+        if (pathValue.length === 0) {
+          return { ok: false } satisfies ResolveRepositoryResult
+        }
 
-    for (const repository of currentSettings.repositories) {
+        return await this.resolveRepository(pathValue)
+      }),
+    )
+
+    for (const [index, repository] of currentSettings.repositories.entries()) {
       const changes: string[] = []
       let nextRepository: GitWorklogRepositoryDto = { ...repository }
 
@@ -106,21 +116,19 @@ export class GitWorklogRepositoryRepairService {
       const pathValue = nextRepository.path.trim()
       let resolvedPathKey = pathValue.length > 0 ? normalizePathForCompare(pathValue) : ''
       let resolvedLabel = nextRepository.label
-      if (pathValue.length > 0) {
-        const resolved = await this.resolveRepository(pathValue)
-        if (resolved.ok) {
-          const normalizedResolvedPath = normalizePathForCompare(resolved.path)
-          if (normalizedResolvedPath !== normalizePathForCompare(pathValue)) {
-            nextRepository = {
-              ...nextRepository,
-              path: resolved.path,
-            }
-            summary.pathsNormalized += 1
-            changes.push('仓库路径已归一到真实 Git 根目录')
+      const resolved = resolvedRepositoryResults[index]
+      if (pathValue.length > 0 && resolved?.ok) {
+        const normalizedResolvedPath = normalizePathForCompare(resolved.path)
+        if (normalizedResolvedPath !== normalizePathForCompare(pathValue)) {
+          nextRepository = {
+            ...nextRepository,
+            path: resolved.path,
           }
-          resolvedPathKey = normalizedResolvedPath
-          resolvedLabel = resolved.label
+          summary.pathsNormalized += 1
+          changes.push('仓库路径已归一到真实 Git 根目录')
         }
+        resolvedPathKey = normalizedResolvedPath
+        resolvedLabel = resolved.label
       }
 
       if (resolvedPathKey.length > 0) {

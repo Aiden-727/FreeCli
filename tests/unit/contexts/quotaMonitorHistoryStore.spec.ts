@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 type QuotaMonitorHistoryStoreInstance = {
   dispose: () => void
-  appendSnapshot: (...args: any[]) => Promise<void>
-  saveModelLogs: (...args: any[]) => Promise<number>
-  buildProfileHistory: (...args: any[]) => Promise<any>
+  appendSnapshot: (...args: unknown[]) => Promise<void>
+  saveModelLogs: (...args: unknown[]) => Promise<number>
+  buildProfileHistory: (...args: unknown[]) => Promise<unknown>
 }
 
 let QuotaMonitorHistoryStoreCtor: (new (dbPath: string) => QuotaMonitorHistoryStoreInstance) | null =

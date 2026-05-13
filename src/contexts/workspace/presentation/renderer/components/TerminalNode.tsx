@@ -58,6 +58,7 @@ import {
   isFileDropTransfer,
   toTerminalDropErrorMessage,
 } from './terminalNode/dropInput'
+import { convertHighByteX10MouseReportsToSgr } from '@platform/process/pty/x10Mouse'
 import { TerminalNodeFrame } from './terminalNode/TerminalNodeFrame'
 import { resolveCanonicalNodeMinSize } from '../utils/workspaceNodeSizing'
 import type { TerminalNodeProps } from './TerminalNode.types'
@@ -110,6 +111,7 @@ export function TerminalNode({
   const isViewportInteractionActiveRef = useRef(isViewportInteractionActive)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const ptyWriteQueueRef = useRef<ReturnType<typeof createPtyWriteQueue> | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const isPointerResizingRef = useRef(false)
   const lastSyncedContainerSizeRef = useRef<{ width: number; height: number } | null>(null)
@@ -126,7 +128,7 @@ export function TerminalNode({
   const pasteIntentSequenceRef = useRef(0)
   const latestPasteIntentSequenceRef = useRef(0)
   const pendingClipboardPastePromiseRef = useRef<Promise<void> | null>(null)
-  const pasteIndicatorTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const pasteIndicatorTimerRef = useRef<number | null>(null)
   const {
     state: findState,
     open: openTerminalFind,
@@ -148,7 +150,7 @@ export function TerminalNode({
       unavailableMessage,
     }: {
       paths: readonly string[]
-      terminal?: (Pick<Terminal, 'paste'> & Partial<Pick<Terminal, 'focus'>>) | null
+      terminal?: { focus?: () => void } | null
       unavailableMessage: string
     }): boolean => {
       const pasteText = buildTerminalDropPasteText({
@@ -162,13 +164,15 @@ export function TerminalNode({
       }
 
       const targetTerminal = terminal ?? terminalRef.current
-      if (!targetTerminal) {
+      const targetQueue = ptyWriteQueueRef.current
+      if (!targetTerminal || !targetQueue) {
         return false
       }
 
       latestPasteIntentSequenceRef.current = ++pasteIntentSequenceRef.current
       targetTerminal.focus?.()
-      targetTerminal.paste(pasteText)
+      targetQueue.enqueue(pasteText)
+      targetQueue.flush()
       return true
     },
     [onShowMessage, profileId, runtimeKind],
@@ -212,7 +216,16 @@ export function TerminalNode({
   )
 
   const pasteClipboardContentIntoTerminal = useCallback(
-    async ({ terminal }: { terminal: Pick<Terminal, 'paste'> }): Promise<void> => {
+    async ({
+      ptyWriteQueue,
+      terminal,
+    }: {
+      ptyWriteQueue: {
+        enqueue: (data: string, encoding?: 'utf8' | 'binary', coalesce?: boolean) => void
+        flush: () => void
+      }
+      terminal: { modes?: { bracketedPasteMode?: boolean }; focus?: () => void }
+    }): Promise<void> => {
       const imagePath = await resolveClipboardImageTempPath()
       if (imagePath) {
         pasteResolvedPathsIntoTerminal({
@@ -229,14 +242,30 @@ export function TerminalNode({
       }
 
       latestPasteIntentSequenceRef.current = ++pasteIntentSequenceRef.current
-      terminal.paste(text)
+      const normalizedText = text.replace(/\r?\n/g, '\r')
+      const payload = terminal.modes?.bracketedPasteMode
+        ? `\u001b[200~${normalizedText}\u001b[201~`
+        : normalizedText
+      for (const char of payload) {
+        ptyWriteQueue.enqueue(char, 'utf8', false)
+      }
+      ptyWriteQueue.flush()
     },
     [pasteResolvedPathsIntoTerminal, resolveClipboardImageTempPath, t],
   )
 
   const scheduleClipboardPasteIntoTerminal = useCallback(
-    ({ terminal }: { terminal: Pick<Terminal, 'paste'> }): Promise<void> => {
-      const pastePromise = pasteClipboardContentIntoTerminal({ terminal }).finally(() => {
+    ({
+      ptyWriteQueue,
+      terminal,
+    }: {
+      ptyWriteQueue: {
+        enqueue: (data: string, encoding?: 'utf8' | 'binary', coalesce?: boolean) => void
+        flush: () => void
+      }
+      terminal: { modes?: { bracketedPasteMode?: boolean } }
+    }): Promise<void> => {
+      const pastePromise = pasteClipboardContentIntoTerminal({ ptyWriteQueue, terminal }).finally(() => {
         if (pendingClipboardPastePromiseRef.current === pastePromise) {
           pendingClipboardPastePromiseRef.current = null
         }
@@ -295,7 +324,7 @@ export function TerminalNode({
         return
       }
     },
-    [completePasteFlow],
+    [clearPasteIndicatorTimer, completePasteFlow],
   )
 
   const hasImageClipboardData = useCallback(
@@ -467,6 +496,7 @@ export function TerminalNode({
         onStateChange: handlePtyQueueStateChange,
       },
     )
+    ptyWriteQueueRef.current = ptyWriteQueue
     terminal.attachCustomKeyEventHandler(event =>
       handleTerminalCustomKeyEvent({
         event,
@@ -483,7 +513,26 @@ export function TerminalNode({
       containerRef.current.setAttribute('data-cove-terminal-theme', resolvedTerminalUiTheme)
       cancelMouseServicePatch = patchXtermMouseServiceWithRetry(terminal)
       if (window.freecliApi.meta.isTest) {
-        disposeTerminalSelectionTestHandle = registerTerminalSelectionTestHandle(nodeId, terminal)
+        disposeTerminalSelectionTestHandle = registerTerminalSelectionTestHandle(nodeId, {
+          clearSelection: terminal.clearSelection.bind(terminal),
+          getSelection: terminal.getSelection.bind(terminal),
+          hasSelection: terminal.hasSelection.bind(terminal),
+          selectAll: terminal.selectAll.bind(terminal),
+          cols: terminal.cols,
+          rows: terminal.rows,
+          element: terminal.element,
+          sessionId,
+          emitBinaryInput: (data: string) => {
+            if (window.freecliApi.meta.platform === 'win32') {
+              ptyWriteQueue.enqueue(convertHighByteX10MouseReportsToSgr(data), 'utf8', false)
+              ptyWriteQueue.flush()
+              return
+            }
+
+            ptyWriteQueue.enqueue(data, 'binary', false)
+            ptyWriteQueue.flush()
+          },
+        })
       }
       requestAnimationFrame(syncTerminalSize)
       if (window.freecliApi.meta.isTest) {
@@ -712,6 +761,7 @@ export function TerminalNode({
       outputScheduler.dispose()
       outputSchedulerRef.current = null
       ptyWriteQueue.dispose()
+      ptyWriteQueueRef.current = null
       if (isInvalidated) {
         cancelScrollbackPublish()
         clearCachedTerminalScreenStateInvalidation(nodeId, sessionId)
@@ -726,6 +776,7 @@ export function TerminalNode({
     cancelScrollbackPublish,
     applyTerminalTheme,
     bindSearchAddonToFind,
+    runtimeKind,
     nodeId,
     disposeScrollbackPublish,
     markScrollbackDirty,
@@ -734,6 +785,7 @@ export function TerminalNode({
     scheduleClipboardPasteIntoTerminal,
     scrollbackBufferRef,
     sessionId,
+    syncTerminalForeground,
     syncTerminalSize,
     syncTerminalLayout,
     terminalThemeMode,

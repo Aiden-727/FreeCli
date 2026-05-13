@@ -30,6 +30,7 @@ import type {
   SyncWorkspaceAssistantWorkspaceSnapshotInput,
   WorkspaceAssistantPromptInput,
   WorkspaceAssistantProjectFileSummaryDto,
+  WorkspaceAssistantTaskSnapshotDto,
   WorkspaceAssistantWorkspaceSnapshotDto,
   WorkspaceAssistantSettingsDto,
 } from '@shared/contracts/dto'
@@ -467,12 +468,21 @@ function normalizeWorkspaceAssistantWorkspaceSnapshot(
           const task = taskValue as Record<string, unknown>
           const status = typeof task.status === 'string' ? task.status : 'todo'
           const priority = typeof task.priority === 'string' ? task.priority : 'medium'
+          const normalizedStatus: WorkspaceAssistantTaskSnapshotDto['status'] = taskStatuses.has(
+            status as WorkspaceAssistantTaskSnapshotDto['status'],
+          )
+            ? (status as WorkspaceAssistantTaskSnapshotDto['status'])
+            : 'todo'
+          const normalizedPriority: WorkspaceAssistantTaskSnapshotDto['priority'] =
+            taskPriorities.has(priority as WorkspaceAssistantTaskSnapshotDto['priority'])
+              ? (priority as WorkspaceAssistantTaskSnapshotDto['priority'])
+              : 'medium'
 
           return {
             id: normalizeAssistantString(task.id, 'task'),
             title: normalizeAssistantString(task.title, '未命名任务', 160),
-            status: taskStatuses.has(status) ? status : 'todo',
-            priority: taskPriorities.has(priority) ? priority : 'medium',
+            status: normalizedStatus,
+            priority: normalizedPriority,
             linkedAgentNodeId: normalizeAssistantNullableString(task.linkedAgentNodeId, 120),
             lastRunAt: normalizeAssistantNullableString(task.lastRunAt, 80),
           }

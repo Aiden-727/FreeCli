@@ -6,6 +6,76 @@ import {
   testWorkspacePath,
 } from './workspace-canvas.helpers'
 
+async function verifyQuotaMonitorOverviewForThemes(
+  themes: readonly ('dark' | 'light')[],
+  testInfo: Parameters<typeof test>[1],
+  index = 0,
+): Promise<void> {
+  const theme = themes[index]
+  if (!theme) {
+    return
+  }
+
+  const { electronApp, window } = await launchApp()
+
+  try {
+    await seedWorkspaceState(window, {
+      activeWorkspaceId: `workspace-plugin-manager-quota-${theme}`,
+      workspaces: [
+        {
+          id: `workspace-plugin-manager-quota-${theme}`,
+          name: `workspace-plugin-manager-quota-${theme}`,
+          path: testWorkspacePath,
+          nodes: [],
+        },
+      ],
+      settings: {
+        uiTheme: theme,
+        plugins: {
+          enabledIds: ['quota-monitor'],
+        },
+      },
+    })
+
+    const pluginsButton = window.locator('[data-testid="app-header-plugins"]')
+    await expect(pluginsButton).toBeVisible()
+    await pluginsButton.click()
+
+    await expect(window.locator('[data-testid="plugin-manager"]')).toBeVisible()
+    await window.locator('[data-testid="plugin-manager-nav-quota-monitor"]').click()
+
+    const overview = window.locator('[data-testid="quota-monitor-overview"]')
+    await expect(window.locator('html')).toHaveAttribute('data-cove-theme', theme)
+    await expect(overview).toBeVisible()
+    await expect(window.locator('[data-testid="quota-monitor-config-key-profiles"]')).toBeVisible()
+    await expect(window.locator('[data-testid="quota-monitor-refresh"]')).toBeVisible()
+
+    const surfaceStyle = await overview.evaluate(element => {
+      const style = window.getComputedStyle(element)
+      return {
+        backgroundImage: style.backgroundImage,
+        borderColor: style.borderColor,
+        boxShadow: style.boxShadow,
+      }
+    })
+
+    expect(surfaceStyle.backgroundImage).not.toBe('none')
+    expect(surfaceStyle.borderColor).not.toBe('rgba(0, 0, 0, 0)')
+    expect(surfaceStyle.boxShadow).not.toBe('none')
+
+    const screenshotPath = testInfo.outputPath(`quota-monitor-overview-${theme}.png`)
+    await overview.screenshot({ path: screenshotPath })
+    await testInfo.attach(`quota-monitor-overview-${theme}`, {
+      path: screenshotPath,
+      contentType: 'image/png',
+    })
+  } finally {
+    await electronApp.close()
+  }
+
+  await verifyQuotaMonitorOverviewForThemes(themes, testInfo, index + 1)
+}
+
 test.describe('Control Center', () => {
   test('opens and toggles theme, sidebar, minimap', async () => {
     const { electronApp, window } = await launchApp()
@@ -152,67 +222,9 @@ test.describe('Control Center', () => {
     }
   })
 
-  test('shows the quota monitor overview panel in plugin manager', async ({}, testInfo) => {
-    for (const theme of ['dark', 'light'] as const) {
-      const { electronApp, window } = await launchApp()
-
-      try {
-        await seedWorkspaceState(window, {
-          activeWorkspaceId: `workspace-plugin-manager-quota-${theme}`,
-          workspaces: [
-            {
-              id: `workspace-plugin-manager-quota-${theme}`,
-              name: `workspace-plugin-manager-quota-${theme}`,
-              path: testWorkspacePath,
-              nodes: [],
-            },
-          ],
-          settings: {
-            uiTheme: theme,
-            plugins: {
-              enabledIds: ['quota-monitor'],
-            },
-          },
-        })
-
-        const pluginsButton = window.locator('[data-testid="app-header-plugins"]')
-        await expect(pluginsButton).toBeVisible()
-        await pluginsButton.click()
-
-        await expect(window.locator('[data-testid="plugin-manager"]')).toBeVisible()
-        await window.locator('[data-testid="plugin-manager-nav-quota-monitor"]').click()
-
-        const overview = window.locator('[data-testid="quota-monitor-overview"]')
-        await expect(window.locator('html')).toHaveAttribute('data-cove-theme', theme)
-        await expect(overview).toBeVisible()
-        await expect(
-          window.locator('[data-testid="quota-monitor-config-key-profiles"]'),
-        ).toBeVisible()
-        await expect(window.locator('[data-testid="quota-monitor-refresh"]')).toBeVisible()
-
-        const surfaceStyle = await overview.evaluate(element => {
-          const style = window.getComputedStyle(element)
-          return {
-            backgroundImage: style.backgroundImage,
-            borderColor: style.borderColor,
-            boxShadow: style.boxShadow,
-          }
-        })
-
-        expect(surfaceStyle.backgroundImage).not.toBe('none')
-        expect(surfaceStyle.borderColor).not.toBe('rgba(0, 0, 0, 0)')
-        expect(surfaceStyle.boxShadow).not.toBe('none')
-
-        const screenshotPath = testInfo.outputPath(`quota-monitor-overview-${theme}.png`)
-        await overview.screenshot({ path: screenshotPath })
-        await testInfo.attach(`quota-monitor-overview-${theme}`, {
-          path: screenshotPath,
-          contentType: 'image/png',
-        })
-      } finally {
-        await electronApp.close()
-      }
-    }
+  test('shows the quota monitor overview panel in plugin manager', async ({ page }, testInfo) => {
+    void page
+    await verifyQuotaMonitorOverviewForThemes(['dark', 'light'], testInfo)
   })
 
   test('shows the git worklog repository manager dialog in plugin manager', async () => {

@@ -331,7 +331,7 @@ function filterPendingImportsForSettings(
   const ignoredAutoRepositoryPaths = createIgnoredAutoRepositoryPathSet(settings)
 
   return pendingImports.flatMap(pendingImport => {
-    const repositories = pendingImport.repositories.filter(repository => {
+    const filteredRepositories = pendingImport.repositories.filter(repository => {
       const normalizedPath = normalizePathForComparison(repository.path)
       return (
         !configuredRepositoryPaths.has(normalizedPath) &&
@@ -339,14 +339,14 @@ function filterPendingImportsForSettings(
       )
     })
 
-    if (repositories.length === 0 && !pendingImport.error) {
+    if (filteredRepositories.length === 0 && !pendingImport.error) {
       return []
     }
 
     return [
       {
         ...pendingImport,
-        repositories,
+        repositories: filteredRepositories,
       },
     ]
   })
@@ -766,29 +766,29 @@ export class GitWorklogPluginController {
       return this.state
     }
 
-    const approvedRepos: ResolvedGitWorklogRepository[] = []
-    const unapprovedRepoStates: GitWorklogRepoStateDto[] = []
     const scannedAt = new Date().toISOString()
-
-    for (const repo of configuredRepos) {
-      const isApproved = await this.approvedWorkspaces.isPathApproved(repo.path)
-      if (!isApproved) {
-        unapprovedRepoStates.push(
-          createErrorState(
-            repo,
-            {
-              type: 'unapproved_path',
-              message: '仓库路径未通过 FreeCli 工作区授权',
-              detail: '请通过“选择文件夹”方式添加仓库，或确认该路径位于已批准 workspace 下。',
-            },
-            scannedAt,
-          ),
-        )
-        continue
-      }
-
-      approvedRepos.push(repo)
-    }
+    const approvalResults = await Promise.all(
+      configuredRepos.map(async repo => ({
+        repo,
+        isApproved: await this.approvedWorkspaces.isPathApproved(repo.path),
+      })),
+    )
+    const approvedRepos = approvalResults
+      .filter(result => result.isApproved)
+      .map(result => result.repo)
+    const unapprovedRepoStates = approvalResults
+      .filter(result => !result.isApproved)
+      .map(result =>
+        createErrorState(
+          result.repo,
+          {
+            type: 'unapproved_path',
+            message: '仓库路径未通过 FreeCli 工作区授权',
+            detail: '请通过“选择文件夹”方式添加仓库，或确认该路径位于已批准 workspace 下。',
+          },
+          scannedAt,
+        ),
+      )
 
     const scannedRepoStates = await this.scanner.scan(
       this.settings,
@@ -1064,9 +1064,9 @@ export class GitWorklogPluginController {
     workspacePath?: string,
   ): Promise<void> {
     if (!this.settings.autoDiscoverEnabled) {
-      for (const workspace of this.workspaces) {
-        await this.discoveryStore.removeWorkspace(workspace.path)
-      }
+      await Promise.all(
+        this.workspaces.map(workspace => this.discoveryStore.removeWorkspace(workspace.path)),
+      )
       await this.discoveryStore.flush()
       return
     }
@@ -1083,7 +1083,12 @@ export class GitWorklogPluginController {
     )
     const ignoredAutoRepositoryPaths = createIgnoredAutoRepositoryPathSet(this.settings)
 
-    for (const workspace of targetWorkspaces) {
+    const syncWorkspaceAt = async (index: number): Promise<void> => {
+      const workspace = targetWorkspaces[index]
+      if (!workspace) {
+        return
+      }
+
       const hasManagedRepository = hasConfiguredRepositoryWithinWorkspace(
         workspace.path,
         configuredRepositories,
@@ -1112,7 +1117,8 @@ export class GitWorklogPluginController {
 
         if (filteredRepositories.length === 0 && hasManagedRepository) {
           await this.discoveryStore.clearPendingImport(workspace.path)
-          continue
+          await syncWorkspaceAt(index + 1)
+          return
         }
 
         await this.discoveryStore.upsertScanResult({
@@ -1145,7 +1151,10 @@ export class GitWorklogPluginController {
         })
         this.scheduleConfigRefresh(BACKGROUND_REFRESH_RETRY_MS)
       }
+      await syncWorkspaceAt(index + 1)
     }
+
+    await syncWorkspaceAt(0)
 
     await this.discoveryStore.pruneToWorkspaceSet(this.workspaces)
     await this.discoveryStore.flush()
@@ -1161,63 +1170,83 @@ export class GitWorklogPluginController {
       ? Math.max(1, Math.min(GIT_WORKLOG_MAX_AUTO_DISCOVER_DEPTH, this.settings.autoDiscoverDepth))
       : GIT_WORKLOG_DEFAULT_AUTO_DISCOVER_DEPTH
 
-    for (const workspace of workspaces) {
-      const rootPath = workspace.path.trim()
-      if (rootPath.length === 0) {
-        continue
+    const scanQueue = async (
+      workspace: GitWorklogWorkspaceDto,
+      queue: Array<{ path: string; depth: number }>,
+    ): Promise<void> => {
+      if (queue.length === 0 || results.length >= AUTO_DISCOVER_MAX_REPOS) {
+        return
       }
 
-      const queue: Array<{ path: string; depth: number }> = [{ path: rootPath, depth: 0 }]
-      while (queue.length > 0 && results.length < AUTO_DISCOVER_MAX_REPOS) {
-        const current = queue.shift()
-        if (!current) {
-          continue
-        }
+      const current = queue.shift()
+      if (!current) {
+        await scanQueue(workspace, queue)
+        return
+      }
 
-        const normalizedCurrentPath = normalizePathForComparison(current.path)
-        if (visitedDirectories.has(normalizedCurrentPath)) {
-          continue
-        }
-        visitedDirectories.add(normalizedCurrentPath)
+      const normalizedCurrentPath = normalizePathForComparison(current.path)
+      if (visitedDirectories.has(normalizedCurrentPath)) {
+        await scanQueue(workspace, queue)
+        return
+      }
+      visitedDirectories.add(normalizedCurrentPath)
 
-        const resolvedRepository = await this.scanner.resolveRepositoryRoot(current.path)
-        if (resolvedRepository.ok) {
-          const normalizedRepoPath = normalizePathForComparison(resolvedRepository.path)
-          if (!discoveredRepositoryPaths.has(normalizedRepoPath)) {
-            discoveredRepositoryPaths.add(normalizedRepoPath)
-            results.push({
-              repository: {
-                id: toAutoRepositoryId(workspace.id, resolvedRepository.path, workspace.path),
-                label: resolvedRepository.label,
-                path: resolvedRepository.path,
-                enabled: true,
-                origin: 'auto',
-                assignedWorkspaceId: workspace.id,
-                parentWorkspaceId: workspace.id,
-                parentWorkspaceName: workspace.name,
-                parentWorkspacePath: workspace.path,
-              },
-              depth: current.depth,
-            })
-          }
+      const resolvedRepository = await this.scanner.resolveRepositoryRoot(current.path)
+      if (resolvedRepository.ok) {
+        const normalizedRepoPath = normalizePathForComparison(resolvedRepository.path)
+        if (!discoveredRepositoryPaths.has(normalizedRepoPath)) {
+          discoveredRepositoryPaths.add(normalizedRepoPath)
+          results.push({
+            repository: {
+              id: toAutoRepositoryId(workspace.id, resolvedRepository.path, workspace.path),
+              label: resolvedRepository.label,
+              path: resolvedRepository.path,
+              enabled: true,
+              origin: 'auto',
+              assignedWorkspaceId: workspace.id,
+              parentWorkspaceId: workspace.id,
+              parentWorkspaceName: workspace.name,
+              parentWorkspacePath: workspace.path,
+            },
+            depth: current.depth,
+          })
         }
+      }
 
-        if (current.depth >= maxDepth) {
-          continue
-        }
-
+      if (current.depth < maxDepth) {
         // Even when the current directory is already a Git repository, continue
         // traversing within the configured depth so nested independent repos can
         // still be surfaced for user confirmation.
         const nextDirectories = await this.readCandidateSubDirectories(current.path)
-        for (const nextDirectory of nextDirectories) {
+        nextDirectories.forEach(nextDirectory => {
           queue.push({
             path: nextDirectory,
             depth: current.depth + 1,
           })
-        }
+        })
       }
+
+      await scanQueue(workspace, queue)
     }
+
+    const scanWorkspaceAt = async (index: number): Promise<void> => {
+      const workspace = workspaces[index]
+      if (!workspace || results.length >= AUTO_DISCOVER_MAX_REPOS) {
+        return
+      }
+
+      const rootPath = workspace.path.trim()
+      if (rootPath.length === 0) {
+        await scanWorkspaceAt(index + 1)
+        return
+      }
+
+      const queue: Array<{ path: string; depth: number }> = [{ path: rootPath, depth: 0 }]
+      await scanQueue(workspace, queue)
+      await scanWorkspaceAt(index + 1)
+    }
+
+    await scanWorkspaceAt(0)
 
     return results
   }

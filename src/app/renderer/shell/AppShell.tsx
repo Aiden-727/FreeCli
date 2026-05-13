@@ -169,8 +169,7 @@ export default function App(): React.JSX.Element {
 
     try {
       return buildWorkspaceAssistantSnapshot(activeWorkspace)
-    } catch (error) {
-      console.error('[workspace-assistant] failed to build workspace snapshot', error)
+    } catch {
       return null
     }
   }, [activeWorkspace, isWorkspaceAssistantEnabled])

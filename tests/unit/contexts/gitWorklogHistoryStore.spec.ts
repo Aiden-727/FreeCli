@@ -8,9 +8,7 @@ describe('GitWorklogHistoryStore', () => {
   const tempDirs = new Set<string>()
 
   afterEach(async () => {
-    for (const dir of tempDirs) {
-      await rm(dir, { recursive: true, force: true })
-    }
+    await Promise.all([...tempDirs].map(dir => rm(dir, { recursive: true, force: true })))
     tempDirs.clear()
   })
 

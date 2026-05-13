@@ -182,7 +182,7 @@ export class SystemMonitorHelperClient {
       }
 
       const hasPendingCommand = this.pending !== null
-      const isCleanExit = signal == null && code === 0
+      const isCleanExit = (signal === null || signal === undefined) && code === 0
       if (!hasPendingCommand && isCleanExit) {
         return
       }
@@ -284,17 +284,25 @@ export class SystemMonitorHelperClient {
       ? [packagedBasePath, devBasePath]
       : [devBasePath, packagedBasePath]
 
-    for (const candidate of candidates) {
-      if (!candidate) {
-        continue
-      }
+    const existingCandidate = await Promise.all(
+      candidates.map(async candidate => {
+        if (!candidate) {
+          return null
+        }
 
-      try {
-        await access(candidate)
-        return candidate
-      } catch {
-        continue
-      }
+        try {
+          await access(candidate)
+          return candidate
+        } catch {
+          return null
+        }
+      }),
+    )
+    const resolvedCandidate = existingCandidate.find(
+      (candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0,
+    )
+    if (resolvedCandidate) {
+      return resolvedCandidate
     }
 
     throw new Error(`System monitor helper binary is missing. Looked for: ${candidates.join(', ')}`)
@@ -312,15 +320,19 @@ export class SystemMonitorHelperClient {
       directoryEntries = []
     }
 
-    const missingFiles: string[] = []
-    for (const fileName of HELPER_REQUIRED_FILES) {
-      const fullPath = resolve(helperDirectory, fileName)
-      try {
-        await access(fullPath)
-      } catch {
-        missingFiles.push(fileName)
-      }
-    }
+    const missingFiles = (
+      await Promise.all(
+        HELPER_REQUIRED_FILES.map(async fileName => {
+          const fullPath = resolve(helperDirectory, fileName)
+          try {
+            await access(fullPath)
+            return null
+          } catch {
+            return fileName
+          }
+        }),
+      )
+    ).filter((fileName): fileName is string => typeof fileName === 'string')
 
     return {
       binaryPath: helperBinaryPath,
@@ -477,7 +489,7 @@ export class SystemMonitorHelperClient {
       return false
     }
 
-    return !process.killed && process.exitCode == null
+    return !process.killed && (process.exitCode === null || process.exitCode === undefined)
   }
 
   private markProcessExitAsExpected(process: ChildProcessWithoutNullStreams): void {

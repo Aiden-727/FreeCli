@@ -298,8 +298,6 @@ export function useAgentStandbyNotifications({
     [
       isStandbyBannerEnabled,
       maxVisible,
-      shouldResolveBranch,
-      shouldResolvePullRequest,
       workspacesById,
     ],
   )

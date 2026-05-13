@@ -107,9 +107,13 @@ export function registerIpcHandlers(deps?: {
 
   return {
     dispose: async () => {
-      for (let index = disposables.length - 1; index >= 0; index -= 1) {
-        await Promise.resolve(disposables[index]?.dispose())
-      }
+      await disposables.reduceRight<Promise<void>>(
+        async (previous, disposable) => {
+          await previous
+          await Promise.resolve(disposable?.dispose())
+        },
+        Promise.resolve(),
+      )
 
       const storePromise = persistenceStorePromise
       persistenceStorePromise = null

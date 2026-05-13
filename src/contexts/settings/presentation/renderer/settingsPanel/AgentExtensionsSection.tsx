@@ -16,6 +16,8 @@ type ProviderState = {
   data: GetAgentExtensionsResult | null
 }
 
+const AGENT_EXTENSION_PROVIDERS: readonly AgentExtensionProviderId[] = ['codex', 'claude-code']
+
 function createEmptyMcpDraft(): {
   name: string
   transport: 'stdio' | 'http'
@@ -74,7 +76,6 @@ function formatMcpStatus(
 
 export function AgentExtensionsSection(): React.JSX.Element {
   const { t } = useTranslation()
-  const providers: readonly AgentExtensionProviderId[] = ['codex', 'claude-code']
   const [providerState, setProviderState] = React.useState<Record<AgentExtensionProviderId, ProviderState>>({
     codex: { isLoading: true, error: null, data: null },
     'claude-code': { isLoading: true, error: null, data: null },
@@ -110,7 +111,7 @@ export function AgentExtensionsSection(): React.JSX.Element {
   React.useEffect(() => {
     let disposed = false
 
-    void Promise.all(providers.map(provider => refreshProvider(provider))).finally(() => {
+    void Promise.all(AGENT_EXTENSION_PROVIDERS.map(provider => refreshProvider(provider))).finally(() => {
       if (disposed) {
         return
       }
@@ -213,7 +214,7 @@ export function AgentExtensionsSection(): React.JSX.Element {
         </div>
       </div>
 
-      {providers.map(provider => {
+      {AGENT_EXTENSION_PROVIDERS.map(provider => {
         const state = providerState[provider]
         const label = AGENT_PROVIDER_LABEL[provider]
         const summary = state.data?.summary ?? null

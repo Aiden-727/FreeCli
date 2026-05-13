@@ -1,4 +1,4 @@
-import type { TFunction } from 'i18next'
+import type { TranslateFn } from '@app/renderer/i18n'
 
 function formatNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat(undefined, {
@@ -56,7 +56,7 @@ function resolveBinaryUnit(
   }
 }
 
-export function formatPercent(value: number | null | undefined, t: TFunction): string {
+export function formatPercent(value: number | null | undefined, t: TranslateFn): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return t('pluginManager.plugins.systemMonitor.notAvailable')
   }
@@ -81,7 +81,7 @@ export function formatHeaderSpeed(value: number): string {
   return `${formatNumber(rounded, fractionDigits)} ${resolved.unit}/s`
 }
 
-export function formatHeaderPercent(value: number | null | undefined, t: TFunction): string {
+export function formatHeaderPercent(value: number | null | undefined, t: TranslateFn): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return t('pluginManager.plugins.systemMonitor.notAvailable')
   }
@@ -90,7 +90,7 @@ export function formatHeaderPercent(value: number | null | undefined, t: TFuncti
   return `${rounded}${t('common.percentUnit')}`
 }
 
-export function formatDateTime(value: string | null, t: TFunction): string {
+export function formatDateTime(value: string | null, t: TranslateFn): string {
   if (!value) {
     return t('pluginManager.plugins.systemMonitor.notAvailable')
   }
