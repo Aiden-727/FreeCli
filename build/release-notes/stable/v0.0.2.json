@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "version": "0.0.2",
+  "channel": "stable",
+  "publishedAt": "2026-05-12T00:00:00.000Z",
+  "provenance": "curated",
+  "defaultLocale": "en",
+  "compareUrl": "https://github.com/Aiden-727/FreeCli/compare/v0.0.1...v0.0.2",
+  "locales": {
+    "en": {
+      "summary": "FreeCli 0.0.2 improves workspace flow with stronger canvas tools, clearer update delivery, and more stable persistence and terminal recovery behavior.",
+      "items": [
+        {
+          "kind": "added",
+          "summary": "Added richer workspace arrange controls, including Arrange By options and live magnetic snap guides on the canvas.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "Added in-app update checking with a built-in What's New sheet after upgrades.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "Added configurable UI theme, focus zoom, window size buckets, and task prompt templates in Settings.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "Refined workspace canvas interactions, shortcuts, and context menus for a steadier and more predictable editing flow.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "Fixed SQLite schema upgrade and persistence issues that could break workspace saves after upgrading from older installs.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "Improved packaged terminal rendering, restore behavior, and PTY isolation to reduce startup and runtime failures.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        }
+      ]
+    },
+    "zh-CN": {
+      "summary": "FreeCli 0.0.2 重点强化了工作区画布编排、更新说明交付，以及持久化和终端恢复链路的稳定性。",
+      "items": [
+        {
+          "kind": "added",
+          "summary": "新增更完整的画布排布能力，包括 Arrange By 选项和实时磁吸参考线。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "新增应用内更新检测，并在升级后提供内置的“本次更新”说明面板。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "在设置中新增 UI 主题、聚焦缩放、标准窗口尺寸档位和任务提示词模板配置。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "优化工作区画布交互、快捷键和上下文菜单，让编辑流更稳定、更可预期。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "修复旧版本升级后 SQLite schema 与持久化链路异常，避免工作区状态保存失败。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "改进打包版终端渲染、恢复行为和 PTY 隔离，减少启动与运行时异常。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        }
+      ]
+    }
+  }
+}
