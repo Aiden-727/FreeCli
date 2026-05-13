@@ -1,8 +1,4 @@
-import {
-  isRecord,
-  normalizeBoolean,
-  normalizeTextValue,
-} from './settingsNormalization'
+import { isRecord, normalizeBoolean, normalizeTextValue } from './settingsNormalization'
 
 export const TERMINAL_CREDENTIAL_PROFILE_PROVIDERS = ['codex', 'claude-code'] as const
 
@@ -138,9 +134,7 @@ export function resolveDefaultTerminalCredentialProfile(
     return preferredProfile
   }
 
-  return (
-    settings.profiles.find(profile => profile.provider === provider && profile.enabled) ?? null
-  )
+  return settings.profiles.find(profile => profile.provider === provider && profile.enabled) ?? null
 }
 
 export function resolveTerminalCredentialEnv(
@@ -156,10 +150,8 @@ export function resolveTerminalCredentialEnv(
     return null
   }
 
-  const apiKeyEnvName =
-    profile.provider === 'codex' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY'
-  const baseUrlEnvName =
-    profile.provider === 'codex' ? 'OPENAI_BASE_URL' : 'ANTHROPIC_BASE_URL'
+  const apiKeyEnvName = profile.provider === 'codex' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY'
+  const baseUrlEnvName = profile.provider === 'codex' ? 'OPENAI_BASE_URL' : 'ANTHROPIC_BASE_URL'
 
   const values: Record<string, string> = {}
   if (apiKey.length > 0) {

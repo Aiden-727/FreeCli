@@ -9,12 +9,14 @@ describe('resolveAgentTestStub', () => {
   it('prefers a real node binary over Electron process.execPath in test mode', async () => {
     vi.stubEnv('NODE_ENV', 'test')
     vi.stubEnv('FREECLI_TEST_AGENT_SESSION_SCENARIO', 'jsonl-stdin-submit-delayed-turn')
-    vi.stubEnv('FREECLI_TEST_AGENT_STUB_SCRIPT', 'D:/Project/FreeCli/scripts/test-agent-session-stub.mjs')
+    vi.stubEnv(
+      'FREECLI_TEST_AGENT_STUB_SCRIPT',
+      'D:/Project/FreeCli/scripts/test-agent-session-stub.mjs',
+    )
     vi.stubEnv('FREECLI_TEST_NODE_BINARY', 'C:/Program Files/nodejs/node.exe')
 
-    const { resolveAgentTestStub } = await import(
-      '../../../src/contexts/agent/presentation/main-ipc/validate'
-    )
+    const { resolveAgentTestStub } =
+      await import('../../../src/contexts/agent/presentation/main-ipc/validate')
 
     const result = resolveAgentTestStub('codex', 'D:/Project/FreeCli', 'gpt-5.2-codex', 'new')
 

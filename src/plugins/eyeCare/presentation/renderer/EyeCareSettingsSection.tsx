@@ -35,7 +35,9 @@ export default function EyeCareSettingsSection({
     () =>
       EYE_CARE_MODE_OPTIONS.map(option => ({
         value: option,
-        label: t(`pluginManager.plugins.eyeCare.modeOptions.${option === 'forced-blur' ? 'forcedBlur' : 'gentle'}`),
+        label: t(
+          `pluginManager.plugins.eyeCare.modeOptions.${option === 'forced-blur' ? 'forcedBlur' : 'gentle'}`,
+        ),
       })),
     [t],
   )
@@ -100,7 +102,9 @@ export default function EyeCareSettingsSection({
             <div className="plugin-manager-panel__compact-board">
               <div className="plugin-manager-panel__compact-board-head">
                 <span className="plugin-manager-panel__compact-board-pill">时长设置</span>
-                <span className="plugin-manager-panel__compact-board-hint">工作、休息与延后统一收口</span>
+                <span className="plugin-manager-panel__compact-board-hint">
+                  工作、休息与延后统一收口
+                </span>
               </div>
               <div className="eye-care-config__cluster eye-care-config__cluster--triple">
                 <div className="plugin-manager-panel__field-stack system-monitor-config__field-card">
@@ -172,11 +176,15 @@ export default function EyeCareSettingsSection({
             <div className="plugin-manager-panel__compact-board">
               <div className="plugin-manager-panel__compact-board-head">
                 <span className="plugin-manager-panel__compact-board-pill">休息策略</span>
-                <span className="plugin-manager-panel__compact-board-hint">模式切换和规则统一展示</span>
+                <span className="plugin-manager-panel__compact-board-hint">
+                  模式切换和规则统一展示
+                </span>
               </div>
               <div className="eye-care-config__cluster">
                 <div className="plugin-manager-panel__field-stack system-monitor-config__field-card">
-                  <label htmlFor="eye-care-mode">{t('pluginManager.plugins.eyeCare.modeLabel')}</label>
+                  <label htmlFor="eye-care-mode">
+                    {t('pluginManager.plugins.eyeCare.modeLabel')}
+                  </label>
                   <CoveSelect
                     id="eye-care-mode"
                     testId="eye-care-mode"
@@ -188,7 +196,9 @@ export default function EyeCareSettingsSection({
                     onChange={nextValue => {
                       updateSettings(current => ({
                         ...current,
-                        mode: EYE_CARE_MODE_OPTIONS.includes(nextValue as EyeCareSettingsDto['mode'])
+                        mode: EYE_CARE_MODE_OPTIONS.includes(
+                          nextValue as EyeCareSettingsDto['mode'],
+                        )
                           ? (nextValue as EyeCareSettingsDto['mode'])
                           : current.mode,
                       }))

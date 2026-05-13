@@ -137,8 +137,7 @@ export function moveWorkspaceIntoLifecycleGroup(options: {
     nextTargetIds.push(workspaceId)
   }
 
-  const nextActiveIds =
-    targetLifecycleState === 'active' ? nextTargetIds : [...activeWorkspaceIds]
+  const nextActiveIds = targetLifecycleState === 'active' ? nextTargetIds : [...activeWorkspaceIds]
   const nextArchivedIds =
     targetLifecycleState === 'archived' ? nextTargetIds : [...archivedWorkspaceIds]
   const nextWorkspaceIds = [...nextActiveIds, ...nextArchivedIds]

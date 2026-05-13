@@ -265,11 +265,13 @@ export function TerminalNode({
       }
       terminal: { modes?: { bracketedPasteMode?: boolean } }
     }): Promise<void> => {
-      const pastePromise = pasteClipboardContentIntoTerminal({ ptyWriteQueue, terminal }).finally(() => {
-        if (pendingClipboardPastePromiseRef.current === pastePromise) {
-          pendingClipboardPastePromiseRef.current = null
-        }
-      })
+      const pastePromise = pasteClipboardContentIntoTerminal({ ptyWriteQueue, terminal }).finally(
+        () => {
+          if (pendingClipboardPastePromiseRef.current === pastePromise) {
+            pendingClipboardPastePromiseRef.current = null
+          }
+        },
+      )
 
       pendingClipboardPastePromiseRef.current = pastePromise
       return pastePromise

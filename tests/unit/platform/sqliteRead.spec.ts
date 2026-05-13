@@ -13,7 +13,10 @@ class FakeQuery<TResult> {
   private table: unknown
 
   public constructor(
-    private readonly resolver: (table: unknown, mode: 'all' | 'get') => TResult[] | TResult | undefined,
+    private readonly resolver: (
+      table: unknown,
+      mode: 'all' | 'get',
+    ) => TResult[] | TResult | undefined,
   ) {
     this.table = null
   }
@@ -115,7 +118,9 @@ class FakeDb {
         return mode === 'get' ? this.tables.settingsRow : [this.tables.settingsRow]
       }
       if (table === workspaces) {
-        return [...this.tables.workspaceRows].sort((left, right) => left.sortOrder - right.sortOrder)
+        return [...this.tables.workspaceRows].sort(
+          (left, right) => left.sortOrder - right.sortOrder,
+        )
       }
       if (table === nodes) {
         return this.tables.nodeRows

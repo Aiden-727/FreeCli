@@ -20,9 +20,7 @@ import type {
   UpdateNodeScrollback,
   UpdateTaskStatus,
 } from './types'
-import {
-  resolveCredentialProviderLabel,
-} from '../terminalNode/credentials'
+import { resolveCredentialProviderLabel } from '../terminalNode/credentials'
 
 function useNodePosition(nodeId: string): { x: number; y: number } {
   return useStore(storeState => {

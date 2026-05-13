@@ -159,12 +159,11 @@
 
 .terminal-node__label-button--active {
   border-color: color-mix(in srgb, var(--cove-label-color) 42%, var(--cove-border-subtle));
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--cove-label-color) 16%, transparent),
-      color-mix(in srgb, var(--cove-field) 84%, transparent)
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--cove-label-color) 16%, transparent),
+    color-mix(in srgb, var(--cove-field) 84%, transparent)
+  );
   color: var(--cove-text);
   box-shadow:
     0 1px 0 color-mix(in srgb, white 8%, transparent) inset,
@@ -202,12 +201,11 @@
 
 .terminal-node__credential-capsule {
   border: 1px solid color-mix(in srgb, var(--cove-border-subtle) 84%, transparent);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--cove-field) 86%, transparent),
-      color-mix(in srgb, var(--cove-terminal-node-header-surface) 78%, transparent)
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--cove-field) 86%, transparent),
+    color-mix(in srgb, var(--cove-terminal-node-header-surface) 78%, transparent)
+  );
   color: var(--cove-text);
   border-radius: 999px;
   min-height: 26px;

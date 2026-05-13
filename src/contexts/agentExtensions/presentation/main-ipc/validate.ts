@@ -78,7 +78,9 @@ export function normalizeAddAgentMcpServerPayload(payload: unknown): AddAgentMcp
     transport,
     command: typeof record.command === 'string' ? record.command.trim() : null,
     args: Array.isArray(record.args)
-      ? record.args.filter((item): item is string => typeof item === 'string').map(item => item.trim())
+      ? record.args
+          .filter((item): item is string => typeof item === 'string')
+          .map(item => item.trim())
       : [],
     url: typeof record.url === 'string' ? record.url.trim() : null,
     env: Object.fromEntries(
@@ -89,9 +91,7 @@ export function normalizeAddAgentMcpServerPayload(payload: unknown): AddAgentMcp
   }
 }
 
-export function normalizeRemoveAgentMcpServerPayload(
-  payload: unknown,
-): RemoveAgentMcpServerInput {
+export function normalizeRemoveAgentMcpServerPayload(payload: unknown): RemoveAgentMcpServerInput {
   if (!payload || typeof payload !== 'object') {
     throw createAppError('common.invalid_input', {
       debugMessage: 'Invalid payload for agent-extensions:remove-mcp-server',

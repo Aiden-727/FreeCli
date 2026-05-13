@@ -86,7 +86,9 @@ describe('suggestTaskTitle', () => {
       })
       return child as never
     })
-    readFileMock.mockResolvedValue('{"title":"修复登录重试","priority":"high","tags":["bug"]}' as never)
+    readFileMock.mockResolvedValue(
+      '{"title":"修复登录重试","priority":"high","tags":["bug"]}' as never,
+    )
     rmMock.mockResolvedValue(undefined)
 
     const { suggestTaskTitle } = await importTaskTitleGenerator()

@@ -45,9 +45,7 @@ export const DEFAULT_WORKSPACE_ASSISTANT_SETTINGS: WorkspaceAssistantSettingsDto
   assistantNotes: '',
 }
 
-export function normalizeWorkspaceAssistantSettings(
-  value: unknown,
-): WorkspaceAssistantSettingsDto {
+export function normalizeWorkspaceAssistantSettings(value: unknown): WorkspaceAssistantSettingsDto {
   if (!value || typeof value !== 'object') {
     return DEFAULT_WORKSPACE_ASSISTANT_SETTINGS
   }

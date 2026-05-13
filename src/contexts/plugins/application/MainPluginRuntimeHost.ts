@@ -56,16 +56,16 @@ export class MainPluginRuntimeHost {
   }
 
   async dispose(): Promise<void> {
-    await this.runSerial([...this.activeRuntimes.entries()].reverse(), async ([pluginId, runtime]) => {
-      await runtime.deactivate()
-      this.activeRuntimes.delete(pluginId)
-    })
+    await this.runSerial(
+      [...this.activeRuntimes.entries()].reverse(),
+      async ([pluginId, runtime]) => {
+        await runtime.deactivate()
+        this.activeRuntimes.delete(pluginId)
+      },
+    )
   }
 
-  private async runSerial<T>(
-    items: readonly T[],
-    task: (item: T) => Promise<void>,
-  ): Promise<void> {
+  private async runSerial<T>(items: readonly T[], task: (item: T) => Promise<void>): Promise<void> {
     await items.reduce<Promise<void>>(
       (chain, item) => chain.then(() => task(item)),
       Promise.resolve(),

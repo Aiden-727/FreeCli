@@ -295,11 +295,7 @@ export function useAgentStandbyNotifications({
         return updated.length > maxVisible ? updated.slice(0, maxVisible) : updated
       })
     },
-    [
-      isStandbyBannerEnabled,
-      maxVisible,
-      workspacesById,
-    ],
+    [isStandbyBannerEnabled, maxVisible, workspacesById],
   )
 
   const handleAgentEnteredWorking = useCallback(
@@ -365,9 +361,7 @@ export function useAgentStandbyNotifications({
             spaceName: space?.name ?? null,
             spaceDirectoryPath: space?.directoryPath ?? null,
             executionDirectory:
-              node.data.executionDirectory ??
-              node.data.hostedAgent.cwd ??
-              workspace.path,
+              node.data.executionDirectory ?? node.data.hostedAgent.cwd ?? workspace.path,
             message: recoveryMessage,
             gitContext: null,
             pullRequest: null,

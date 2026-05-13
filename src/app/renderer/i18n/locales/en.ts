@@ -650,7 +650,8 @@ export const en = {
         repairRepositoriesFailed: 'Failed to repair repository config. Please retry later.',
         undoRepairRepositoriesAction: 'Undo Last Repair',
         undoRepairRepositoriesLoading: 'Undoing…',
-        undoRepairRepositoriesSuccess: 'The repository config has been restored to the pre-repair state.',
+        undoRepairRepositoriesSuccess:
+          'The repository config has been restored to the pre-repair state.',
         undoRepairRepositoriesUnavailable: 'There is no repository repair snapshot to undo.',
         undoRepairRepositoriesFailed: 'Failed to undo the repository repair. Please retry later.',
         workspaceExceptionListLabel: 'Exceptions & History',

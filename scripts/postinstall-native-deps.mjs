@@ -12,7 +12,11 @@ function resolvePackageJson(packageName) {
 
 function getNodePtyPrebuildDir() {
   const nodePtyPackageJsonPath = resolvePackageJson('node-pty')
-  return path.join(path.dirname(nodePtyPackageJsonPath), 'prebuilds', `${process.platform}-${process.arch}`)
+  return path.join(
+    path.dirname(nodePtyPackageJsonPath),
+    'prebuilds',
+    `${process.platform}-${process.arch}`,
+  )
 }
 
 function getNativeModulesToRebuild() {
@@ -50,8 +54,10 @@ async function main() {
   })
 }
 
-main().catch((error) => {
+main().catch(error => {
   process.stderr.write('[postinstall] Failed to rebuild Electron native modules.\n')
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`)
+  process.stderr.write(
+    `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+  )
   process.exitCode = 1
 })

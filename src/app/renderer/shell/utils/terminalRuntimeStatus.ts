@@ -42,11 +42,7 @@ export function resolveSidebarTerminalRuntimeStatus(
     return runtimeStatus
   }
 
-  if (
-    runtimeStatus === 'running' ||
-    runtimeStatus === 'restoring' ||
-    runtimeStatus === 'standby'
-  ) {
+  if (runtimeStatus === 'running' || runtimeStatus === 'restoring' || runtimeStatus === 'standby') {
     return 'stopped'
   }
 

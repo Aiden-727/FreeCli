@@ -130,9 +130,9 @@ describe('gitWorklogOrdering', () => {
       anchorRepositoryId: 'repo_c',
     })
 
-    expect(result.repositories.find(repository => repository.id === 'repo_b')?.assignedWorkspaceId).toBe(
-      'workspace_b',
-    )
+    expect(
+      result.repositories.find(repository => repository.id === 'repo_b')?.assignedWorkspaceId,
+    ).toBe('workspace_b')
     expect(result.repositoryOrder).toEqual(['repo_a', 'repo_c', 'repo_b'])
   })
 

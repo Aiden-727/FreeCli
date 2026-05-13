@@ -8,10 +8,7 @@ import type {
   WorkspaceAssistantTaskSnapshotDto,
   WorkspaceAssistantWorkspaceSnapshotDto,
 } from '@shared/contracts/dto'
-import type {
-  TaskNodeData,
-  WorkspaceState,
-} from '@contexts/workspace/presentation/renderer/types'
+import type { TaskNodeData, WorkspaceState } from '@contexts/workspace/presentation/renderer/types'
 
 function truncateText(text: string, maxLength: number): string {
   const normalized = text.trim().replace(/\s+/g, ' ')
@@ -22,10 +19,7 @@ function truncateText(text: string, maxLength: number): string {
   return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`
 }
 
-function normalizeNodeTitle(
-  value: unknown,
-  fallback: string,
-): string {
+function normalizeNodeTitle(value: unknown, fallback: string): string {
   if (typeof value !== 'string') {
     return fallback
   }
@@ -301,7 +295,8 @@ export function answerWorkspaceAssistantPrompt(
   const normalized = prompt.trim()
   if (!snapshot) {
     return {
-      reply: '当前还没有打开任何项目。我建议先导入项目目录，然后我可以帮你总结项目结构、梳理画布内容并给出下一步建议。',
+      reply:
+        '当前还没有打开任何项目。我建议先导入项目目录，然后我可以帮你总结项目结构、梳理画布内容并给出下一步建议。',
       suggestions: ['如何导入项目？', '打开项目后你会做什么？'],
     }
   }
@@ -314,11 +309,18 @@ export function answerWorkspaceAssistantPrompt(
     }
   }
 
-  if (normalized.includes('当前') || normalized.includes('在做什么') || normalized.includes('进度')) {
+  if (
+    normalized.includes('当前') ||
+    normalized.includes('在做什么') ||
+    normalized.includes('进度')
+  ) {
     const doingTasks = snapshot.tasks.filter(task => task.status === 'doing')
     const focusText =
       doingTasks.length > 0
-        ? `目前最明确的进行中任务有：${doingTasks.slice(0, 3).map(task => task.title).join('、')}。`
+        ? `目前最明确的进行中任务有：${doingTasks
+            .slice(0, 3)
+            .map(task => task.title)
+            .join('、')}。`
         : '目前还没有明确标记为进行中的 task，说明当前执行焦点还不够清晰。'
 
     return {
@@ -327,7 +329,11 @@ export function answerWorkspaceAssistantPrompt(
     }
   }
 
-  if (normalized.includes('下一步') || normalized.includes('建议') || normalized.includes('怎么做')) {
+  if (
+    normalized.includes('下一步') ||
+    normalized.includes('建议') ||
+    normalized.includes('怎么做')
+  ) {
     const tasksWithoutAgent = snapshot.tasks.filter(
       task => task.status !== 'done' && task.status !== 'ai_done' && !task.linkedAgentNodeId,
     )
@@ -342,9 +348,14 @@ export function answerWorkspaceAssistantPrompt(
     }
   }
 
-  if (normalized.includes('freecli') || normalized.includes('软件') || normalized.includes('怎么用')) {
+  if (
+    normalized.includes('freecli') ||
+    normalized.includes('软件') ||
+    normalized.includes('怎么用')
+  ) {
     return {
-      reply: 'FreeCli 最有价值的用法是把 task、agent、terminal、note 保持在同一个工作现场里。建议先以 task 为中心组织执行链，再用 space 管理不同主题，并用 note 沉淀结果。',
+      reply:
+        'FreeCli 最有价值的用法是把 task、agent、terminal、note 保持在同一个工作现场里。建议先以 task 为中心组织执行链，再用 space 管理不同主题，并用 note 沉淀结果。',
       suggestions: ['如何组织画布更合理？', 'task 和 agent 怎么配合？'],
     }
   }
@@ -357,7 +368,8 @@ export function answerWorkspaceAssistantPrompt(
   ) {
     if (snapshot.projectFiles.length === 0) {
       return {
-        reply: '当前还没有拿到项目文件摘要。请确认当前项目根目录下有 README、package.json 或 tsconfig 等文件，并保持项目扫描开启。',
+        reply:
+          '当前还没有拿到项目文件摘要。请确认当前项目根目录下有 README、package.json 或 tsconfig 等文件，并保持项目扫描开启。',
         suggestions: ['帮我总结当前项目', '下一步建议是什么？'],
       }
     }

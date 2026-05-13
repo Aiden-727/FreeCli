@@ -27,9 +27,7 @@ describe('agent settings normalization', () => {
     expect(DEFAULT_AGENT_SETTINGS.terminalFontSize).toBe(13)
     expect(DEFAULT_AGENT_SETTINGS.uiFontSize).toBe(18)
     expect(DEFAULT_AGENT_SETTINGS.plugins.enabledIds).toEqual([])
-    expect(DEFAULT_AGENT_SETTINGS.plugins.ossBackup.objectKey).toBe(
-      'freecli/plugin-settings',
-    )
+    expect(DEFAULT_AGENT_SETTINGS.plugins.ossBackup.objectKey).toBe('freecli/plugin-settings')
     expect(DEFAULT_AGENT_SETTINGS.updatePolicy).toBe('prompt')
     expect(DEFAULT_AGENT_SETTINGS.updateChannel).toBe('stable')
     expect(DEFAULT_AGENT_SETTINGS.releaseNotesSeenVersion).toBeNull()

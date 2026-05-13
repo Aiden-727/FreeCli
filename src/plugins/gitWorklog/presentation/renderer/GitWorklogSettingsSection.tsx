@@ -29,12 +29,7 @@ import {
 } from './gitWorklogOrdering'
 import { useGitWorklogState } from './useGitWorklogState'
 
-type GitWorklogWorkspaceScanStatus =
-  | 'pending'
-  | 'dismissed'
-  | 'managed'
-  | 'empty'
-  | 'error'
+type GitWorklogWorkspaceScanStatus = 'pending' | 'dismissed' | 'managed' | 'empty' | 'error'
 
 interface GitWorklogWorkspaceScanItem {
   workspaceId: string
@@ -83,11 +78,7 @@ interface GitWorklogConfiguredRepositoryRow {
   assignmentMode: 'workspace' | 'base' | 'unmatched'
 }
 
-type GitWorklogRefreshTarget =
-  | 'config'
-  | `workspace:${string}`
-  | `repository:${string}`
-  | null
+type GitWorklogRefreshTarget = 'config' | `workspace:${string}` | `repository:${string}` | null
 
 function updateGitWorklogSettings(
   settings: AgentSettings,
@@ -199,7 +190,10 @@ export default function GitWorklogSettingsSection({
         continue
       }
 
-      mapping.set(repository.id, inferAssignedWorkspaceId(repository.path, availableWorkspaceOptions))
+      mapping.set(
+        repository.id,
+        inferAssignedWorkspaceId(repository.path, availableWorkspaceOptions),
+      )
     }
     return mapping
   }, [availableWorkspaceOptions, worklogSettings.repositories])
@@ -214,10 +208,7 @@ export default function GitWorklogSettingsSection({
     const dismissedWorkspacePathSet = new Set(
       (state.dismissedImports ?? []).map(item => normalizeRepoPathForCompare(item.workspacePath)),
     )
-    const workspaceEntries = new Map<
-      string,
-      { id: string; name: string; path: string }
-    >()
+    const workspaceEntries = new Map<string, { id: string; name: string; path: string }>()
 
     for (const workspace of state.availableWorkspaces ?? []) {
       workspaceEntries.set(normalizeRepoPathForCompare(workspace.path), {
@@ -264,11 +255,11 @@ export default function GitWorklogSettingsSection({
           ? 'error'
           : pendingImport
             ? 'pending'
-          : dismissed
-            ? 'dismissed'
-            : managedRepositories.length > 0
-              ? 'managed'
-              : 'empty'
+            : dismissed
+              ? 'dismissed'
+              : managedRepositories.length > 0
+                ? 'managed'
+                : 'empty'
 
         return {
           workspaceId: workspace.id,
@@ -282,7 +273,12 @@ export default function GitWorklogSettingsSection({
         }
       })
       .sort((left, right) => left.workspaceName.localeCompare(right.workspaceName))
-  }, [state.availableWorkspaces, state.dismissedImports, state.pendingImports, worklogSettings.repositories])
+  }, [
+    state.availableWorkspaces,
+    state.dismissedImports,
+    state.pendingImports,
+    worklogSettings.repositories,
+  ])
 
   const workspaceScanRows = React.useMemo<GitWorklogWorkspaceScanRow[]>(() => {
     return workspaceScanItems.flatMap(item => {
@@ -329,9 +325,11 @@ export default function GitWorklogSettingsSection({
         const explicitlyBase = repository.assignedWorkspaceId === '__external__'
         const matchedWorkspaceId = explicitlyBase
           ? null
-          : repository.assignedWorkspaceId ?? scanWorkspaceIdByRepositoryId.get(repository.id) ?? null
+          : (repository.assignedWorkspaceId ??
+            scanWorkspaceIdByRepositoryId.get(repository.id) ??
+            null)
         const assignedWorkspaceName = matchedWorkspaceId
-          ? workspaceNameById.get(matchedWorkspaceId) ?? null
+          ? (workspaceNameById.get(matchedWorkspaceId) ?? null)
           : null
         const assignmentMode: GitWorklogConfiguredRepositoryRow['assignmentMode'] = explicitlyBase
           ? 'base'
@@ -450,10 +448,7 @@ export default function GitWorklogSettingsSection({
         return
       }
 
-      const assignedWorkspaceId = inferAssignedWorkspaceId(
-        resolved.path,
-        availableWorkspaceOptions,
-      )
+      const assignedWorkspaceId = inferAssignedWorkspaceId(resolved.path, availableWorkspaceOptions)
 
       updateSettings(current => ({
         ...updateRepositoryWithOrdering(current, repoId, repo => ({
@@ -514,7 +509,9 @@ export default function GitWorklogSettingsSection({
 
         return appendRepositoryWithOrdering(current, {
           ...createDefaultGitWorklogRepository(current.repositories.length),
-          id: createNextGitWorklogRepositoryId(current.repositories.map(repository => repository.id)),
+          id: createNextGitWorklogRepositoryId(
+            current.repositories.map(repository => repository.id),
+          ),
           label: resolved.label,
           path: resolved.path,
           enabled: true,
@@ -612,7 +609,9 @@ export default function GitWorklogSettingsSection({
       })
       const api = window.freecliApi?.plugins?.gitWorklog
       if (typeof api?.acceptPendingImport === 'function') {
-        const nextState = await api.acceptPendingImport({ workspacePath: pendingImport.workspacePath })
+        const nextState = await api.acceptPendingImport({
+          workspacePath: pendingImport.workspacePath,
+        })
         setState(nextState)
       } else {
         const nextState = await refresh()
@@ -626,7 +625,9 @@ export default function GitWorklogSettingsSection({
     async (pendingImport: GitWorklogPendingImportDto) => {
       const api = window.freecliApi?.plugins?.gitWorklog
       if (typeof api?.dismissPendingImport === 'function') {
-        const nextState = await api.dismissPendingImport({ workspacePath: pendingImport.workspacePath })
+        const nextState = await api.dismissPendingImport({
+          workspacePath: pendingImport.workspacePath,
+        })
         setState(nextState)
       } else {
         const nextState = await refresh()
@@ -1028,11 +1029,21 @@ export default function GitWorklogSettingsSection({
               </colgroup>
               <thead>
                 <tr className="git-worklog-config__scan-grid-head-row">
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.scope')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.path')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.status')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.summary')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.actions')}</th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.scope')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.path')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.status')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.summary')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.actions')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1061,7 +1072,9 @@ export default function GitWorklogSettingsSection({
                           <span
                             className={`git-worklog-config__scan-status git-worklog-config__scan-status--${row.status}`}
                           >
-                            {t(`pluginManager.plugins.gitWorklog.workspaceScanStatus.${row.status}`)}
+                            {t(
+                              `pluginManager.plugins.gitWorklog.workspaceScanStatus.${row.status}`,
+                            )}
                           </span>
                         </td>
                         <td className="git-worklog-config__scan-grid-cell">
@@ -1188,7 +1201,10 @@ export default function GitWorklogSettingsSection({
                     >
                       <th scope="row" className="git-worklog-config__scan-grid-cell">
                         <div className="git-worklog-config__scan-grid-scope git-worklog-config__scan-grid-scope--repository">
-                          <span className="git-worklog-config__scope-branch" aria-hidden="true"></span>
+                          <span
+                            className="git-worklog-config__scope-branch"
+                            aria-hidden="true"
+                          ></span>
                           <span className="git-worklog-config__scope-badge git-worklog-config__scope-badge--repository">
                             {t('pluginManager.plugins.gitWorklog.workspaceScanRepositoryBadge')}
                           </span>
@@ -1204,7 +1220,9 @@ export default function GitWorklogSettingsSection({
                         </div>
                       </th>
                       <td className="git-worklog-config__scan-grid-cell">
-                        <span className="git-worklog-config__ignored-path">{row.repositoryPath}</span>
+                        <span className="git-worklog-config__ignored-path">
+                          {row.repositoryPath}
+                        </span>
                       </td>
                       <td className="git-worklog-config__scan-grid-cell">
                         <span
@@ -1220,8 +1238,12 @@ export default function GitWorklogSettingsSection({
                       <td className="git-worklog-config__scan-grid-cell">
                         <span className="plugin-manager-panel__hint git-worklog-config__scan-grid-note">
                           {row.repositoryState === 'managed'
-                            ? t('pluginManager.plugins.gitWorklog.workspaceScanRepositoryManagedSummary')
-                            : t('pluginManager.plugins.gitWorklog.workspaceScanRepositoryPendingSummary')}
+                            ? t(
+                                'pluginManager.plugins.gitWorklog.workspaceScanRepositoryManagedSummary',
+                              )
+                            : t(
+                                'pluginManager.plugins.gitWorklog.workspaceScanRepositoryPendingSummary',
+                              )}
                         </span>
                       </td>
                       <td className="git-worklog-config__scan-grid-cell">
@@ -1294,10 +1316,7 @@ export default function GitWorklogSettingsSection({
             </table>
           </div>
         ) : (
-          <p
-            className="plugin-manager-panel__hint"
-            data-testid="git-worklog-workspace-scan-empty"
-          >
+          <p className="plugin-manager-panel__hint" data-testid="git-worklog-workspace-scan-empty">
             {t('pluginManager.plugins.gitWorklog.workspaceScanEmpty')}
           </p>
         )}
@@ -1377,11 +1396,21 @@ export default function GitWorklogSettingsSection({
               </colgroup>
               <thead>
                 <tr className="git-worklog-config__scan-grid-head-row">
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.scope')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.path')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.status')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.summary')}</th>
-                  <th scope="col">{t('pluginManager.plugins.gitWorklog.workspaceScanColumns.actions')}</th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.scope')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.path')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.status')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.summary')}
+                  </th>
+                  <th scope="col">
+                    {t('pluginManager.plugins.gitWorklog.workspaceScanColumns.actions')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1416,7 +1445,9 @@ export default function GitWorklogSettingsSection({
                         </div>
                       </th>
                       <td className="git-worklog-config__scan-grid-cell">
-                        <span className="git-worklog-config__ignored-path">{row.repositoryPath}</span>
+                        <span className="git-worklog-config__ignored-path">
+                          {row.repositoryPath}
+                        </span>
                       </td>
                       <td className="git-worklog-config__scan-grid-cell">
                         <span className="git-worklog-config__scan-status git-worklog-config__scan-status--managed">
@@ -1523,7 +1554,9 @@ export default function GitWorklogSettingsSection({
                     <span className="git-worklog-config__scan-status git-worklog-config__scan-status--pending">
                       {t('pluginManager.plugins.gitWorklog.ignoredAutoRepositoriesLabel')}
                     </span>
-                    <strong>{t('pluginManager.plugins.gitWorklog.workspaceIgnoredRepositoryTitle')}</strong>
+                    <strong>
+                      {t('pluginManager.plugins.gitWorklog.workspaceIgnoredRepositoryTitle')}
+                    </strong>
                   </div>
                   <span className="git-worklog-config__ignored-path">{path}</span>
                   <span className="plugin-manager-panel__hint">
@@ -1654,14 +1687,10 @@ export default function GitWorklogSettingsSection({
           }}
           onToggleEnabled={enabled => {
             updateSettings(current => ({
-              ...updateRepositoryWithOrdering(
-                current,
-                editingRepository.id,
-                candidate => ({
-                  ...candidate,
-                  enabled,
-                }),
-              ),
+              ...updateRepositoryWithOrdering(current, editingRepository.id, candidate => ({
+                ...candidate,
+                enabled,
+              })),
             }))
           }}
           onRemove={() => {
@@ -1669,39 +1698,27 @@ export default function GitWorklogSettingsSection({
           }}
           onChangeLabel={label => {
             updateSettings(current => ({
-              ...updateRepositoryWithOrdering(
-                current,
-                editingRepository.id,
-                candidate => ({
-                  ...candidate,
-                  label,
-                }),
-              ),
+              ...updateRepositoryWithOrdering(current, editingRepository.id, candidate => ({
+                ...candidate,
+                label,
+              })),
             }))
           }}
           onChangePath={path => {
             updateSettings(current => ({
-              ...updateRepositoryWithOrdering(
-                current,
-                editingRepository.id,
-                candidate => ({
-                  ...candidate,
-                  path,
-                  origin: 'manual',
-                }),
-              ),
+              ...updateRepositoryWithOrdering(current, editingRepository.id, candidate => ({
+                ...candidate,
+                path,
+                origin: 'manual',
+              })),
             }))
           }}
           onChangeAssignedWorkspaceId={assignedWorkspaceId => {
             updateSettings(current => ({
-              ...updateRepositoryWithOrdering(
-                current,
-                editingRepository.id,
-                candidate => ({
-                  ...candidate,
-                  assignedWorkspaceId,
-                }),
-              ),
+              ...updateRepositoryWithOrdering(current, editingRepository.id, candidate => ({
+                ...candidate,
+                assignedWorkspaceId,
+              })),
             }))
           }}
           onPickDirectory={() => {

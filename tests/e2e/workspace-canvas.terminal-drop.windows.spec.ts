@@ -9,7 +9,9 @@ const tinyPngBase64 =
 test.describe('Workspace Canvas - Terminal Drop (Windows)', () => {
   test.skip(windowsOnly, 'Windows only')
 
-  test('drops an image onto the terminal as a quoted filesystem path', async ({ page }, testInfo) => {
+  test('drops an image onto the terminal as a quoted filesystem path', async ({
+    page,
+  }, testInfo) => {
     void page
     const { electronApp, window } = await launchApp()
 

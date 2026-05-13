@@ -6,8 +6,13 @@ import type {
 } from '@shared/contracts/dto'
 import { isRecord, normalizeIntegerInRange } from '@contexts/settings/domain/settingsNormalization'
 
-export const SYSTEM_MONITOR_HISTORY_RANGE_OPTIONS = [1, 7, 30] as const satisfies readonly SystemMonitorHistoryRangeDays[]
-export const SYSTEM_MONITOR_GPU_MODE_OPTIONS = ['off', 'total'] as const satisfies readonly SystemMonitorGpuMode[]
+export const SYSTEM_MONITOR_HISTORY_RANGE_OPTIONS = [
+  1, 7, 30,
+] as const satisfies readonly SystemMonitorHistoryRangeDays[]
+export const SYSTEM_MONITOR_GPU_MODE_OPTIONS = [
+  'off',
+  'total',
+] as const satisfies readonly SystemMonitorGpuMode[]
 export const SYSTEM_MONITOR_DEFAULT_POLL_INTERVAL_MS = 1_000
 export const SYSTEM_MONITOR_MIN_POLL_INTERVAL_MS = 1_000
 export const SYSTEM_MONITOR_MAX_POLL_INTERVAL_MS = 60_000
@@ -71,9 +76,8 @@ export function normalizeSystemMonitorSettings(value: unknown): SystemMonitorSet
     return DEFAULT_SYSTEM_MONITOR_SETTINGS
   }
 
-  const legacyGpuMonitoringEnabled = typeof value.gpuMonitoringEnabled === 'boolean'
-    ? value.gpuMonitoringEnabled
-    : false
+  const legacyGpuMonitoringEnabled =
+    typeof value.gpuMonitoringEnabled === 'boolean' ? value.gpuMonitoringEnabled : false
   const legacyDisplayItems = normalizeHeaderDisplayItems(value.taskbarDisplayItems)
   const headerSource = isRecord(value.header) ? value.header : {}
 

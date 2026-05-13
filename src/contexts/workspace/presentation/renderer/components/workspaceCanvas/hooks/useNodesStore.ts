@@ -10,9 +10,7 @@ import {
   scheduleNodeScrollbackWrite,
 } from '../../../utils/persistence/scrollbackSchedule'
 import { toAgentNodeTitle } from '@app/renderer/shell/utils/format'
-import {
-  parseHostedTerminalAgentCommand,
-} from '@contexts/terminal/domain/hostedAgent'
+import { parseHostedTerminalAgentCommand } from '@contexts/terminal/domain/hostedAgent'
 import { deriveHostedTerminalBindingId } from '@contexts/session/domain/sessionBindingId'
 import { TERMINAL_LAYOUT_SYNC_EVENT } from '../../terminalNode/constants'
 import { centerNodeInViewport } from '../helpers'

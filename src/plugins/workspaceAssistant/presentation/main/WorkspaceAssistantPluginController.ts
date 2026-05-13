@@ -107,7 +107,10 @@ function buildWorkspaceContextPrompt(
     .join('\n')
   const agentSummary = workspace.agents
     .slice(0, 6)
-    .map(agent => `- ${agent.title}：${agent.status ?? 'unknown'}${agent.lastError ? `，错误：${agent.lastError}` : ''}`)
+    .map(
+      agent =>
+        `- ${agent.title}：${agent.status ?? 'unknown'}${agent.lastError ? `，错误：${agent.lastError}` : ''}`,
+    )
     .join('\n')
   const fileSummary = getSafeProjectFiles(workspace)
     .slice(0, 6)
@@ -286,13 +289,11 @@ function hasUsableAiConfiguration(settings: WorkspaceAssistantSettingsDto): bool
   )
 }
 
-function resolveAssistantRuntimeStatus(
-  options: {
-    settingsEnabled: boolean
-    runtimeEnabled: boolean
-    activeStatus: WorkspaceAssistantStateDto['status']
-  },
-): WorkspaceAssistantStateDto['status'] {
+function resolveAssistantRuntimeStatus(options: {
+  settingsEnabled: boolean
+  runtimeEnabled: boolean
+  activeStatus: WorkspaceAssistantStateDto['status']
+}): WorkspaceAssistantStateDto['status'] {
   if (!options.settingsEnabled) {
     return 'disabled'
   }
@@ -362,7 +363,9 @@ export class WorkspaceAssistantPluginController {
     return this.state
   }
 
-  public async prompt(payload: WorkspaceAssistantPromptInput): Promise<WorkspaceAssistantPromptResult> {
+  public async prompt(
+    payload: WorkspaceAssistantPromptInput,
+  ): Promise<WorkspaceAssistantPromptResult> {
     if (this.activePromptAbortController) {
       throw new Error('工作流助手正在回答上一条消息，请等待当前回复完成。')
     }
@@ -376,7 +379,11 @@ export class WorkspaceAssistantPluginController {
     this.applyState({
       ...this.state,
       currentWorkspace,
-      conversation: limitConversation([...this.state.conversation, ...userMessages, assistantMessage]),
+      conversation: limitConversation([
+        ...this.state.conversation,
+        ...userMessages,
+        assistantMessage,
+      ]),
       lastUpdatedAt: new Date().toISOString(),
       status: resolveAssistantRuntimeStatus({
         settingsEnabled: this.settings.enabled,
@@ -504,7 +511,11 @@ export class WorkspaceAssistantPluginController {
       )
     }
 
-    return await this.requestOpenAiCompatibleReply(trimmedPrompt, currentWorkspace, assistantMessageId)
+    return await this.requestOpenAiCompatibleReply(
+      trimmedPrompt,
+      currentWorkspace,
+      assistantMessageId,
+    )
   }
 
   private async requestOpenAiCompatibleReply(
@@ -691,7 +702,9 @@ export class WorkspaceAssistantPluginController {
     }
 
     if (accumulatedText.trim().length === 0) {
-      throw new Error('工作流助手 AI 返回成功，但没有解析到可显示的流式文本内容。请检查 R2TP 返回格式是否兼容。')
+      throw new Error(
+        '工作流助手 AI 返回成功，但没有解析到可显示的流式文本内容。请检查 R2TP 返回格式是否兼容。',
+      )
     }
 
     return accumulatedText.trim()
@@ -718,7 +731,11 @@ export class WorkspaceAssistantPluginController {
 
     try {
       const assistantMessage = createConversationMessage('assistant', '')
-      const reply = await this.requestOpenAiCompatibleReply('请回复“连接成功”。', null, assistantMessage.id)
+      const reply = await this.requestOpenAiCompatibleReply(
+        '请回复“连接成功”。',
+        null,
+        assistantMessage.id,
+      )
       return {
         ok: true,
         message: reply.trim().length > 0 ? reply : '连接成功。',
@@ -742,9 +759,7 @@ export class WorkspaceAssistantPluginController {
   }
 
   private getConversationMessageContent(messageId: string): string {
-    return (
-      this.state.conversation.find(message => message.id === messageId)?.content.trim() ?? ''
-    )
+    return this.state.conversation.find(message => message.id === messageId)?.content.trim() ?? ''
   }
 
   private wasPromptStopped(error: unknown): boolean {

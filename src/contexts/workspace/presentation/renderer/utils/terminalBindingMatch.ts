@@ -39,4 +39,3 @@ export function matchesTerminalRuntimeEvent(
 
   return nodeData.sessionId === event.sessionId
 }
-

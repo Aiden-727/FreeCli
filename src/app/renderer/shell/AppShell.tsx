@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from '@app/renderer/i18n'
 import { SettingsPanel } from '@contexts/settings/presentation/renderer/SettingsPanel'
-import {
-  DEFAULT_AGENT_SETTINGS,
-  type GraphicsMode,
-} from '@contexts/settings/domain/agentSettings'
+import { DEFAULT_AGENT_SETTINGS, type GraphicsMode } from '@contexts/settings/domain/agentSettings'
 import { toPersistedState } from '@contexts/workspace/presentation/renderer/utils/persistence'
 import type { WorkspacePathOpener, WorkspacePathOpenerId } from '@shared/contracts/dto'
 import { AppHeader } from './components/AppHeader'
@@ -202,7 +199,9 @@ export default function App(): React.JSX.Element {
   const [isProjectPathOpenersLoading, setIsProjectPathOpenersLoading] = useState(false)
   const userDataPathLabel =
     userDataPath ??
-    (window.freecliApi?.meta?.isDev ? '当前开发实例的 userData 目录' : '当前应用实例的 userData 目录')
+    (window.freecliApi?.meta?.isDev
+      ? '当前开发实例的 userData 目录'
+      : '当前应用实例的 userData 目录')
   const pluginHostSyncSignatureRef = React.useRef(new Map<PluginHostDiagnosticCode, string>())
   const workspacePluginSyncItems = useMemo(
     () =>

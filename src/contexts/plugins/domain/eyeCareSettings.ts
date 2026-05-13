@@ -1,6 +1,9 @@
 import type { EyeCareMode, EyeCareSettingsDto } from '@shared/contracts/dto'
 
-export const EYE_CARE_MODE_OPTIONS = ['gentle', 'forced-blur'] as const satisfies readonly EyeCareMode[]
+export const EYE_CARE_MODE_OPTIONS = [
+  'gentle',
+  'forced-blur',
+] as const satisfies readonly EyeCareMode[]
 export const EYE_CARE_DEFAULT_WORK_DURATION_MINUTES = 20
 export const EYE_CARE_MIN_WORK_DURATION_MINUTES = 1
 export const EYE_CARE_MAX_WORK_DURATION_MINUTES = 180
@@ -67,10 +70,7 @@ export function normalizeEyeCareSettings(value: unknown): EyeCareSettingsDto {
     ),
     mode: isEyeCareMode(record.mode) ? record.mode : DEFAULT_EYE_CARE_SETTINGS.mode,
     strictMode,
-    allowPostpone: normalizeBoolean(
-      record.allowPostpone,
-      DEFAULT_EYE_CARE_SETTINGS.allowPostpone,
-    ),
+    allowPostpone: normalizeBoolean(record.allowPostpone, DEFAULT_EYE_CARE_SETTINGS.allowPostpone),
     postponeMinutes: normalizeIntegerInRange(
       record.postponeMinutes,
       DEFAULT_EYE_CARE_SETTINGS.postponeMinutes,

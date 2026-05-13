@@ -50,7 +50,9 @@ test.describe('Workspace Canvas - Unified Node Chrome', () => {
       await expect(noteNode.locator('.note-node__header')).toHaveCSS('height', '34px')
       await expect(terminalNode.locator('.terminal-node__toolbar')).toHaveCount(0)
       await expect(
-        terminalNode.locator('.terminal-node__header [data-testid="terminal-node-persistence-switch"]'),
+        terminalNode.locator(
+          '.terminal-node__header [data-testid="terminal-node-persistence-switch"]',
+        ),
       ).toBeVisible()
 
       const terminalClose = terminalNode.locator('.terminal-node__close')
@@ -129,7 +131,9 @@ test.describe('Workspace Canvas - Unified Node Chrome', () => {
       )
       const taskTitleInput = taskNode.locator('[data-testid="task-node-inline-title-input"]')
       const terminalEditButton = terminalNode.locator('[data-testid="terminal-node-title-edit"]')
-      const terminalConfirmButton = terminalNode.locator('[data-testid="terminal-node-title-confirm"]')
+      const terminalConfirmButton = terminalNode.locator(
+        '[data-testid="terminal-node-title-confirm"]',
+      )
 
       await terminalHeader.click({ position: { x: 72, y: 16 } })
       await taskHeader.click({ position: { x: 72, y: 16 } })

@@ -1268,7 +1268,6 @@ export function Sidebar({
             )
           })}
         </div>
-
       </div>
       {isArchivePanelOpen && archivePanelPosition && typeof document !== 'undefined'
         ? createPortal(

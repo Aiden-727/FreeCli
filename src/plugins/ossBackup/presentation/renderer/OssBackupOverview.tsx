@@ -62,13 +62,7 @@ function formatNextAutoBackupValue(
   return formatCountdown(targetIso, now)
 }
 
-function OverviewMetric({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}): React.JSX.Element {
+function OverviewMetric({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
     <article className="oss-backup-overview__summary-card">
       <span>{label}</span>

@@ -124,7 +124,10 @@ function resolveLatestPointDay(points: GitWorklogDailyPointDto[]): Date | null {
   return latest
 }
 
-function resolveAnchorDay(anchorDay: string | null | undefined, latestPointDay: Date | null): Date | null {
+function resolveAnchorDay(
+  anchorDay: string | null | undefined,
+  latestPointDay: Date | null,
+): Date | null {
   const parsedAnchor = anchorDay ? parseDay(anchorDay) : null
   if (parsedAnchor) {
     return parsedAnchor

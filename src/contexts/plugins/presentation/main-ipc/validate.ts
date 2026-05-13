@@ -1,8 +1,6 @@
 import { createAppError } from '../../../../shared/errors/appError'
 import type { BuiltinPluginId } from '../../domain/pluginManifest'
-import {
-  normalizeEyeCareSettings,
-} from '../../domain/eyeCareSettings'
+import { normalizeEyeCareSettings } from '../../domain/eyeCareSettings'
 import {
   normalizeGitWorklogSettings,
   normalizeGitWorklogWorkspaces,
@@ -72,20 +70,15 @@ export interface NormalizedUndoGitWorklogRepositoriesRepairPayload {
   settings: GitWorklogSettingsDto
 }
 
-export interface NormalizedResolveGitWorklogRepositoryPayload
-  extends ResolveGitWorklogRepositoryInput {}
+export interface NormalizedResolveGitWorklogRepositoryPayload extends ResolveGitWorklogRepositoryInput {}
 
-export interface NormalizedRefreshGitWorklogWorkspacePayload
-  extends RefreshGitWorklogWorkspaceInput {}
+export interface NormalizedRefreshGitWorklogWorkspacePayload extends RefreshGitWorklogWorkspaceInput {}
 
-export interface NormalizedAcceptGitWorklogPendingImportPayload
-  extends AcceptGitWorklogPendingImportInput {}
+export interface NormalizedAcceptGitWorklogPendingImportPayload extends AcceptGitWorklogPendingImportInput {}
 
-export interface NormalizedDismissGitWorklogPendingImportPayload
-  extends DismissGitWorklogPendingImportInput {}
+export interface NormalizedDismissGitWorklogPendingImportPayload extends DismissGitWorklogPendingImportInput {}
 
-export interface NormalizedRestoreGitWorklogDismissedImportPayload
-  extends RestoreGitWorklogDismissedImportInput {}
+export interface NormalizedRestoreGitWorklogDismissedImportPayload extends RestoreGitWorklogDismissedImportInput {}
 
 export interface NormalizedSyncOssBackupSettingsPayload {
   settings: OssBackupSettingsDto
@@ -97,8 +90,7 @@ export interface NormalizedSyncWorkspaceAssistantSettingsPayload {
   settings: WorkspaceAssistantSettingsDto
 }
 
-export interface NormalizedSyncWorkspaceAssistantWorkspaceSnapshotPayload
-  extends SyncWorkspaceAssistantWorkspaceSnapshotInput {}
+export interface NormalizedSyncWorkspaceAssistantWorkspaceSnapshotPayload extends SyncWorkspaceAssistantWorkspaceSnapshotInput {}
 
 export interface NormalizedWorkspaceAssistantPromptPayload extends WorkspaceAssistantPromptInput {}
 
@@ -269,8 +261,7 @@ function normalizeGitWorklogWorkspacePathPayload(
   }
 
   const record = payload as Record<string, unknown>
-  const workspacePath =
-    typeof record.workspacePath === 'string' ? record.workspacePath.trim() : ''
+  const workspacePath = typeof record.workspacePath === 'string' ? record.workspacePath.trim() : ''
   if (workspacePath.length === 0) {
     throw createAppError('common.invalid_input', {
       debugMessage,
@@ -435,7 +426,8 @@ function normalizeWorkspaceAssistantWorkspaceSnapshot(
 
   if (typeof value !== 'object') {
     throw createAppError('common.invalid_input', {
-      debugMessage: 'Invalid workspace snapshot for plugins:workspace-assistant:sync-workspace-snapshot',
+      debugMessage:
+        'Invalid workspace snapshot for plugins:workspace-assistant:sync-workspace-snapshot',
     })
   }
 

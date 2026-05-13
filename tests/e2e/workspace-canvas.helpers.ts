@@ -167,7 +167,9 @@ export async function seedWorkspaceState(
                         return false
                       }
 
-                      return expectedWorkspace.nodeIds.every(nodeId => loadedNodeIds.includes(nodeId))
+                      return expectedWorkspace.nodeIds.every(nodeId =>
+                        loadedNodeIds.includes(nodeId),
+                      )
                     })
                   }
                 } catch {
@@ -175,9 +177,11 @@ export async function seedWorkspaceState(
                 }
 
                 const appShell = document.querySelector('.app-shell')
-                const sidebarCollapsed = appShell?.classList.contains('app-shell--sidebar-collapsed') ?? false
+                const sidebarCollapsed =
+                  appShell?.classList.contains('app-shell--sidebar-collapsed') ?? false
                 const canvasReady =
-                  document.querySelector('.workspace-canvas .react-flow__pane') instanceof HTMLElement
+                  document.querySelector('.workspace-canvas .react-flow__pane') instanceof
+                  HTMLElement
                 const visibleWorkspaceCount = document.querySelectorAll('.workspace-item').length
                 const sidebarReady =
                   minimumVisibleWorkspaceCount === 0 ||

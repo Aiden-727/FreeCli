@@ -374,9 +374,7 @@ export class GitWorklogDiscoveryStore {
     return next
   }
 
-  private findWorkspace(
-    workspacePath: string,
-  ): PersistedGitWorklogDiscoveryWorkspaceEntry | null {
+  private findWorkspace(workspacePath: string): PersistedGitWorklogDiscoveryWorkspaceEntry | null {
     const normalizedPath = normalizePathForCompare(workspacePath)
     return (
       this.state.workspaces.find(

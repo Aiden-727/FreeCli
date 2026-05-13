@@ -70,13 +70,17 @@ function formatMcpStatus(
   t: ReturnType<typeof useTranslation>['t'],
 ): string {
   return `${entry.transport.toUpperCase()} · ${
-    entry.enabled ? t('settingsPanel.ai.extensions.enabled') : t('settingsPanel.ai.extensions.disabled')
+    entry.enabled
+      ? t('settingsPanel.ai.extensions.enabled')
+      : t('settingsPanel.ai.extensions.disabled')
   }`
 }
 
 export function AgentExtensionsSection(): React.JSX.Element {
   const { t } = useTranslation()
-  const [providerState, setProviderState] = React.useState<Record<AgentExtensionProviderId, ProviderState>>({
+  const [providerState, setProviderState] = React.useState<
+    Record<AgentExtensionProviderId, ProviderState>
+  >({
     codex: { isLoading: true, error: null, data: null },
     'claude-code': { isLoading: true, error: null, data: null },
   })
@@ -111,11 +115,13 @@ export function AgentExtensionsSection(): React.JSX.Element {
   React.useEffect(() => {
     let disposed = false
 
-    void Promise.all(AGENT_EXTENSION_PROVIDERS.map(provider => refreshProvider(provider))).finally(() => {
-      if (disposed) {
-        return
-      }
-    })
+    void Promise.all(AGENT_EXTENSION_PROVIDERS.map(provider => refreshProvider(provider))).finally(
+      () => {
+        if (disposed) {
+          return
+        }
+      },
+    )
 
     return () => {
       disposed = true
@@ -203,9 +209,7 @@ export function AgentExtensionsSection(): React.JSX.Element {
 
   return (
     <div className="settings-panel__section" id="settings-section-agent-extensions">
-      <h3 className="settings-panel__section-title">
-        {t('settingsPanel.ai.extensions.title')}
-      </h3>
+      <h3 className="settings-panel__section-title">{t('settingsPanel.ai.extensions.title')}</h3>
 
       <div className="settings-panel__subsection">
         <div className="settings-panel__subsection-header">
@@ -223,14 +227,13 @@ export function AgentExtensionsSection(): React.JSX.Element {
         const draft = mcpDrafts[provider]
 
         return (
-          <div className="settings-panel__subsection settings-provider-card agent-extensions agent-extensions__provider" key={provider}>
+          <div
+            className="settings-panel__subsection settings-provider-card agent-extensions agent-extensions__provider"
+            key={provider}
+          >
             <div className="settings-panel__subsection-header">
-              <strong>
-                {t('settingsPanel.ai.extensions.providerTitle', { provider: label })}
-              </strong>
-              <span>
-                {t('settingsPanel.ai.extensions.providerHelp', { provider: label })}
-              </span>
+              <strong>{t('settingsPanel.ai.extensions.providerTitle', { provider: label })}</strong>
+              <span>{t('settingsPanel.ai.extensions.providerHelp', { provider: label })}</span>
             </div>
 
             <div className="agent-extensions__summary-row">
@@ -279,12 +282,18 @@ export function AgentExtensionsSection(): React.JSX.Element {
                   </div>
                   {mcpServers.length > 0 ? (
                     mcpServers.map(entry => (
-                      <div className="agent-extensions__list-row agent-extensions__list-row--mcp" key={entry.name}>
+                      <div
+                        className="agent-extensions__list-row agent-extensions__list-row--mcp"
+                        key={entry.name}
+                      >
                         <div className="agent-extensions__cell agent-extensions__cell--primary">
                           <strong className="agent-extensions__item-title">{entry.name}</strong>
                         </div>
                         <div className="agent-extensions__cell">
-                          <span className="agent-extensions__item-meta agent-extensions__item-meta--truncate" title={formatMcpTarget(entry)}>
+                          <span
+                            className="agent-extensions__item-meta agent-extensions__item-meta--truncate"
+                            title={formatMcpTarget(entry)}
+                          >
                             {formatMcpTarget(entry)}
                           </span>
                         </div>
@@ -394,17 +403,25 @@ export function AgentExtensionsSection(): React.JSX.Element {
                   </div>
                   {skills.length > 0 ? (
                     skills.map(skill => (
-                      <div className="agent-extensions__list-row agent-extensions__list-row--skills" key={skill.path}>
+                      <div
+                        className="agent-extensions__list-row agent-extensions__list-row--skills"
+                        key={skill.path}
+                      >
                         <div className="agent-extensions__cell agent-extensions__cell--primary">
                           <strong className="agent-extensions__item-title">{skill.name}</strong>
                         </div>
                         <div className="agent-extensions__cell">
-                          <span className="agent-extensions__item-meta agent-extensions__item-meta--truncate" title={skill.path}>
+                          <span
+                            className="agent-extensions__item-meta agent-extensions__item-meta--truncate"
+                            title={skill.path}
+                          >
                             {skill.path}
                           </span>
                         </div>
                         <div className="agent-extensions__cell">
-                          <span className="agent-extensions__item-meta">{formatSkillMeta(skill)}</span>
+                          <span className="agent-extensions__item-meta">
+                            {formatSkillMeta(skill)}
+                          </span>
                         </div>
                       </div>
                     ))

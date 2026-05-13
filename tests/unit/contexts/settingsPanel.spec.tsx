@@ -80,9 +80,7 @@ function createUpdateState(overrides: Partial<AppUpdateState> = {}): AppUpdateSt
   }
 }
 
-function renderSettingsPanel(
-  overrides: Partial<React.ComponentProps<typeof SettingsPanel>> = {},
-) {
+function renderSettingsPanel(overrides: Partial<React.ComponentProps<typeof SettingsPanel>> = {}) {
   return render(
     <SettingsPanel
       settings={DEFAULT_AGENT_SETTINGS}

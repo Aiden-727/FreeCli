@@ -20,12 +20,7 @@ function getErrorMessage(error: unknown): string {
   return 'Unknown error'
 }
 
-export function useAppUpdates({
-  enabled,
-  policy,
-  channel,
-  onShowMessage,
-}: UseAppUpdatesInput): {
+export function useAppUpdates({ enabled, policy, channel, onShowMessage }: UseAppUpdatesInput): {
   updateState: AppUpdateState | null
   checkForUpdates: () => Promise<void>
   downloadUpdate: () => Promise<void>

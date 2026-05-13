@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test'
 import { launchApp, seedWorkspaceState, testWorkspacePath } from './workspace-canvas.helpers'
 
 test.describe('Input Stats Plugin', () => {
-  test('opens the Flutter-like input stats page from plugin manager', async ({ page }, testInfo) => {
+  test('opens the Flutter-like input stats page from plugin manager', async ({
+    page,
+  }, testInfo) => {
     void page
     const { electronApp, window } = await launchApp()
 

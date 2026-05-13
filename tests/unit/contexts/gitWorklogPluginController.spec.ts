@@ -1189,7 +1189,9 @@ describe('GitWorklogPluginController', () => {
       expect(controller.getState().pendingImports).toHaveLength(2)
     })
     expect(
-      controller.getState().pendingImports?.some(importItem => importItem.workspacePath === workspaceTwo),
+      controller
+        .getState()
+        .pendingImports?.some(importItem => importItem.workspacePath === workspaceTwo),
     ).toBe(true)
 
     await controller.dispose()
@@ -1430,10 +1432,7 @@ describe('GitWorklogPluginController', () => {
       }),
     ])
     expect(result.repairedSettings.repositoryOrder).toEqual(['repo_1', 'repo_3'])
-    expect(result.repairedSettings.workspaceOrder).toEqual([
-      'workspace_fastwrite',
-      '__external__',
-    ])
+    expect(result.repairedSettings.workspaceOrder).toEqual(['workspace_fastwrite', '__external__'])
 
     const undo = await repairService.undo({
       settings: result.repairedSettings,

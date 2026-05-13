@@ -81,10 +81,7 @@ function applyHostedTerminalStateToNodes(
     }
 
     const nextStatus = resolveRuntimeStatusFromSessionState(event.state)
-    if (
-      node.data.status === nextStatus &&
-      node.data.hostedAgent.state === 'active'
-    ) {
+    if (node.data.status === nextStatus && node.data.hostedAgent.state === 'active') {
       return node
     }
 

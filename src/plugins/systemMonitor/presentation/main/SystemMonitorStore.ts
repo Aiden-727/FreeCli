@@ -219,7 +219,10 @@ export class SystemMonitorStore {
       .map(toSnapshotDto)
 
     const todayKey = formatDayKey(now)
-    const todayTraffic = toDailyTrafficDto(todayKey, this.days.get(todayKey) ?? createEmptyDayTraffic())
+    const todayTraffic = toDailyTrafficDto(
+      todayKey,
+      this.days.get(todayKey) ?? createEmptyDayTraffic(),
+    )
 
     const recentDaysTraffic: SystemMonitorDailyTrafficDto[] = []
     for (let index = settings.historyRangeDays - 1; index >= 0; index -= 1) {

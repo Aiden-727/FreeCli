@@ -28,7 +28,7 @@ export default function InputStatsControlCenterWidget({
     })
   }
 
-  const showMetrics = state.status === 'ready' || (state.today.keyPresses > 0 || clicks > 0)
+  const showMetrics = state.status === 'ready' || state.today.keyPresses > 0 || clicks > 0
 
   return (
     <button
@@ -60,9 +60,7 @@ export default function InputStatsControlCenterWidget({
                 <MousePointer2 size={14} />
                 <span>{t('pluginManager.plugins.inputStats.controlCenterMetrics.clicks')}</span>
               </span>
-              <span className="control-center-tile__plugin-value">
-                {formatCount(clicks)}
-              </span>
+              <span className="control-center-tile__plugin-value">{formatCount(clicks)}</span>
             </span>
           </span>
         ) : (

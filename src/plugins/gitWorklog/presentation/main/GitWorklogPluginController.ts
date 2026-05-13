@@ -684,7 +684,8 @@ export class GitWorklogPluginController {
   public async acceptPendingImport(workspacePath: string): Promise<GitWorklogStateDto> {
     const pendingImport = (this.state.pendingImports ?? []).find(
       entry =>
-        normalizePathForComparison(entry.workspacePath) === normalizePathForComparison(workspacePath),
+        normalizePathForComparison(entry.workspacePath) ===
+        normalizePathForComparison(workspacePath),
     )
     if (!pendingImport) {
       return this.state
@@ -706,7 +707,8 @@ export class GitWorklogPluginController {
   public async dismissPendingImport(workspacePath: string): Promise<GitWorklogStateDto> {
     const pendingImport = (this.state.pendingImports ?? []).find(
       entry =>
-        normalizePathForComparison(entry.workspacePath) === normalizePathForComparison(workspacePath),
+        normalizePathForComparison(entry.workspacePath) ===
+        normalizePathForComparison(workspacePath),
     )
     if (!pendingImport) {
       return this.state
@@ -1015,7 +1017,7 @@ export class GitWorklogPluginController {
     const discoveredRepositories = await this.discoverWorkspaceRepositoriesCore(this.workspaces)
     return discoveredRepositories.map(({ repository, depth }) => ({
       ...repository,
-      label: depth === 0 ? repository.parentWorkspaceName ?? repository.label : repository.label,
+      label: depth === 0 ? (repository.parentWorkspaceName ?? repository.label) : repository.label,
     }))
   }
 
@@ -1074,7 +1076,8 @@ export class GitWorklogPluginController {
     const targetWorkspaces = workspacePath
       ? this.workspaces.filter(
           workspace =>
-            normalizePathForComparison(workspace.path) === normalizePathForComparison(workspacePath),
+            normalizePathForComparison(workspace.path) ===
+            normalizePathForComparison(workspacePath),
         )
       : this.workspaces
 

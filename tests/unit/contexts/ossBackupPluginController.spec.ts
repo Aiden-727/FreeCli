@@ -209,14 +209,13 @@ describe('OssBackupPluginController', () => {
 
     expect(putJson.mock.calls.some(call => call[1] === 'freecli/legacy/latest.json')).toBe(true)
     expect(putJson.mock.calls.some(call => call[1] === 'freecli/legacy/manifest.json')).toBe(true)
-    const latestSnapshotCall = putJson.mock.calls.find(call => call[1] === 'freecli/legacy/latest.json')
-    expect(
-      (
-        latestSnapshotCall?.[2] as PluginBackupSnapshotDto | undefined
-      )?.plugins.ossBackup?.objectKey,
-    ).toBe(
-      'freecli/legacy',
+    const latestSnapshotCall = putJson.mock.calls.find(
+      call => call[1] === 'freecli/legacy/latest.json',
     )
+    expect(
+      (latestSnapshotCall?.[2] as PluginBackupSnapshotDto | undefined)?.plugins.ossBackup
+        ?.objectKey,
+    ).toBe('freecli/legacy')
 
     await controller.dispose()
   })
@@ -412,7 +411,10 @@ describe('OssBackupPluginController', () => {
       }),
     )
 
-    vi.spyOn(controller as unknown as { canAutoPush: () => boolean }, 'canAutoPush').mockReturnValue(true)
+    vi.spyOn(
+      controller as unknown as { canAutoPush: () => boolean },
+      'canAutoPush',
+    ).mockReturnValue(true)
     vi.spyOn(Math, 'random').mockReturnValue(0)
 
     const performBackup = (
@@ -461,7 +463,10 @@ describe('OssBackupPluginController', () => {
       }),
     )
 
-    vi.spyOn(controller as unknown as { canAutoPush: () => boolean }, 'canAutoPush').mockReturnValue(true)
+    vi.spyOn(
+      controller as unknown as { canAutoPush: () => boolean },
+      'canAutoPush',
+    ).mockReturnValue(true)
     ;(controller as unknown as { autoBackupRetryAttempts: number }).autoBackupRetryAttempts = 5
 
     const performBackup = (
@@ -474,9 +479,9 @@ describe('OssBackupPluginController', () => {
     expect(state.status).toBe('error')
     expect(state.lastError?.message).not.toContain('自动重试')
     expect(state.nextAutoBackupDueAt).toBeNull()
-    expect((controller as unknown as { autoBackupRetryAttempts: number }).autoBackupRetryAttempts).toBe(
-      0,
-    )
+    expect(
+      (controller as unknown as { autoBackupRetryAttempts: number }).autoBackupRetryAttempts,
+    ).toBe(0)
 
     await controller.dispose()
   })
@@ -712,9 +717,10 @@ describe('OssBackupPluginController', () => {
       userDataPath: createTempUserDataPath(),
     })
 
-    vi.spyOn(controller as unknown as { getAppLifecycleApi: () => unknown }, 'getAppLifecycleApi').mockReturnValue(
-      appLifecycleApi,
-    )
+    vi.spyOn(
+      controller as unknown as { getAppLifecycleApi: () => unknown },
+      'getAppLifecycleApi',
+    ).mockReturnValue(appLifecycleApi)
 
     controller.syncSettings(
       createConfiguredSettings({

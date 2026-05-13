@@ -178,7 +178,8 @@ export const zhCN = {
           remaining: '剩余时间',
           breaks: '今日已休息次数',
           cycle: '当前周期',
-          heroSummary: '默认 20 分钟工作 + 20 秒休息，Main 侧持续维护可暂停、可恢复、可终止的循环计时。',
+          heroSummary:
+            '默认 20 分钟工作 + 20 秒休息，Main 侧持续维护可暂停、可恢复、可终止的循环计时。',
         },
         phase: {
           idle: '待机',
@@ -643,7 +644,8 @@ export const zhCN = {
           empty: '尚未发现仓库',
           error: '扫描失败',
         },
-        workspaceScanErrorSummary: '扫描失败，系统会自动重试（第 {{retryCount}} 次）。原因：{{detail}}',
+        workspaceScanErrorSummary:
+          '扫描失败，系统会自动重试（第 {{retryCount}} 次）。原因：{{detail}}',
         workspaceScanWorkspaceBadge: '项目',
         workspaceScanRepositoryBadge: '仓库',
         workspaceScanRepositoryBelongsTo: '归属项目：{{workspace}}',
@@ -676,7 +678,8 @@ export const zhCN = {
         repositoriesTotalSummary: '{{count}} 个仓库',
         repositoriesEnabledSummary: '{{count}} 个启用中',
         repositoriesImportedSummary: '{{count}} 个项目已导入',
-        configuredRepositoryListEmpty: '当前还没有正式纳管的仓库。确认扫描结果或手动添加仓库后，这里会显示对应列表。',
+        configuredRepositoryListEmpty:
+          '当前还没有正式纳管的仓库。确认扫描结果或手动添加仓库后，这里会显示对应列表。',
         repositoryTitle: '仓库 {{index}}',
         repositoryDetailTitle: '仓库详情 · {{label}}',
         repositoryDialogSummary: '在这里调整仓库名称、路径和启用状态，改动会立即生效。',

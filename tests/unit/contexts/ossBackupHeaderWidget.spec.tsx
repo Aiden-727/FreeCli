@@ -48,7 +48,9 @@ describe('OssBackupHeaderWidget', () => {
 
     const button = await screen.findByTestId('app-header-oss-backup-status')
     expect(button.className).toContain('app-header__oss-sync-button--success')
-    expect(screen.getByTestId('app-header-oss-backup-status-badge').querySelector('svg')).not.toBeNull()
+    expect(
+      screen.getByTestId('app-header-oss-backup-status-badge').querySelector('svg'),
+    ).not.toBeNull()
 
     fireEvent.click(button)
     expect(onOpenPluginManager).toHaveBeenCalledWith('oss-backup')
@@ -72,6 +74,8 @@ describe('OssBackupHeaderWidget', () => {
     render(<OssBackupHeaderWidget onOpenPluginManager={() => undefined} />)
     const button = await screen.findByTestId('app-header-oss-backup-status')
     expect(button.className).toContain('app-header__oss-sync-button--syncing')
-    expect(screen.getByTestId('app-header-oss-backup-status-badge').querySelectorAll('circle')).toHaveLength(3)
+    expect(
+      screen.getByTestId('app-header-oss-backup-status-badge').querySelectorAll('circle'),
+    ).toHaveLength(3)
   })
 })

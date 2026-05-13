@@ -18,7 +18,9 @@ type RendererContributionDefinition = {
   headerWidget?: () => Promise<{ default: ComponentType<HeaderPluginWidgetProps> }>
   controlCenterWidget?: () => Promise<{ default: ComponentType<ControlCenterPluginWidgetProps> }>
   settingsSection?: () => Promise<{ default: ComponentType<SettingsPluginSectionProps> }>
-  workspaceOverlayWidget?: () => Promise<{ default: ComponentType<WorkspaceOverlayPluginWidgetProps> }>
+  workspaceOverlayWidget?: () => Promise<{
+    default: ComponentType<WorkspaceOverlayPluginWidgetProps>
+  }>
 }
 
 const headerWidgetCache = new Map<BuiltinPluginId, LazyHeaderWidget>()
@@ -33,9 +35,7 @@ const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
     headerWidget: async () =>
       await import('../../../../plugins/eyeCare/presentation/renderer/EyeCareHeaderWidget'),
     controlCenterWidget: async () =>
-      await import(
-        '../../../../plugins/eyeCare/presentation/renderer/EyeCareControlCenterWidget'
-      ),
+      await import('../../../../plugins/eyeCare/presentation/renderer/EyeCareControlCenterWidget'),
     settingsSection: async () =>
       await import('../../../../plugins/eyeCare/presentation/renderer/EyeCareSettingsSection'),
     workspaceOverlayWidget: async () =>
@@ -43,47 +43,31 @@ const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
   },
   'input-stats': {
     controlCenterWidget: async () =>
-      await import(
-        '../../../../plugins/inputStats/presentation/renderer/InputStatsControlCenterWidget'
-      ),
+      await import('../../../../plugins/inputStats/presentation/renderer/InputStatsControlCenterWidget'),
     settingsSection: async () =>
       await import('../../../../plugins/inputStats/presentation/renderer/InputStatsSettingsSection'),
   },
   'system-monitor': {
     headerWidget: async () =>
-      await import(
-        '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorHeaderWidget'
-      ),
+      await import('../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorHeaderWidget'),
     controlCenterWidget: async () =>
-      await import(
-        '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorControlCenterWidget'
-      ),
+      await import('../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorControlCenterWidget'),
     settingsSection: async () =>
-      await import(
-        '../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorSettingsSection'
-      ),
+      await import('../../../../plugins/systemMonitor/presentation/renderer/SystemMonitorSettingsSection'),
   },
   'quota-monitor': {
     headerWidget: async () =>
       await import('../../../../plugins/quotaMonitor/presentation/renderer/QuotaMonitorHeaderWidget'),
     controlCenterWidget: async () =>
-      await import(
-        '../../../../plugins/quotaMonitor/presentation/renderer/QuotaMonitorControlCenterWidget'
-      ),
+      await import('../../../../plugins/quotaMonitor/presentation/renderer/QuotaMonitorControlCenterWidget'),
     settingsSection: async () =>
-      await import(
-        '../../../../plugins/quotaMonitor/presentation/renderer/QuotaMonitorSettingsSection'
-      ),
+      await import('../../../../plugins/quotaMonitor/presentation/renderer/QuotaMonitorSettingsSection'),
   },
   'git-worklog': {
     controlCenterWidget: async () =>
-      await import(
-        '../../../../plugins/gitWorklog/presentation/renderer/GitWorklogControlCenterWidget'
-      ),
+      await import('../../../../plugins/gitWorklog/presentation/renderer/GitWorklogControlCenterWidget'),
     settingsSection: async () =>
-      await import(
-        '../../../../plugins/gitWorklog/presentation/renderer/GitWorklogSettingsSection'
-      ),
+      await import('../../../../plugins/gitWorklog/presentation/renderer/GitWorklogSettingsSection'),
   },
   'oss-backup': {
     headerWidget: async () =>
@@ -93,21 +77,13 @@ const BUILTIN_PLUGIN_RENDERER_CONTRIBUTIONS: Partial<
   },
   'workspace-assistant': {
     headerWidget: async () =>
-      await import(
-        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantHeaderWidget'
-      ),
+      await import('../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantHeaderWidget'),
     controlCenterWidget: async () =>
-      await import(
-        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantControlCenterWidget'
-      ),
+      await import('../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantControlCenterWidget'),
     settingsSection: async () =>
-      await import(
-        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantSettingsSection'
-      ),
+      await import('../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantSettingsSection'),
     workspaceOverlayWidget: async () =>
-      await import(
-        '../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantOverlay'
-      ),
+      await import('../../../../plugins/workspaceAssistant/presentation/renderer/WorkspaceAssistantOverlay'),
   },
 }
 

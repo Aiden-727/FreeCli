@@ -184,9 +184,9 @@ test.describe('Control Center', () => {
       await pluginWidget.click()
 
       await expect(window.locator('[data-testid="plugin-manager"]')).toBeVisible()
-      await expect(
-        window.locator('[data-testid="plugin-manager-nav-input-stats"]'),
-      ).toHaveClass(/settings-panel__nav-button--active/)
+      await expect(window.locator('[data-testid="plugin-manager-nav-input-stats"]')).toHaveClass(
+        /settings-panel__nav-button--active/,
+      )
     } finally {
       await electronApp.close()
     }
@@ -344,7 +344,9 @@ test.describe('Control Center', () => {
       await window.locator('[data-testid="plugin-manager-nav-git-worklog"]').click()
 
       await window.locator('[data-testid="git-worklog-manage-repository-repo_2"]').click()
-      await expect(window.locator('[data-testid="git-worklog-repository-dialog-repo_2"]')).toBeVisible()
+      await expect(
+        window.locator('[data-testid="git-worklog-repository-dialog-repo_2"]'),
+      ).toBeVisible()
       await window
         .locator('[data-testid="git-worklog-repository-workspace-repo_2"]')
         .selectOption('workspace_b')
@@ -357,16 +359,29 @@ test.describe('Control Center', () => {
       const targetGroup = window.locator('[data-testid="git-worklog-workspace-card-workspace_b"]')
       await expect(sourceRepo).toBeVisible()
       await expect(targetGroup).toBeVisible()
-      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_2"]')).toBeVisible()
-      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_1"]')).toHaveCount(0)
+      await expect(
+        targetGroup.locator('[data-testid="git-worklog-repo-card-repo_2"]'),
+      ).toBeVisible()
+      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_1"]')).toHaveCount(
+        0,
+      )
 
-      await dragLocatorTo(window, sourceRepo, targetGroup.locator('.git-worklog-overview__repo-list'), {
-        sourcePosition: { x: 24, y: 24 },
-        steps: 20,
-      })
+      await dragLocatorTo(
+        window,
+        sourceRepo,
+        targetGroup.locator('.git-worklog-overview__repo-list'),
+        {
+          sourcePosition: { x: 24, y: 24 },
+          steps: 20,
+        },
+      )
 
-      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_1"]')).toBeVisible()
-      await expect(targetGroup.locator('[data-testid="git-worklog-repo-card-repo_2"]')).toBeVisible()
+      await expect(
+        targetGroup.locator('[data-testid="git-worklog-repo-card-repo_1"]'),
+      ).toBeVisible()
+      await expect(
+        targetGroup.locator('[data-testid="git-worklog-repo-card-repo_2"]'),
+      ).toBeVisible()
     } finally {
       await electronApp.close()
     }
@@ -438,7 +453,9 @@ test.describe('Control Center', () => {
 
       const systemMonitorWidget = window.locator('[data-testid="app-header-system-monitor"]')
       await expect(systemMonitorWidget).toBeVisible()
-      await expect(window.locator('[data-testid="app-header-system-monitor-download"]')).toBeVisible()
+      await expect(
+        window.locator('[data-testid="app-header-system-monitor-download"]'),
+      ).toBeVisible()
       await expect(window.locator('[data-testid="app-header-system-monitor-upload"]')).toBeVisible()
       await expect(window.locator('[data-testid="app-header-system-monitor-cpu"]')).toBeVisible()
 

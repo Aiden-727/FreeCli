@@ -287,7 +287,9 @@ test.describe('Workspace Canvas - Label Colors', () => {
 
       await header.click({ position: { x: 40, y: 20 } })
       await firstApp.window.locator('[data-testid="terminal-node-label-button"]').click()
-      await expect(firstApp.window.locator('[data-testid="terminal-node-label-menu"]')).toBeVisible()
+      await expect(
+        firstApp.window.locator('[data-testid="terminal-node-label-menu"]'),
+      ).toBeVisible()
       await firstApp.window.locator('[data-testid="terminal-node-label-option-red"]').click()
 
       await expect(header.locator('.cove-label-dot')).toHaveAttribute(

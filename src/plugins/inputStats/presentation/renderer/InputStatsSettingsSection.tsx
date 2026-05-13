@@ -247,7 +247,9 @@ export default function InputStatsSettingsSection({
             <div className="plugin-manager-panel__compact-board">
               <div className="plugin-manager-panel__compact-board-head">
                 <span className="plugin-manager-panel__compact-board-pill">采集节奏</span>
-                <span className="plugin-manager-panel__compact-board-hint">控制 helper 刷新频率</span>
+                <span className="plugin-manager-panel__compact-board-hint">
+                  控制 helper 刷新频率
+                </span>
               </div>
               <div className="input-stats-config__settings-grid">
                 <div className="plugin-manager-panel__field-stack">
@@ -277,7 +279,9 @@ export default function InputStatsSettingsSection({
             <div className="plugin-manager-panel__compact-board">
               <div className="plugin-manager-panel__compact-board-head">
                 <span className="plugin-manager-panel__compact-board-pill">热力图区间</span>
-                <span className="plugin-manager-panel__compact-board-hint">键盘分布与排行榜使用同一范围</span>
+                <span className="plugin-manager-panel__compact-board-hint">
+                  键盘分布与排行榜使用同一范围
+                </span>
               </div>
               <div className="input-stats-config__settings-grid">
                 <div className="plugin-manager-panel__field-stack">

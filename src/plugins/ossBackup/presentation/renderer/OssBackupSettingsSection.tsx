@@ -280,7 +280,7 @@ export default function OssBackupSettingsSection({
               ? t('pluginManager.plugins.ossBackup.datasets.inputStatsHistory')
               : datasetId === 'git-worklog-history'
                 ? t('pluginManager.plugins.ossBackup.datasets.gitWorklogHistory')
-              : t('pluginManager.plugins.ossBackup.datasets.quotaMonitorHistory'),
+                : t('pluginManager.plugins.ossBackup.datasets.quotaMonitorHistory'),
         localFile,
         remoteFile,
       }
@@ -501,9 +501,14 @@ export default function OssBackupSettingsSection({
                       step={1}
                       inputMode="numeric"
                       disabled={!backupSettings.autoBackupEnabled}
-                      value={Math.max(1, Math.round(backupSettings.autoBackupMinIntervalSeconds / 60))}
+                      value={Math.max(
+                        1,
+                        Math.round(backupSettings.autoBackupMinIntervalSeconds / 60),
+                      )}
                       onChange={event => {
-                        const minutes = normalizeAutoBackupIntervalMinutes(Number(event.target.value))
+                        const minutes = normalizeAutoBackupIntervalMinutes(
+                          Number(event.target.value),
+                        )
                         updateSettings(current => ({
                           ...current,
                           autoBackupMinIntervalSeconds: minutes * 60,

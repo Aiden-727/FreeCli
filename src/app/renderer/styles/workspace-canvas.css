@@ -311,7 +311,9 @@ body.workspace-archive-panel-open .workspace-main .react-flow * {
   .workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-frame,
   .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-frame,
   .workspace-canvas .workspace-canvas__minimap-node.hovered .workspace-canvas__minimap-node-shadow,
-  .workspace-canvas .workspace-canvas__minimap-node.selected .workspace-canvas__minimap-node-shadow {
+  .workspace-canvas
+    .workspace-canvas__minimap-node.selected
+    .workspace-canvas__minimap-node-shadow {
     transform: none;
   }
 }

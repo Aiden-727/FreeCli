@@ -698,8 +698,10 @@ export function useHydrateAppState({
       }
 
       const persistedWorkspace = persistedWorkspaceByIdRef.current.get(workspaceId)
-      const currentWorkspace = workspacesRef.current.find(workspace => workspace.id === workspaceId) ?? null
-      const runtimeNodes = currentWorkspace?.nodes ?? (persistedWorkspace ? toRuntimeNodes(persistedWorkspace) : null)
+      const currentWorkspace =
+        workspacesRef.current.find(workspace => workspace.id === workspaceId) ?? null
+      const runtimeNodes =
+        currentWorkspace?.nodes ?? (persistedWorkspace ? toRuntimeNodes(persistedWorkspace) : null)
 
       if (!persistedWorkspace && !currentWorkspace) {
         markInitialHydrationComplete(workspaceId)

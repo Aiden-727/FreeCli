@@ -218,7 +218,9 @@ export function PluginManagerPanel({
                         >
                           <div className="settings-panel__row-label">
                             <div className="plugin-manager-panel__plugin-meta">
-                              <strong className="plugin-manager-panel__plugin-title">{plugin.title}</strong>
+                              <strong className="plugin-manager-panel__plugin-title">
+                                {plugin.title}
+                              </strong>
                               <span className="plugin-manager-panel__plugin-description">
                                 {plugin.description}
                               </span>

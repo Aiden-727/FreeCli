@@ -3,7 +3,8 @@ import { __workspaceAssistantMarkdownTestUtils } from '../../../src/plugins/work
 
 describe('WorkspaceAssistantMarkdown', () => {
   it('parses strong text from double-asterisk markdown', () => {
-    const tokens = __workspaceAssistantMarkdownTestUtils.tokenizeInline('这里有 **重点内容** 需要加粗')
+    const tokens =
+      __workspaceAssistantMarkdownTestUtils.tokenizeInline('这里有 **重点内容** 需要加粗')
 
     expect(tokens).toEqual([
       {

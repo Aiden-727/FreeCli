@@ -195,9 +195,7 @@ export class SystemMonitorHelperClient {
     })
   }
 
-  public async configure(options: {
-    gpuMode: SystemMonitorGpuMode
-  }): Promise<void> {
+  public async configure(options: { gpuMode: SystemMonitorGpuMode }): Promise<void> {
     await this.ensureStarted()
     await this.sendCommand({
       type: 'configure',

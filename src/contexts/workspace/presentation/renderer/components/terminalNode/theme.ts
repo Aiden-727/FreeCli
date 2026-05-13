@@ -61,9 +61,6 @@ export function resolveTerminalTheme(mode: TerminalThemeMode = 'sync-with-ui') {
     cursor: readRootCssVar('--cove-terminal-cursor', defaults.cursor),
     selectionBackground: readRootCssVar('--cove-terminal-selection', defaults.selectionBackground),
     yellow: readRootCssVar('--cove-terminal-ansi-yellow', defaults.yellow),
-    brightYellow: readRootCssVar(
-      '--cove-terminal-ansi-bright-yellow',
-      defaults.brightYellow,
-    ),
+    brightYellow: readRootCssVar('--cove-terminal-ansi-bright-yellow', defaults.brightYellow),
   }
 }

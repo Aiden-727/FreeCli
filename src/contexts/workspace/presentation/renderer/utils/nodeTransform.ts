@@ -69,9 +69,7 @@ export function toRuntimeNodes(workspace: PersistedWorkspaceState): Node<Termina
         ? isTaskNodeData(node.task)
           ? {
               ...node.task,
-              linkedAgentBindingId:
-                node.task.linkedAgentBindingId ??
-                null,
+              linkedAgentBindingId: node.task.linkedAgentBindingId ?? null,
             }
           : defaultTask
         : null
@@ -112,21 +110,18 @@ export function toRuntimeNodes(workspace: PersistedWorkspaceState): Node<Termina
         persistenceMode: 'persistent',
         executionDirectory: node.executionDirectory,
         expectedDirectory: node.expectedDirectory,
-        agent:
-          node.agent
-            ? {
-                ...node.agent,
-                bindingId: node.agent.bindingId ?? deriveAgentNodeBindingId(node.id),
-              }
-            : null,
-        hostedAgent:
-          node.hostedAgent
-            ? {
-                ...node.hostedAgent,
-                bindingId:
-                  node.hostedAgent.bindingId ?? deriveHostedTerminalBindingId(node.id),
-              }
-            : null,
+        agent: node.agent
+          ? {
+              ...node.agent,
+              bindingId: node.agent.bindingId ?? deriveAgentNodeBindingId(node.id),
+            }
+          : null,
+        hostedAgent: node.hostedAgent
+          ? {
+              ...node.hostedAgent,
+              bindingId: node.hostedAgent.bindingId ?? deriveHostedTerminalBindingId(node.id),
+            }
+          : null,
         task,
         note,
         image,

@@ -217,7 +217,9 @@ function normalizeRangeStats(raw: unknown): GitWorklogCachedRangeStats | null {
   }
 
   const dailyPoints = Array.isArray(raw.dailyPoints)
-    ? raw.dailyPoints.map(normalizeDailyPoint).filter((point): point is GitWorklogDailyPointDto => point !== null)
+    ? raw.dailyPoints
+        .map(normalizeDailyPoint)
+        .filter((point): point is GitWorklogDailyPointDto => point !== null)
     : []
 
   return {
@@ -282,7 +284,9 @@ function normalizeDailyHistory(raw: unknown): GitWorklogCachedDailyHistory | nul
             }
 
             const files = Array.isArray(item.files)
-              ? item.files.filter((file): file is string => typeof file === 'string' && file.trim().length > 0)
+              ? item.files.filter(
+                  (file): file is string => typeof file === 'string' && file.trim().length > 0,
+                )
               : []
 
             return {
@@ -314,7 +318,8 @@ function normalizeRangeValidation(raw: unknown): GitWorklogRangeCacheValidation 
   }
 
   const from = typeof raw.from === 'string' && raw.from.trim().length > 0 ? raw.from.trim() : null
-  const until = typeof raw.until === 'string' && raw.until.trim().length > 0 ? raw.until.trim() : null
+  const until =
+    typeof raw.until === 'string' && raw.until.trim().length > 0 ? raw.until.trim() : null
 
   return {
     authorFilter: typeof raw.authorFilter === 'string' ? raw.authorFilter.trim() : '',
@@ -564,7 +569,9 @@ export function buildGitWorklogCodeCacheKey(validation: GitWorklogCodeCacheValid
   return createHash('sha256').update(payload, 'utf8').digest('hex')
 }
 
-export function buildGitWorklogHeatmapCacheKey(validation: GitWorklogHeatmapCacheValidation): string {
+export function buildGitWorklogHeatmapCacheKey(
+  validation: GitWorklogHeatmapCacheValidation,
+): string {
   const payload = JSON.stringify({
     authorFilter: validation.authorFilter.trim(),
     refsFingerprint: validation.refsFingerprint,
@@ -837,7 +844,9 @@ export class GitWorklogHistoryStore {
   private reorderAndTrimRepositories(): void {
     this.state.repositories = this.state.repositories
       .sort((left, right) =>
-        computeRepositoryLatestTimestamp(right).localeCompare(computeRepositoryLatestTimestamp(left)),
+        computeRepositoryLatestTimestamp(right).localeCompare(
+          computeRepositoryLatestTimestamp(left),
+        ),
       )
       .slice(0, MAX_REPOSITORIES)
   }

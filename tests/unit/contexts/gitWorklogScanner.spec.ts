@@ -144,9 +144,7 @@ describe('GitWorklogScanner daily history cache', () => {
         additions: 10,
       }),
     ])
-    expect(
-      runGitCommand.mock.calls.some(call => (call[0] as string[]).includes('log')),
-    ).toBe(false)
+    expect(runGitCommand.mock.calls.some(call => (call[0] as string[]).includes('log'))).toBe(false)
     expect(historyStore.saveDailyHistory).not.toHaveBeenCalled()
   })
 })

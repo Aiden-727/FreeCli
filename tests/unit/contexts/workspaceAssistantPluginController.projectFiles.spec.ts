@@ -24,7 +24,9 @@ describe('WorkspaceAssistantPluginController project file safety', () => {
       body: new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(
-            encoder.encode('data: {"type":"response.output_text.delta","delta":"真实 AI 回复：当前快照可用。"}\n\n'),
+            encoder.encode(
+              'data: {"type":"response.output_text.delta","delta":"真实 AI 回复：当前快照可用。"}\n\n',
+            ),
           )
           controller.enqueue(
             encoder.encode(

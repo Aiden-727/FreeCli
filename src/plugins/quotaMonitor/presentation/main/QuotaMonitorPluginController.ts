@@ -533,11 +533,7 @@ export class QuotaMonitorPluginController {
         })
       }
 
-      if (
-        reachedKnownBoundary ||
-        pageResult.logs.length === 0 ||
-        page >= pageResult.totalPages
-      ) {
+      if (reachedKnownBoundary || pageResult.logs.length === 0 || page >= pageResult.totalPages) {
         return
       }
 

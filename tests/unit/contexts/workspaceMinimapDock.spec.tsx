@@ -95,9 +95,8 @@ describe('WorkspaceMinimapDock', () => {
   })
 
   it('mounts the visible minimap dock without throwing runtime reference errors', async () => {
-    const { WorkspaceMinimapDock } = await import(
-      '../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/view/WorkspaceMinimapDock'
-    )
+    const { WorkspaceMinimapDock } =
+      await import('../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/view/WorkspaceMinimapDock')
 
     render(
       <WorkspaceMinimapDock

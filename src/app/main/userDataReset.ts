@@ -67,7 +67,10 @@ export async function consumeAndResetUserDataIfNeeded(userDataPath: string): Pro
     throw new Error('用户数据重置标记格式无效。')
   }
 
-  const resetRootPath = resolve(dirname(normalizedUserDataPath), `${basename(normalizedUserDataPath)}.resetting`)
+  const resetRootPath = resolve(
+    dirname(normalizedUserDataPath),
+    `${basename(normalizedUserDataPath)}.resetting`,
+  )
   await removePath(resetRootPath)
 
   if (await pathExists(normalizedUserDataPath)) {

@@ -106,7 +106,10 @@ function parseCodexMcpListOutput(stdout: string): AgentMcpServerEntry[] {
       continue
     }
 
-    const parts = line.split(/\s{2,}/).map(part => part.trim()).filter(Boolean)
+    const parts = line
+      .split(/\s{2,}/)
+      .map(part => part.trim())
+      .filter(Boolean)
     if (readingHttpTable) {
       if (parts.length < 4) {
         continue
@@ -318,7 +321,10 @@ async function upsertClaudeMcpServer(input: AddAgentMcpServerInput): Promise<voi
     : {}
 
   const mcpServers =
-    current && typeof current === 'object' && current.mcpServers && typeof current.mcpServers === 'object'
+    current &&
+    typeof current === 'object' &&
+    current.mcpServers &&
+    typeof current.mcpServers === 'object'
       ? { ...(current.mcpServers as Record<string, unknown>) }
       : {}
 
@@ -375,7 +381,10 @@ async function removeClaudeMcpServer(input: RemoveAgentMcpServerInput): Promise<
     return
   }
 
-  const current = JSON.parse(await readFile(configPath as string, 'utf8')) as Record<string, unknown>
+  const current = JSON.parse(await readFile(configPath as string, 'utf8')) as Record<
+    string,
+    unknown
+  >
   const servers =
     current.mcpServers && typeof current.mcpServers === 'object'
       ? { ...(current.mcpServers as Record<string, unknown>) }

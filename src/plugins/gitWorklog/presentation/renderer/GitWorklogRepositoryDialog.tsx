@@ -173,7 +173,9 @@ export function GitWorklogRepositoryDialog({
               )
             }}
           >
-            <option value="">{t('pluginManager.plugins.gitWorklog.workspaceGroupAutoOption')}</option>
+            <option value="">
+              {t('pluginManager.plugins.gitWorklog.workspaceGroupAutoOption')}
+            </option>
             <option value={GIT_WORKLOG_EXTERNAL_WORKSPACE_ID}>
               {t('pluginManager.plugins.gitWorklog.externalWorkspaceGroupTitle')}
             </option>

@@ -52,17 +52,15 @@ interface WorkspaceMinimapDockProps {
   focusNodeTargetZoom: number
 }
 
-function ensureWorkspaceMinimapViewportMask(
-  dockElement: HTMLDivElement,
-): SVGRectElement | null {
+function ensureWorkspaceMinimapViewportMask(dockElement: HTMLDivElement): SVGRectElement | null {
   const minimapSvg = dockElement.querySelector('.react-flow__minimap-svg') as SVGSVGElement | null
   if (!minimapSvg) {
     return null
   }
 
-  let overlayGroup = minimapSvg.querySelector('.workspace-canvas__minimap-viewport-overlay') as
-    | SVGGElement
-    | null
+  let overlayGroup = minimapSvg.querySelector(
+    '.workspace-canvas__minimap-viewport-overlay',
+  ) as SVGGElement | null
   if (!overlayGroup) {
     overlayGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     overlayGroup.setAttribute('class', 'workspace-canvas__minimap-viewport-overlay')
@@ -73,9 +71,9 @@ function ensureWorkspaceMinimapViewportMask(
     minimapSvg.appendChild(overlayGroup)
   }
 
-  let viewportMask = overlayGroup.querySelector('.workspace-canvas__minimap-viewport-mask') as
-    | SVGRectElement
-    | null
+  let viewportMask = overlayGroup.querySelector(
+    '.workspace-canvas__minimap-viewport-mask',
+  ) as SVGRectElement | null
   if (!viewportMask) {
     viewportMask = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     viewportMask.setAttribute('class', 'workspace-canvas__minimap-viewport-mask')
@@ -127,9 +125,7 @@ export function WorkspaceMinimapDock({
       width:
         dockSize.width > 0 ? Math.round(dockSize.width) : WORKSPACE_MINIMAP_FALLBACK_SIZE.width,
       height:
-        dockSize.height > 0
-          ? Math.round(dockSize.height)
-          : WORKSPACE_MINIMAP_FALLBACK_SIZE.height,
+        dockSize.height > 0 ? Math.round(dockSize.height) : WORKSPACE_MINIMAP_FALLBACK_SIZE.height,
     }),
     [dockSize.height, dockSize.width],
   )

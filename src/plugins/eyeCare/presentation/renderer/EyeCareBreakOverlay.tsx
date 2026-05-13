@@ -40,7 +40,11 @@ export default function EyeCareBreakOverlay({
         </div>
         <div className="eye-care-overlay__actions">
           {state.canPostpone ? (
-            <button type="button" className="cove-window__action" onClick={() => void postponeBreak()}>
+            <button
+              type="button"
+              className="cove-window__action"
+              onClick={() => void postponeBreak()}
+            >
               <span className="eye-care-overlay__action-icon" aria-hidden="true">
                 <TimerReset size={18} />
               </span>

@@ -143,6 +143,7 @@ try {
       'Close any running FreeCli instance and terminate WindowsMonitorHelper.exe before building again.',
       `target=${outputDir}`,
       `detail=${detail}`,
-    ].join(' '), { cause: error },
+    ].join(' '),
+    { cause: error },
   )
 }

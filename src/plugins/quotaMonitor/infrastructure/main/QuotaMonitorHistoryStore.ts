@@ -648,12 +648,14 @@ export class QuotaMonitorHistoryStore {
     const historyRows = previous ? [previous, ...rows] : rows
     const buckets = new Map<string, SnapshotRow[]>()
     for (const row of rows) {
-      const key = toHourKey(new Date(
-        row.fetchedAt.getFullYear(),
-        row.fetchedAt.getMonth(),
-        row.fetchedAt.getDate(),
-        row.fetchedAt.getHours(),
-      ))
+      const key = toHourKey(
+        new Date(
+          row.fetchedAt.getFullYear(),
+          row.fetchedAt.getMonth(),
+          row.fetchedAt.getDate(),
+          row.fetchedAt.getHours(),
+        ),
+      )
       const items = buckets.get(key)
       if (items) {
         items.push(row)
@@ -717,7 +719,9 @@ export class QuotaMonitorHistoryStore {
       return null
     }
 
-    const recentSamples = samples.filter(sample => now.getTime() - sample.ts.getTime() <= 24 * 60 * 60 * 1000)
+    const recentSamples = samples.filter(
+      sample => now.getTime() - sample.ts.getTime() <= 24 * 60 * 60 * 1000,
+    )
     const relevant = recentSamples.length > 0 ? recentSamples : samples.slice(-24)
     let totalWeight = 0
     let weightedRate = 0
@@ -735,11 +739,7 @@ export class QuotaMonitorHistoryStore {
     return weightedRate / totalWeight
   }
 
-  private getWorkDuration(
-    profileId: string,
-    now: Date,
-    options: { allTime: boolean },
-  ): number {
+  private getWorkDuration(profileId: string, now: Date, options: { allTime: boolean }): number {
     const rows = this.readSnapshotRows(profileId, {
       since: options.allTime ? undefined : startOfLocalDay(now),
     })
@@ -983,7 +983,9 @@ export class QuotaMonitorHistoryStore {
       .map(([modelName]) => modelName)
     const seriesByModel: Record<string, number[]> = {}
     for (const modelName of models) {
-      seriesByModel[modelName] = bucketKeys.map(bucketKey => buckets.get(bucketKey)?.get(modelName) ?? 0)
+      seriesByModel[modelName] = bucketKeys.map(
+        bucketKey => buckets.get(bucketKey)?.get(modelName) ?? 0,
+      )
     }
 
     return {
@@ -999,11 +1001,7 @@ export class QuotaMonitorHistoryStore {
     hourlyIncreaseQuota: number
     quotaCap: number
   }): QuotaMonitorCappedInsightDto | null {
-    if (
-      params.quotaCap <= 0 ||
-      params.dailyInitialQuota < 0 ||
-      params.hourlyIncreaseQuota < 0
-    ) {
+    if (params.quotaCap <= 0 || params.dailyInitialQuota < 0 || params.hourlyIncreaseQuota < 0) {
       return null
     }
 

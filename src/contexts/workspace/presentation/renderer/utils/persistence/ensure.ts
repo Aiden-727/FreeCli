@@ -196,9 +196,7 @@ function ensurePersistedHostedAgentData(value: unknown): HostedTerminalAgent | n
   return {
     bindingId:
       normalizeOptionalString(record.bindingId) ??
-      deriveHostedTerminalBindingId(
-        `${provider}:${cwd}:${resolvedStartedAt}:${resolvedCommand}`,
-      ),
+      deriveHostedTerminalBindingId(`${provider}:${cwd}:${resolvedStartedAt}:${resolvedCommand}`),
     provider,
     launchMode: normalizeLaunchMode(record.launchMode),
     ...resumeBinding,

@@ -230,9 +230,8 @@ test.describe('Workspace Canvas - Persistence', () => {
           null
 
         const unsubscribe = window.freecliApi.pty.onExit(event => {
-          ;(
-            window as unknown as { __freecliTestExitCode?: number | null }
-          ).__freecliTestExitCode = event.exitCode
+          ;(window as unknown as { __freecliTestExitCode?: number | null }).__freecliTestExitCode =
+            event.exitCode
           unsubscribe()
         })
       })

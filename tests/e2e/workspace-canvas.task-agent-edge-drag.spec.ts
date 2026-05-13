@@ -39,7 +39,9 @@ async function measureTaskAgentEdgeGap(window: Page): Promise<{
       '.workspace-task-agent-edge .react-flow__edge-path',
     ) as SVGGraphicsElement | null
     const targetNode = Array.from(document.querySelectorAll('.react-flow__node')).find(node => {
-      return node.querySelector('.terminal-node__title')?.textContent?.includes('codex · gpt-5.2-codex')
+      return node
+        .querySelector('.terminal-node__title')
+        ?.textContent?.includes('codex · gpt-5.2-codex')
     }) as HTMLElement | undefined
 
     if (!edge || !targetNode) {

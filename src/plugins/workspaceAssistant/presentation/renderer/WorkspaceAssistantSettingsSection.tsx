@@ -157,7 +157,9 @@ export default function WorkspaceAssistantSettingsSection({
             </label>
 
             <label className="plugin-manager-panel__toggle-row">
-              <span>{t('pluginManager.plugins.workspaceAssistant.allowSuggestionToastsLabel')}</span>
+              <span>
+                {t('pluginManager.plugins.workspaceAssistant.allowSuggestionToastsLabel')}
+              </span>
               <span className="cove-toggle">
                 <input
                   type="checkbox"

@@ -1,10 +1,7 @@
 import React from 'react'
 import type { GitWorklogDailyPointDto } from '@shared/contracts/dto'
 import { useTranslation } from '@app/renderer/i18n'
-import {
-  formatGitWorklogCount,
-  getGitWorklogCalendarWindowPoints,
-} from './gitWorklogFormatting'
+import { formatGitWorklogCount, getGitWorklogCalendarWindowPoints } from './gitWorklogFormatting'
 import { createGitWorklogPlotPoints, createGitWorklogSmoothPath } from './gitWorklogTrendPaths'
 
 const REPO_TREND_WINDOWS = [7, 15, 30] as const
@@ -188,7 +185,11 @@ export function GitWorklogMiniTrend({
                   return
                 }
 
-                const nextDisplayPoints = getGitWorklogCalendarWindowPoints(points, range, anchorDay)
+                const nextDisplayPoints = getGitWorklogCalendarWindowPoints(
+                  points,
+                  range,
+                  anchorDay,
+                )
                 const nextChartModel = buildMiniTrendChartModel(nextDisplayPoints)
                 if (transitionTimerRef.current !== null) {
                   window.clearTimeout(transitionTimerRef.current)

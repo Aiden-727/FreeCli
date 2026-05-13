@@ -1155,7 +1155,9 @@ test.describe('Workspace Canvas - Sidebar Workspaces', () => {
           hasText: 'workspace-drag-b',
         }),
       ).toHaveCount(0)
-      await expect(archivePanel.locator('.workspace-item--archived')).toContainText('workspace-drag-b')
+      await expect(archivePanel.locator('.workspace-item--archived')).toContainText(
+        'workspace-drag-b',
+      )
 
       await window.evaluate(() => {
         const source = document.querySelector<HTMLElement>(
@@ -1252,9 +1254,7 @@ test.describe('Workspace Canvas - Sidebar Workspaces', () => {
             return (parsed.workspaces ?? []).reduce<Record<string, string>>((acc, workspace) => {
               if (typeof workspace.id === 'string') {
                 acc[workspace.id] =
-                  typeof workspace.lifecycleState === 'string'
-                    ? workspace.lifecycleState
-                    : 'active'
+                  typeof workspace.lifecycleState === 'string' ? workspace.lifecycleState : 'active'
               }
               return acc
             }, {})

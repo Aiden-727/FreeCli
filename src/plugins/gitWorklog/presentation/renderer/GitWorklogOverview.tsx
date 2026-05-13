@@ -195,10 +195,7 @@ type RepoDragGroupSnapshot = {
 
 function isPointWithinRect(rect: RectLike, clientX: number, clientY: number): boolean {
   return (
-    clientX >= rect.left &&
-    clientX <= rect.right &&
-    clientY >= rect.top &&
-    clientY <= rect.bottom
+    clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
   )
 }
 
@@ -228,18 +225,16 @@ export function buildGitWorklogOverviewGroups(options: {
     const normalizedPath = normalizeRepoPathForCompare(repository.path)
     const runtimeRepo = runtimeRepoByPath.get(normalizedPath)
     const label = repository.label.trim().length > 0 ? repository.label : repository.id
-    const explicitlyExternal =
-      repository.assignedWorkspaceId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
+    const explicitlyExternal = repository.assignedWorkspaceId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
     const assignedWorkspace =
       !explicitlyExternal &&
       repository.assignedWorkspaceId &&
       workspaceById.has(repository.assignedWorkspaceId)
-        ? workspaceById.get(repository.assignedWorkspaceId) ?? null
+        ? (workspaceById.get(repository.assignedWorkspaceId) ?? null)
         : null
-    const presentationWorkspace =
-      explicitlyExternal
-        ? null
-        : assignedWorkspace ?? inferPresentationWorkspace(repository.path, availableWorkspaces)
+    const presentationWorkspace = explicitlyExternal
+      ? null
+      : (assignedWorkspace ?? inferPresentationWorkspace(repository.path, availableWorkspaces))
 
     return {
       ...(runtimeRepo ?? {
@@ -638,9 +633,7 @@ export function GitWorklogOverview({
           const midY = rect.top + rect.height / 2
           const placement: WorkspaceDropPlacement = clientY < midY ? 'before' : 'after'
           const distance =
-            clientY >= rect.top && clientY <= rect.bottom
-              ? 0
-              : Math.abs(clientY - midY)
+            clientY >= rect.top && clientY <= rect.bottom ? 0 : Math.abs(clientY - midY)
 
           if (distance < nearestDistance) {
             nearestDistance = distance
@@ -724,10 +717,7 @@ export function GitWorklogOverview({
         onChangeRepositoryOrder(nextOrder)
       }
 
-      if (
-        onMoveRepositoryToWorkspaceGroup &&
-        currentTarget.groupId !== activeDrag.groupId
-      ) {
+      if (onMoveRepositoryToWorkspaceGroup && currentTarget.groupId !== activeDrag.groupId) {
         onMoveRepositoryToWorkspaceGroup(
           activeDrag.id,
           currentTarget.groupId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
@@ -744,9 +734,7 @@ export function GitWorklogOverview({
       const anchorRepositoryId = targetGroup?.repos.at(-1)?.repoId ?? null
       onMoveRepositoryToWorkspaceGroup(
         activeDrag.id,
-        currentTarget.groupId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
-          ? null
-          : currentTarget.groupId,
+        currentTarget.groupId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID ? null : currentTarget.groupId,
         anchorRepositoryId,
       )
     }
@@ -1176,7 +1164,7 @@ export function GitWorklogOverview({
                                               group.id === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
                                                 ? null
                                                 : group.id,
-                                          parentWorkspaceName:
+                                            parentWorkspaceName:
                                               group.id === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID
                                                 ? null
                                                 : group.name,

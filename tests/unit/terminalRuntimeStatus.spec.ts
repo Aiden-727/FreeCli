@@ -6,9 +6,7 @@ import {
   resolveTerminalRuntimeStatus,
 } from '../../src/app/renderer/shell/utils/terminalRuntimeStatus'
 
-function createTerminalNodeData(
-  overrides: Partial<TerminalNodeData> = {},
-): TerminalNodeData {
+function createTerminalNodeData(overrides: Partial<TerminalNodeData> = {}): TerminalNodeData {
   return {
     sessionId: 'session-1',
     title: 'terminal',

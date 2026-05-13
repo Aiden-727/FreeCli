@@ -91,8 +91,7 @@ export async function installPtySessionCapture(window: Page): Promise<void> {
     })
     window.freecliApi.pty.onMetadata(event => {
       rememberSessionId(event.sessionId)
-      captureWindow.__freecliResumeSessionIdByPtySessionId![event.sessionId] =
-        event.resumeSessionId
+      captureWindow.__freecliResumeSessionIdByPtySessionId![event.sessionId] = event.resumeSessionId
     })
     captureWindow.__freecliPtyCaptureInstalled = true
   })

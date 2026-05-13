@@ -28,10 +28,7 @@ function normalizeBindingId(rawValue: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
-function resolveAgentNodeForRuntimeEvent(event: {
-  sessionId: string
-  bindingId?: string | null
-}): {
+function resolveAgentNodeForRuntimeEvent(event: { sessionId: string; bindingId?: string | null }): {
   workspaceId: string
   workspaceName: string
   workspacePath: string
@@ -150,8 +147,7 @@ export function useAgentStandbyNotificationWatcher({
         return
       }
 
-      const attentionReason =
-        lastAttentionReasonBySessionIdRef.current.get(sessionId) ?? 'input'
+      const attentionReason = lastAttentionReasonBySessionIdRef.current.get(sessionId) ?? 'input'
 
       attentionHandlerRef.current({
         attentionReason,

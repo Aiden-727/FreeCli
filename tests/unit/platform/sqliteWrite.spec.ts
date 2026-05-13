@@ -166,7 +166,11 @@ class FakeDb {
       })
     }
 
-    if (normalizedSql.startsWith('DELETE FROM workspace_space_nodes WHERE space_id = ? AND node_id NOT IN')) {
+    if (
+      normalizedSql.startsWith(
+        'DELETE FROM workspace_space_nodes WHERE space_id = ? AND node_id NOT IN',
+      )
+    ) {
       return new FakeStatement((...params) => {
         const spaceId = String(params[0])
         const keepNodeIds = new Set(params.slice(1).map(value => String(value)))
@@ -205,7 +209,9 @@ class FakeDb {
 
   public exec(sql: string): void {
     const normalizedSql = sql.replace(/\s+/g, ' ').trim()
-    if (normalizedSql === 'DELETE FROM node_scrollback WHERE node_id NOT IN (SELECT id FROM nodes)') {
+    if (
+      normalizedSql === 'DELETE FROM node_scrollback WHERE node_id NOT IN (SELECT id FROM nodes)'
+    ) {
       for (const nodeId of [...this.scrollbacks.keys()]) {
         if (!this.nodes.has(nodeId)) {
           this.scrollbacks.delete(nodeId)
@@ -354,6 +360,6 @@ describe('sqlite write helpers', () => {
     expect(db.scrollbacks.has('node-2')).toBe(false)
     expect([...db.nodes]).toEqual(['node-1'])
     expect([...db.spaces]).toEqual(['space-1'])
-    expect([...((db.spaceLinks.get('space-1') ?? new Set()).values())]).toEqual(['node-1'])
+    expect([...(db.spaceLinks.get('space-1') ?? new Set()).values()]).toEqual(['node-1'])
   })
 })

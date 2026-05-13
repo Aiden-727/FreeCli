@@ -5,3 +5,9 @@ pnpm-lock.yaml
 out
 test-results
 playwright-report
+.tmp
+tmp
+coverage
+release
+build-resources
+src/plugins/systemMonitor/windowsHelper/**/obj

@@ -109,13 +109,7 @@ export interface WorkspaceAssistantNoteSnapshotDto {
 }
 
 export interface WorkspaceAssistantProjectFileSummaryDto {
-  kind:
-    | 'readme'
-    | 'package_json'
-    | 'tsconfig'
-    | 'pnpm_workspace'
-    | 'gitignore'
-    | 'other'
+  kind: 'readme' | 'package_json' | 'tsconfig' | 'pnpm_workspace' | 'gitignore' | 'other'
   name: string
   path: string
   summary: string
@@ -273,12 +267,7 @@ export interface SyncInputStatsSettingsInput {
 
 export type SystemMonitorHistoryRangeDays = 1 | 7 | 30
 export type SystemMonitorGpuMode = 'off' | 'total'
-export type SystemMonitorHeaderDisplayItem =
-  | 'download'
-  | 'upload'
-  | 'cpu'
-  | 'memory'
-  | 'gpu'
+export type SystemMonitorHeaderDisplayItem = 'download' | 'upload' | 'cpu' | 'memory' | 'gpu'
 
 export interface SystemMonitorHeaderSettingsDto {
   displayItems: SystemMonitorHeaderDisplayItem[]

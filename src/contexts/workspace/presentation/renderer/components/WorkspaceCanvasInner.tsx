@@ -380,7 +380,9 @@ export function WorkspaceCanvasInner({
       setTerminalCredentialRestartDialog({
         nodeId,
         title: targetNode.data.title,
-        currentProfileLabel: resolveCredentialProfileLabel(targetNode.data.activeCredentialProfileId),
+        currentProfileLabel: resolveCredentialProfileLabel(
+          targetNode.data.activeCredentialProfileId,
+        ),
         nextProfileLabel: resolveCredentialProfileLabel(nextCredentialProfileId),
         willResumeConversation,
       })
@@ -450,7 +452,9 @@ export function WorkspaceCanvasInner({
       nodeStore.upsertNode(hydratedNode)
       nodeStore.setTerminalActiveCredentialProfile(
         targetNode.id,
-        hydratedNode.data.activeCredentialProfileId ?? hydratedNode.data.credentialProfileId ?? null,
+        hydratedNode.data.activeCredentialProfileId ??
+          hydratedNode.data.credentialProfileId ??
+          null,
       )
 
       if (hydratedNode.data.lastError) {

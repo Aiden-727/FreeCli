@@ -150,10 +150,14 @@ function resolveTestNodeCommand(): string {
   }
 
   try {
-    const resolvedPath = execFileSync(process.platform === 'win32' ? 'where.exe' : 'which', ['node'], {
-      encoding: 'utf8',
-      windowsHide: true,
-    })
+    const resolvedPath = execFileSync(
+      process.platform === 'win32' ? 'where.exe' : 'which',
+      ['node'],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+      },
+    )
       .split(/\r?\n/)
       .map(line => line.trim())
       .find(line => line.length > 0)

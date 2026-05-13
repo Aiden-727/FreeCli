@@ -26,12 +26,8 @@ describe('GitWorklogMiniTrend', () => {
       fireEvent.click(screen.getByTestId('git-worklog-mini-trend-range-repo_animated-15'))
     })
 
-    expect(
-      trend.querySelector('.git-worklog-mini-trend__chart-layer--previous'),
-    ).not.toBeNull()
-    expect(
-      trend.querySelector('.git-worklog-mini-trend__chart-layer--current'),
-    ).not.toBeNull()
+    expect(trend.querySelector('.git-worklog-mini-trend__chart-layer--previous')).not.toBeNull()
+    expect(trend.querySelector('.git-worklog-mini-trend__chart-layer--current')).not.toBeNull()
 
     act(() => {
       vi.advanceTimersByTime(221)

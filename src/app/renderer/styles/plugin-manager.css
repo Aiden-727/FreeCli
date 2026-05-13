@@ -2518,12 +2518,11 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, white 10%, transparent) 0%,
-      color-mix(in srgb, var(--cove-git-worklog-card-surface) 18%, transparent) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, white 10%, transparent) 0%,
+    color-mix(in srgb, var(--cove-git-worklog-card-surface) 18%, transparent) 100%
+  );
   backdrop-filter: blur(10px) saturate(126%);
   -webkit-backdrop-filter: blur(10px) saturate(126%);
   box-shadow:
@@ -3888,7 +3887,8 @@
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--cove-quota-subcard-surface) 98%, white 2%) 0%,
-    color-mix(in srgb, var(--cove-quota-subcard-surface) 94%, var(--cove-quota-card-surface-alt) 6%) 100%
+    color-mix(in srgb, var(--cove-quota-subcard-surface) 94%, var(--cove-quota-card-surface-alt) 6%)
+      100%
   );
   box-shadow:
     0 18px 34px color-mix(in srgb, var(--cove-quota-card-shadow) 28%, transparent),
@@ -5130,11 +5130,7 @@
     radial-gradient(circle at 20% 18%, rgba(171, 207, 255, 0.12), transparent 24%),
     radial-gradient(circle at 76% 28%, rgba(255, 255, 255, 0.08), transparent 20%),
     radial-gradient(circle at 50% 78%, rgba(135, 166, 255, 0.1), transparent 26%),
-    linear-gradient(
-      180deg,
-      rgba(10, 18, 36, 0.14) 0%,
-      rgba(12, 20, 40, 0.2) 100%
-    );
+    linear-gradient(180deg, rgba(10, 18, 36, 0.14) 0%, rgba(12, 20, 40, 0.2) 100%);
   backdrop-filter: blur(30px) saturate(118%);
   -webkit-backdrop-filter: blur(30px) saturate(118%);
 }
@@ -5827,7 +5823,8 @@
 .git-worklog-config__scan-grid tbody td,
 .git-worklog-config__scan-grid tbody th {
   padding: 12px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--cove-git-worklog-subcard-border) 82%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--cove-git-worklog-subcard-border) 82%, transparent);
   vertical-align: middle;
 }
 
@@ -5921,7 +5918,8 @@
 }
 
 .git-worklog-config__scope-badge--repository {
-  border: 1px solid color-mix(in srgb, var(--cove-text-muted) 18%, var(--cove-git-worklog-pill-border));
+  border: 1px solid
+    color-mix(in srgb, var(--cove-text-muted) 18%, var(--cove-git-worklog-pill-border));
   background: color-mix(in srgb, var(--cove-git-worklog-pill-surface) 94%, white 6%);
   color: var(--cove-text-muted);
 }

@@ -52,4 +52,3 @@ export function writeDiagnosticLogEntry(options: {
   appendFileSync(logPath, line, 'utf8')
   return logPath
 }
-

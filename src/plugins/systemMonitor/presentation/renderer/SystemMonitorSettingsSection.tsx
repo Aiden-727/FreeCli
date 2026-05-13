@@ -88,7 +88,9 @@ export default function SystemMonitorSettingsSection({
             <div className="plugin-manager-panel__compact-board">
               <div className="plugin-manager-panel__compact-board-head">
                 <span className="plugin-manager-panel__compact-board-pill">采样节奏</span>
-                <span className="plugin-manager-panel__compact-board-hint">采样、历史与 GPU 策略</span>
+                <span className="plugin-manager-panel__compact-board-hint">
+                  采样、历史与 GPU 策略
+                </span>
               </div>
               <div className="system-monitor-config__settings-grid system-monitor-config__settings-grid--compact">
                 <div className="plugin-manager-panel__field-stack system-monitor-config__field-card">
@@ -223,7 +225,10 @@ export default function SystemMonitorSettingsSection({
               </div>
               <div className="quota-monitor-overview__banner">
                 <strong>应用内展示</strong>
-                <span>系统监控当前只保留头部入口、控制中心卡片和插件页总览，不再提供 Windows 原生任务栏小窗能力。</span>
+                <span>
+                  系统监控当前只保留头部入口、控制中心卡片和插件页总览，不再提供 Windows
+                  原生任务栏小窗能力。
+                </span>
               </div>
             </div>
           </div>

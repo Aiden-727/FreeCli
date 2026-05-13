@@ -837,9 +837,7 @@ describe('PluginManagerPanel', () => {
     fireEvent.click(screen.getByTestId('git-worklog-open-config-dialog'))
     expect(await screen.findByTestId('git-worklog-workspace-scan-list')).toBeVisible()
 
-    fireEvent.click(
-      screen.getByTestId('git-worklog-scan-confirm-pending-import-d:/project/drone'),
-    )
+    fireEvent.click(screen.getByTestId('git-worklog-scan-confirm-pending-import-d:/project/drone'))
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith({
@@ -959,17 +957,13 @@ describe('PluginManagerPanel', () => {
     expect(workspaceScanList).toBeVisible()
     expect(screen.getByRole('table')).toBeVisible()
 
-    const workspaceScanItem = screen.getByTestId(
-      'git-worklog-workspace-scan-item-d:/project/empty',
-    )
+    const workspaceScanItem = screen.getByTestId('git-worklog-workspace-scan-item-d:/project/empty')
     expect(within(workspaceScanItem).getByText('项目')).toBeVisible()
     expect(within(workspaceScanItem).getByText('Empty Workspace')).toBeVisible()
     expect(within(workspaceScanItem).getByText('尚未发现仓库')).toBeVisible()
     expect(within(workspaceScanItem).getByText('已纳管 0 个，待确认 0 个')).toBeVisible()
     expect(screen.getByText('项目 / 仓库')).toBeVisible()
-    expect(
-      screen.getByTestId('git-worklog-scan-refresh-workspace-d:/project/empty'),
-    ).toBeVisible()
+    expect(screen.getByTestId('git-worklog-scan-refresh-workspace-d:/project/empty')).toBeVisible()
     expect(screen.queryByTestId('git-worklog-config-exception-list')).not.toBeInTheDocument()
   })
 
@@ -1172,7 +1166,11 @@ describe('PluginManagerPanel', () => {
     const configuredList = screen.getByTestId('git-worklog-configured-repository-list')
     expect(within(configuredList).getByText('FastWrite')).toBeVisible()
     expect(within(configuredList).getByText('Base Repo')).toBeVisible()
-    expect(within(configuredList).getByText('当前没有匹配到左侧项目，或该项目尚未出现在本次扫描快照中。')).toBeVisible()
+    expect(
+      within(configuredList).getByText(
+        '当前没有匹配到左侧项目，或该项目尚未出现在本次扫描快照中。',
+      ),
+    ).toBeVisible()
     expect(within(configuredList).getByText('当前已明确归入“基础仓库”分组。')).toBeVisible()
   })
 
@@ -1224,7 +1222,9 @@ describe('PluginManagerPanel', () => {
       within(exceptionList).getByTestId('git-worklog-dismissed-import-d:/project/drone'),
     ).toBeVisible()
     expect(
-      within(exceptionList).getByTestId('git-worklog-ignored-auto-repository-d:/project/drone/legacy'),
+      within(exceptionList).getByTestId(
+        'git-worklog-ignored-auto-repository-d:/project/drone/legacy',
+      ),
     ).toBeVisible()
   })
 
@@ -1736,7 +1736,9 @@ describe('PluginManagerPanel', () => {
     fireEvent.click(screen.getByTestId('plugin-manager-nav-git-worklog'))
     fireEvent.click(await screen.findByTestId('git-worklog-open-config-dialog'))
 
-    const refreshButton = await screen.findByTestId('git-worklog-scan-refresh-workspace-d:/project/empty')
+    const refreshButton = await screen.findByTestId(
+      'git-worklog-scan-refresh-workspace-d:/project/empty',
+    )
     fireEvent.click(refreshButton)
 
     expect(refreshMock).toHaveBeenCalledTimes(1)
@@ -2368,7 +2370,9 @@ describe('PluginManagerPanel', () => {
     expect(within(modelTable as HTMLElement).getByText('0')).toBeVisible()
 
     const modelNames = Array.from(
-      overview.querySelectorAll('.quota-monitor-overview__model-row:not(.quota-monitor-overview__model-row--head) span:first-child'),
+      overview.querySelectorAll(
+        '.quota-monitor-overview__model-row:not(.quota-monitor-overview__model-row--head) span:first-child',
+      ),
     ).map(node => node.textContent?.trim())
 
     expect(modelNames).toEqual([

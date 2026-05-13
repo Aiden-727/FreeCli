@@ -51,7 +51,9 @@ function buildSummary(state: QuotaMonitorStateDto): {
   const totalRemain = healthyProfiles.reduce((sum, profile) => sum + profile.remainQuotaValue, 0)
   const totalUsed = healthyProfiles.reduce((sum, profile) => sum + profile.todayUsedQuota, 0)
   const remainRatio =
-    totalRemain + totalUsed > 0 ? Math.max(0, Math.min(1, totalRemain / (totalRemain + totalUsed))) : 0
+    totalRemain + totalUsed > 0
+      ? Math.max(0, Math.min(1, totalRemain / (totalRemain + totalUsed)))
+      : 0
 
   return {
     displayValue: formatPercent(remainRatio),

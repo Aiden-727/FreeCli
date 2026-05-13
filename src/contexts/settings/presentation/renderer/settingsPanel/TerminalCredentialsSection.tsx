@@ -1,10 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@app/renderer/i18n'
 import { CoveSelect } from '@app/renderer/components/CoveSelect'
-import {
-  AGENT_PROVIDER_LABEL,
-  type AgentProvider,
-} from '@contexts/settings/domain/agentSettings'
+import { AGENT_PROVIDER_LABEL, type AgentProvider } from '@contexts/settings/domain/agentSettings'
 import type {
   TerminalCredentialProfile,
   TerminalCredentialProvider,
@@ -161,7 +158,10 @@ export function TerminalCredentialsSection({
               </div>
             </div>
 
-            <div className="settings-list-container" data-testid={`settings-terminal-credentials-list-${provider}`}>
+            <div
+              className="settings-list-container"
+              data-testid={`settings-terminal-credentials-list-${provider}`}
+            >
               {providerProfiles.map((profile, index) => (
                 <div
                   className="settings-list-item settings-list-item--terminal-credential"

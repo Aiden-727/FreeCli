@@ -29,7 +29,12 @@ function normalizeDatasetSyncFlag(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
 
-function normalizeIntegerInRange(value: unknown, fallback: number, min: number, max: number): number {
+function normalizeIntegerInRange(
+  value: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return fallback
   }
@@ -119,8 +124,8 @@ export function normalizeOssBackupSettings(value: unknown): OssBackupSettingsDto
   const lastBackupAt = normalizeText(record.lastBackupAt)
   const lastRestoreAt = normalizeText(record.lastRestoreAt)
   const hasIncludedPluginIds = Object.prototype.hasOwnProperty.call(record, 'includedPluginIds')
-  const normalizedIncludedPluginIds = normalizeBuiltinPluginIds(record.includedPluginIds).filter(id =>
-    DEFAULT_INCLUDED_PLUGIN_IDS.includes(id),
+  const normalizedIncludedPluginIds = normalizeBuiltinPluginIds(record.includedPluginIds).filter(
+    id => DEFAULT_INCLUDED_PLUGIN_IDS.includes(id),
   )
 
   return {

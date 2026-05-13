@@ -56,7 +56,10 @@ export default function QuotaMonitorControlCenterWidget({
       data-testid="control-center-plugin-quota-monitor"
       onClick={() => onOpenPluginManager('quota-monitor')}
     >
-      <span className="control-center-tile__icon control-center-tile__icon--quota" aria-hidden="true">
+      <span
+        className="control-center-tile__icon control-center-tile__icon--quota"
+        aria-hidden="true"
+      >
         <span className="control-center-quota-ring" style={{ color: ringColor }}>
           <svg viewBox="0 0 36 36">
             <circle className="control-center-quota-ring__track" cx="18" cy="18" r={radius} />

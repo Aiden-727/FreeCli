@@ -148,7 +148,10 @@ interface SyncActionRefsParams {
   updateNodeScrollback: (nodeId: string, scrollback: string) => void
   updateTerminalTitle: (nodeId: string, title: string) => void
   renameTerminalTitle: (nodeId: string, title: string) => void
-  setTerminalLabelColorOverride: (nodeId: string, labelColorOverride: NodeLabelColorOverride) => void
+  setTerminalLabelColorOverride: (
+    nodeId: string,
+    labelColorOverride: NodeLabelColorOverride,
+  ) => void
   setTerminalCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
   setTerminalActiveCredentialProfile: (nodeId: string, credentialProfileId: string | null) => void
   setTerminalPersistenceMode: (

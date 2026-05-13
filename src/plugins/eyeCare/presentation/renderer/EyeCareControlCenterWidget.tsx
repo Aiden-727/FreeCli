@@ -34,9 +34,7 @@ export default function EyeCareControlCenterWidget({
             <span className={phaseClassName}>{phaseLabel}</span>
           </span>
           <span className="control-center-tile__plugin-line">
-            <span className="control-center-tile__eye-care-countdown-value">
-              {remainingLabel}
-            </span>
+            <span className="control-center-tile__eye-care-countdown-value">{remainingLabel}</span>
           </span>
         </span>
       </span>

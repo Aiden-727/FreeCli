@@ -118,28 +118,22 @@ describe('pluginHostSyncRegistry', () => {
   })
 
   it('treats enabled plugin changes as persisted plugin changes', () => {
-    const changedPluginIds = resolvePersistedPluginChangeIds(
-      DEFAULT_AGENT_SETTINGS.plugins,
-      {
-        ...DEFAULT_AGENT_SETTINGS.plugins,
-        enabledIds: ['quota-monitor'],
-      },
-    )
+    const changedPluginIds = resolvePersistedPluginChangeIds(DEFAULT_AGENT_SETTINGS.plugins, {
+      ...DEFAULT_AGENT_SETTINGS.plugins,
+      enabledIds: ['quota-monitor'],
+    })
 
     expect(changedPluginIds).toEqual(['quota-monitor'])
   })
 
   it('detects plugin setting changes from the unified manifest metadata', () => {
-    const changedPluginIds = resolvePersistedPluginChangeIds(
-      DEFAULT_AGENT_SETTINGS.plugins,
-      {
-        ...DEFAULT_AGENT_SETTINGS.plugins,
-        gitWorklog: {
-          ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
-          authorFilter: 'Aiden',
-        },
+    const changedPluginIds = resolvePersistedPluginChangeIds(DEFAULT_AGENT_SETTINGS.plugins, {
+      ...DEFAULT_AGENT_SETTINGS.plugins,
+      gitWorklog: {
+        ...DEFAULT_AGENT_SETTINGS.plugins.gitWorklog,
+        authorFilter: 'Aiden',
       },
-    )
+    })
 
     expect(changedPluginIds).toEqual(['git-worklog'])
   })

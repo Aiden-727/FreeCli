@@ -212,15 +212,7 @@ function parseDayKey(value: string): Date | null {
 }
 
 function endOfDay(value: Date): Date {
-  return new Date(
-    value.getFullYear(),
-    value.getMonth(),
-    value.getDate(),
-    23,
-    59,
-    59,
-    999,
-  )
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 23, 59, 59, 999)
 }
 
 function buildDayKeys(from: Date, until: Date): string[] {
@@ -588,7 +580,11 @@ export class GitWorklogScanner {
     }
 
     if (repoCheck.stdout.trim().toLowerCase() !== 'true') {
-      return createEmptyRepoState(repo, scannedAt, createError('not_git_repo', '不是有效的 Git 仓库'))
+      return createEmptyRepoState(
+        repo,
+        scannedAt,
+        createError('not_git_repo', '不是有效的 Git 仓库'),
+      )
     }
 
     const [rangeStats, codeStats, heatmapStats] = await Promise.all([
@@ -848,10 +844,7 @@ export class GitWorklogScanner {
       (lineCount): lineCount is number => typeof lineCount === 'number',
     )
     const totalCodeFiles = numericLineCounts.length
-    const totalCodeLines = numericLineCounts.reduce(
-      (sum, lineCount) => sum + lineCount,
-      0,
-    )
+    const totalCodeLines = numericLineCounts.reduce((sum, lineCount) => sum + lineCount, 0)
 
     const computed: RepoCodeStats = {
       totalCodeFiles,
@@ -1102,12 +1095,14 @@ export class GitWorklogScanner {
       builtAt: cached.builtAt,
     })
 
-    return (await this.historyStore?.getDailyHistory(repoPath)) ?? {
-      refsSnapshot: currentRefs,
-      dailyPoints: mergedPoints,
-      builtAt: cached.builtAt,
-      updatedAt: new Date().toISOString(),
-    }
+    return (
+      (await this.historyStore?.getDailyHistory(repoPath)) ?? {
+        refsSnapshot: currentRefs,
+        dailyPoints: mergedPoints,
+        builtAt: cached.builtAt,
+        updatedAt: new Date().toISOString(),
+      }
+    )
   }
 
   private async rebuildDailyHistory(
@@ -1127,12 +1122,14 @@ export class GitWorklogScanner {
       dailyPoints: scanned.dailyPoints,
     })
 
-    return (await this.historyStore?.getDailyHistory(repoPath)) ?? {
-      refsSnapshot,
-      dailyPoints: scanned.dailyPoints,
-      builtAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    return (
+      (await this.historyStore?.getDailyHistory(repoPath)) ?? {
+        refsSnapshot,
+        dailyPoints: scanned.dailyPoints,
+        builtAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    )
   }
 
   private async scanCommitDailyHistory(
@@ -1324,7 +1321,9 @@ export class GitWorklogScanner {
       }
 
       const stderr =
-        error && typeof error === 'object' && 'stderr' in error ? `${error.stderr ?? ''}`.trim() : ''
+        error && typeof error === 'object' && 'stderr' in error
+          ? `${error.stderr ?? ''}`.trim()
+          : ''
       return {
         ok: false,
         error: createError('command_failed', stderr || failureMessage, detail),

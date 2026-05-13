@@ -16,9 +16,7 @@ import {
 
 const GIT_WORKLOG_EXTERNAL_WORKSPACE_ID = '__external__'
 
-type ResolveRepositoryResult =
-  | { ok: true; path: string; label: string }
-  | { ok: false }
+type ResolveRepositoryResult = { ok: true; path: string; label: string } | { ok: false }
 
 interface RepairBackupPayload {
   formatVersion: 1
@@ -145,9 +143,10 @@ export class GitWorklogRepositoryRepairService {
         seenResolvedPaths.add(resolvedPathKey)
       }
 
-      const inferredWorkspaceId = pathValue.length > 0
-        ? inferAssignedWorkspaceId(nextRepository.path, options.availableWorkspaces)
-        : null
+      const inferredWorkspaceId =
+        pathValue.length > 0
+          ? inferAssignedWorkspaceId(nextRepository.path, options.availableWorkspaces)
+          : null
       const hasValidAssignedWorkspace =
         nextRepository.assignedWorkspaceId === GIT_WORKLOG_EXTERNAL_WORKSPACE_ID ||
         nextRepository.assignedWorkspaceId === null ||

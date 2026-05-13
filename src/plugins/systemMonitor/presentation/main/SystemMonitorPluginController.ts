@@ -15,10 +15,7 @@ import type {
   MainPluginRuntime,
   MainPluginRuntimeFactory,
 } from '../../../../contexts/plugins/application/MainPluginRuntimeHost'
-import {
-  SystemMonitorHelperClient,
-  type SystemMonitorRawSample,
-} from './SystemMonitorHelperClient'
+import { SystemMonitorHelperClient, type SystemMonitorRawSample } from './SystemMonitorHelperClient'
 import { SystemMonitorStore, type SystemMonitorSample } from './SystemMonitorStore'
 
 function createEmptyState(
@@ -230,8 +227,7 @@ export class SystemMonitorPluginController {
       this.previousRawSample = rawSample
       await this.store.appendSample(deltaSample)
 
-      const gpuUnavailable =
-        this.settings.gpuMode !== 'off' && rawSample.gpuUsagePercent === null
+      const gpuUnavailable = this.settings.gpuMode !== 'off' && rawSample.gpuUsagePercent === null
       const nextStatus = gpuUnavailable ? 'partial_error' : 'ready'
       const nextLastError = gpuUnavailable
         ? {

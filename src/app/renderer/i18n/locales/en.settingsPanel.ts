@@ -85,8 +85,10 @@ export const enSettingsPanel = {
       clearing: 'Clearing…',
       failed: 'Failed to clear local data: {{message}}',
       dialogTitle: 'Clear local data?',
-      dialogSummary: 'This will delete the current instance local database, plugin caches, logs, and recovery data.',
-      dialogLead: 'This action cannot be undone. The app will restart automatically after cleanup and launch with a fresh local state.',
+      dialogSummary:
+        'This will delete the current instance local database, plugin caches, logs, and recovery data.',
+      dialogLead:
+        'This action cannot be undone. The app will restart automatically after cleanup and launch with a fresh local state.',
     },
   },
   agent: {

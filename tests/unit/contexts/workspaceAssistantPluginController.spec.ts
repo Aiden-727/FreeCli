@@ -76,14 +76,16 @@ describe('WorkspaceAssistantPluginController', () => {
   })
 
   it('uses OpenAI-compatible Responses API when AI settings are configured', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      createStreamingResponse([
-        'data: {"type":"response.output_text.delta","delta":"真实 AI 回复："}\n\n',
-        'data: {"type":"response.output_text.delta","delta":"请先收口当前进行中的任务。"}\n\n',
-        'data: {"type":"response.completed","response":{"output_text":"真实 AI 回复：请先收口当前进行中的任务。"}}\n\n',
-        'data: [DONE]\n\n',
-      ]),
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        createStreamingResponse([
+          'data: {"type":"response.output_text.delta","delta":"真实 AI 回复："}\n\n',
+          'data: {"type":"response.output_text.delta","delta":"请先收口当前进行中的任务。"}\n\n',
+          'data: {"type":"response.completed","response":{"output_text":"真实 AI 回复：请先收口当前进行中的任务。"}}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     const controller = new WorkspaceAssistantPluginController()
@@ -142,14 +144,16 @@ describe('WorkspaceAssistantPluginController', () => {
   })
 
   it('uses real ai replies directly once the ai configuration is complete', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      createStreamingResponse([
-        'data: {"type":"response.output_text.delta","delta":"真实 AI 回复：当前建议先聚焦"}\n\n',
-        'data: {"type":"response.output_text.delta","delta":"一个进行中的任务。"}\n\n',
-        'data: {"type":"response.completed","response":{"output_text":"真实 AI 回复：当前建议先聚焦一个进行中的任务。"}}\n\n',
-        'data: [DONE]\n\n',
-      ]),
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        createStreamingResponse([
+          'data: {"type":"response.output_text.delta","delta":"真实 AI 回复：当前建议先聚焦"}\n\n',
+          'data: {"type":"response.output_text.delta","delta":"一个进行中的任务。"}\n\n',
+          'data: {"type":"response.completed","response":{"output_text":"真实 AI 回复：当前建议先聚焦一个进行中的任务。"}}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     const controller = new WorkspaceAssistantPluginController()
@@ -174,14 +178,16 @@ describe('WorkspaceAssistantPluginController', () => {
   })
 
   it('supports chat-completions style content when the provider does not return responses output_text', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      createStreamingResponse([
-        'data: {"type":"response.output_text.delta","delta":"真实 AI 回复：这是通过"}\n\n',
-        'data: {"type":"response.output_text.delta","delta":" choices.message.content 返回的内容。"}\n\n',
-        'data: {"type":"response.completed","response":{"choices":[{"message":{"content":"真实 AI 回复：这是通过 choices.message.content 返回的内容。"}}]}}\n\n',
-        'data: [DONE]\n\n',
-      ]),
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        createStreamingResponse([
+          'data: {"type":"response.output_text.delta","delta":"真实 AI 回复：这是通过"}\n\n',
+          'data: {"type":"response.output_text.delta","delta":" choices.message.content 返回的内容。"}\n\n',
+          'data: {"type":"response.completed","response":{"choices":[{"message":{"content":"真实 AI 回复：这是通过 choices.message.content 返回的内容。"}}]}}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     const controller = new WorkspaceAssistantPluginController()
@@ -205,13 +211,15 @@ describe('WorkspaceAssistantPluginController', () => {
   })
 
   it('throws a visible error instead of silently falling back when the provider returns no parseable text', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      createStreamingResponse([
-        'data: {"type":"response.created","response":{"id":"resp_123"}}\n\n',
-        'data: {"type":"response.completed","response":{"id":"resp_123"}}\n\n',
-        'data: [DONE]\n\n',
-      ]),
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        createStreamingResponse([
+          'data: {"type":"response.created","response":{"id":"resp_123"}}\n\n',
+          'data: {"type":"response.completed","response":{"id":"resp_123"}}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     const controller = new WorkspaceAssistantPluginController()
@@ -313,7 +321,9 @@ describe('WorkspaceAssistantPluginController', () => {
             releaseFirstChunk = resolve
           })
           controller.enqueue(
-            encoder.encode('data: {"type":"response.output_text.delta","delta":"已经生成的前半段"}\n\n'),
+            encoder.encode(
+              'data: {"type":"response.output_text.delta","delta":"已经生成的前半段"}\n\n',
+            ),
           )
 
           await new Promise<void>(resolve => {

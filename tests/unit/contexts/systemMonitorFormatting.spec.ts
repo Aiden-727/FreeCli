@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, formatSpeed } from '../../../src/plugins/systemMonitor/presentation/renderer/systemMonitorFormatting'
+import {
+  formatBytes,
+  formatSpeed,
+} from '../../../src/plugins/systemMonitor/presentation/renderer/systemMonitorFormatting'
 
 describe('systemMonitorFormatting', () => {
   it('formats traffic values with KB as the minimum visible unit', () => {

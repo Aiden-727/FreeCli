@@ -115,7 +115,10 @@ export function updateWorkspacesWithAgentExit({
     let workspaceDidChange = false
 
     const nextNodes = workspace.nodes.map(node => {
-      if (node.data.kind !== 'agent' || !matchesTerminalRuntimeEvent(node.data, { sessionId, bindingId })) {
+      if (
+        node.data.kind !== 'agent' ||
+        !matchesTerminalRuntimeEvent(node.data, { sessionId, bindingId })
+      ) {
         return node
       }
 

@@ -1,7 +1,10 @@
 import { BrowserWindow } from 'electron'
 import type { EyeCarePhase, EyeCareSettingsDto, EyeCareStateDto } from '@shared/contracts/dto'
 import { DEFAULT_EYE_CARE_SETTINGS } from '@contexts/plugins/domain/eyeCareSettings'
-import type { MainPluginRuntime, MainPluginRuntimeFactory } from '@contexts/plugins/application/MainPluginRuntimeHost'
+import type {
+  MainPluginRuntime,
+  MainPluginRuntimeFactory,
+} from '@contexts/plugins/application/MainPluginRuntimeHost'
 import { IPC_CHANNELS } from '@shared/contracts/ipc'
 
 function createDefaultState(): EyeCareStateDto {
@@ -36,14 +39,15 @@ export class EyeCarePluginController {
   private pendingRemainingSeconds: number | null = null
 
   createRuntimeFactory(): MainPluginRuntimeFactory {
-    return () => ({
-      activate: async () => {
-        this.setEnabled(true)
-      },
-      deactivate: async () => {
-        this.setEnabled(false)
-      },
-    }) satisfies MainPluginRuntime
+    return () =>
+      ({
+        activate: async () => {
+          this.setEnabled(true)
+        },
+        deactivate: async () => {
+          this.setEnabled(false)
+        },
+      }) satisfies MainPluginRuntime
   }
 
   setEnabled(enabled: boolean): void {
@@ -83,7 +87,12 @@ export class EyeCarePluginController {
   }
 
   pause(): EyeCareStateDto {
-    if (!this.enabled || !this.state.isRunning || this.state.phase === 'paused' || !this.state.phaseEndsAt) {
+    if (
+      !this.enabled ||
+      !this.state.isRunning ||
+      this.state.phase === 'paused' ||
+      !this.state.phaseEndsAt
+    ) {
       return this.state
     }
 
@@ -119,7 +128,9 @@ export class EyeCarePluginController {
     const phase = this.pendingPhase
     const remainingSeconds =
       this.pendingRemainingSeconds ??
-      (phase === 'working' ? this.settings.workDurationMinutes * 60 : this.settings.breakDurationSeconds)
+      (phase === 'working'
+        ? this.settings.workDurationMinutes * 60
+        : this.settings.breakDurationSeconds)
 
     this.pendingPhase = null
     this.pendingRemainingSeconds = null
@@ -283,10 +294,7 @@ export class EyeCarePluginController {
       return this.state.remainingSeconds
     }
 
-    return Math.max(
-      0,
-      Math.ceil((new Date(this.state.phaseEndsAt).getTime() - Date.now()) / 1000),
-    )
+    return Math.max(0, Math.ceil((new Date(this.state.phaseEndsAt).getTime() - Date.now()) / 1000))
   }
 
   private broadcast(): void {

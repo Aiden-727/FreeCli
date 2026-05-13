@@ -103,9 +103,11 @@ type WorkspaceMinimapRuntimeState = 'running' | 'standby' | 'inactive' | 'idle'
 function resolveWorkspaceMinimapNodeEffectiveLabelColor(
   node: Node<TerminalNodeData>,
 ): LabelColor | null {
-  const effectiveLabelColor = (node.data as TerminalNodeData & {
-    effectiveLabelColor?: LabelColor | null
-  }).effectiveLabelColor
+  const effectiveLabelColor = (
+    node.data as TerminalNodeData & {
+      effectiveLabelColor?: LabelColor | null
+    }
+  ).effectiveLabelColor
   return effectiveLabelColor ?? null
 }
 
@@ -377,7 +379,9 @@ export function resolveWorkspaceMinimapNodeStrokeColor(node: Node<TerminalNodeDa
   }
 }
 
-export function resolveWorkspaceMinimapNodeLabelColor(node: Node<TerminalNodeData>): LabelColor | null {
+export function resolveWorkspaceMinimapNodeLabelColor(
+  node: Node<TerminalNodeData>,
+): LabelColor | null {
   return resolveWorkspaceMinimapNodeEffectiveLabelColor(node)
 }
 

@@ -181,8 +181,9 @@ export function SettingsPanel({
     onChange({ ...settings, keybindings })
   const updateGitHubPullRequestsEnabled = (enabled: boolean): void =>
     onChange({ ...settings, githubPullRequestsEnabled: enabled })
-  const updateTerminalCredentials = (terminalCredentials: AgentSettings['terminalCredentials']): void =>
-    onChange({ ...settings, terminalCredentials })
+  const updateTerminalCredentials = (
+    terminalCredentials: AgentSettings['terminalCredentials'],
+  ): void => onChange({ ...settings, terminalCredentials })
 
   const removeTaskTagOption = (tag: string): void => {
     const nextTags = settings.taskTagOptions.filter(option => option !== tag)

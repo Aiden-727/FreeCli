@@ -57,9 +57,8 @@ async function setupClipboardIpc(): Promise<{
     clipboard,
   }))
 
-  const { registerClipboardIpcHandlers } = await import(
-    '../../../src/contexts/clipboard/presentation/main-ipc/register'
-  )
+  const { registerClipboardIpcHandlers } =
+    await import('../../../src/contexts/clipboard/presentation/main-ipc/register')
   registerClipboardIpcHandlers()
 
   return {
@@ -134,9 +133,8 @@ describe('clipboard image materialization IPC', () => {
       },
     }))
 
-    const { registerClipboardIpcHandlers } = await import(
-      '../../../src/contexts/clipboard/presentation/main-ipc/register'
-    )
+    const { registerClipboardIpcHandlers } =
+      await import('../../../src/contexts/clipboard/presentation/main-ipc/register')
     registerClipboardIpcHandlers()
 
     const handler = handlers.get(IPC_CHANNELS.clipboardMaterializeImageTempFile)

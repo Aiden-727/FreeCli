@@ -820,18 +820,17 @@ function TrendCard({
       variant,
     ],
   )
-  const currentPointLayers =
-    React.useMemo(
-      () =>
-        variant === 'summary-line'
-          ? summarySeriesPoints.map(item => ({
-              key: item.label,
-              color: item.color,
-              points: item.points,
-            }))
-          : [],
-      [summarySeriesPoints, variant],
-    )
+  const currentPointLayers = React.useMemo(
+    () =>
+      variant === 'summary-line'
+        ? summarySeriesPoints.map(item => ({
+            key: item.label,
+            color: item.color,
+            points: item.points,
+          }))
+        : [],
+    [summarySeriesPoints, variant],
+  )
   const renderedPathLayers =
     variant === 'summary-line'
       ? (animatedPointLayers ?? currentPointLayers)

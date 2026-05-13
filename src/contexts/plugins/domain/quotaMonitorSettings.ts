@@ -19,9 +19,7 @@ export function isQuotaMonitorKeyType(value: unknown): value is QuotaMonitorKeyT
   return typeof value === 'string' && QUOTA_MONITOR_KEY_TYPES.includes(value as QuotaMonitorKeyType)
 }
 
-export function createDefaultQuotaMonitorKeyProfile(
-  index = 0,
-): QuotaMonitorKeyProfileDto {
+export function createDefaultQuotaMonitorKeyProfile(index = 0): QuotaMonitorKeyProfileDto {
   return {
     id: `key_${index + 1}`,
     label: `Key ${index + 1}`,
@@ -87,9 +85,7 @@ function normalizeIntegerInRange(
   return Math.min(max, Math.max(min, Math.round(parsed)))
 }
 
-export function normalizeQuotaMonitorKeyProfiles(
-  value: unknown,
-): QuotaMonitorKeyProfileDto[] {
+export function normalizeQuotaMonitorKeyProfiles(value: unknown): QuotaMonitorKeyProfileDto[] {
   if (!Array.isArray(value)) {
     return [...DEFAULT_QUOTA_MONITOR_SETTINGS.keyProfiles]
   }
@@ -130,14 +126,10 @@ export function normalizeQuotaMonitorKeyProfiles(
     })
   }
 
-  return normalized.length > 0
-    ? normalized
-    : [...DEFAULT_QUOTA_MONITOR_SETTINGS.keyProfiles]
+  return normalized.length > 0 ? normalized : [...DEFAULT_QUOTA_MONITOR_SETTINGS.keyProfiles]
 }
 
-export function normalizeQuotaMonitorSettings(
-  value: unknown,
-): QuotaMonitorSettingsDto {
+export function normalizeQuotaMonitorSettings(value: unknown): QuotaMonitorSettingsDto {
   if (!value || typeof value !== 'object') {
     return DEFAULT_QUOTA_MONITOR_SETTINGS
   }

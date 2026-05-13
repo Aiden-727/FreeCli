@@ -281,7 +281,10 @@ function normalizeManifest(value: unknown): OssSyncManifestPayload | null {
 
   return {
     schema: normalizePositiveInteger(value.schema, OSS_MANIFEST_SCHEMA),
-    deviceId: typeof value.deviceId === 'string' && value.deviceId.trim().length > 0 ? value.deviceId : null,
+    deviceId:
+      typeof value.deviceId === 'string' && value.deviceId.trim().length > 0
+        ? value.deviceId
+        : null,
     updatedAt: parseIsoDate(value.updatedAt),
     files,
   }
@@ -523,7 +526,9 @@ export class OssBackupPluginController {
       options.quotaHistoryStore ?? new QuotaMonitorHistoryStore(resolve(userDataPath, 'freecli.db'))
     this.gitWorklogHistoryStore =
       options.gitWorklogHistoryStore ??
-      new GitWorklogHistoryStore(resolve(userDataPath, 'plugins', 'git-worklog', 'history-cache.json'))
+      new GitWorklogHistoryStore(
+        resolve(userDataPath, 'plugins', 'git-worklog', 'history-cache.json'),
+      )
   }
 
   public createRuntimeFactory(): MainPluginRuntimeFactory {
@@ -723,10 +728,16 @@ export class OssBackupPluginController {
       const remoteManifest = await this.loadRemoteManifestIfExists(objectKeys.manifestKey)
       const remotePayloadByDatasetId = new Map<OssSyncDatasetId, unknown | null>(
         await Promise.all(
-          enabledDatasets.map(async datasetId => [
-            datasetId,
-            await this.client.getJsonIfExists(this.settings, objectKeys.datasetObjectKeys[datasetId]),
-          ] as const),
+          enabledDatasets.map(
+            async datasetId =>
+              [
+                datasetId,
+                await this.client.getJsonIfExists(
+                  this.settings,
+                  objectKeys.datasetObjectKeys[datasetId],
+                ),
+              ] as const,
+          ),
         ),
       )
       const localFiles = this.createEmptyFileInfoRecord()
@@ -1105,7 +1116,9 @@ export class OssBackupPluginController {
             ...Object.fromEntries(
               enabledDatasets
                 .map(datasetId => [datasetId, nextManifestFiles[datasetId]] as const)
-                .filter((entry): entry is [OssSyncDatasetId, OssSyncManifestFileEntry] => !!entry[1]),
+                .filter(
+                  (entry): entry is [OssSyncDatasetId, OssSyncManifestFileEntry] => !!entry[1],
+                ),
             ),
           },
         }
@@ -1284,8 +1297,10 @@ export class OssBackupPluginController {
       return null
     }
 
-    const off = typeof electronApp.off === 'function' ? electronApp.off.bind(electronApp) : undefined
-    const quit = typeof electronApp.quit === 'function' ? electronApp.quit.bind(electronApp) : undefined
+    const off =
+      typeof electronApp.off === 'function' ? electronApp.off.bind(electronApp) : undefined
+    const quit =
+      typeof electronApp.quit === 'function' ? electronApp.quit.bind(electronApp) : undefined
 
     return { on, off, quit }
   }
@@ -1520,11 +1535,7 @@ export class OssBackupPluginController {
   private async importInputStatsHistoryPayload(payload: unknown): Promise<void> {
     const normalized = normalizeInputStatsHistoryPayload(payload)
     await mkdir(dirname(this.inputStatsHistoryPath), { recursive: true })
-    await writeFile(
-      this.inputStatsHistoryPath,
-      `${JSON.stringify(normalized, null, 2)}\n`,
-      'utf8',
-    )
+    await writeFile(this.inputStatsHistoryPath, `${JSON.stringify(normalized, null, 2)}\n`, 'utf8')
   }
 
   private async importQuotaMonitorHistoryPayload(payload: unknown): Promise<void> {
@@ -1649,7 +1660,9 @@ export class OssBackupPluginController {
     return null
   }
 
-  private async loadRemoteManifestIfExists(objectKey: string): Promise<OssSyncManifestPayload | null> {
+  private async loadRemoteManifestIfExists(
+    objectKey: string,
+  ): Promise<OssSyncManifestPayload | null> {
     const raw = await this.client.getJsonIfExists(this.settings, objectKey)
     if (raw === null) {
       return null

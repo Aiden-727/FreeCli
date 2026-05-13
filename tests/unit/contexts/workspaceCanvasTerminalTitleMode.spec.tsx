@@ -332,7 +332,9 @@ describe('WorkspaceCanvas terminal title mode', () => {
           nodes={nodes}
           onNodesChange={next => {
             latestNodes = next
-            flushOrder.push(`nodes:${next[0]?.data.title ?? 'none'}:${String(next[0]?.data.titlePinnedByUser)}`)
+            flushOrder.push(
+              `nodes:${next[0]?.data.title ?? 'none'}:${String(next[0]?.data.titlePinnedByUser)}`,
+            )
             setNodes(next)
           }}
           spaces={spaces}

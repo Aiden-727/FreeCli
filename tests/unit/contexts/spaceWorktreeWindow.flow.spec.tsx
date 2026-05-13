@@ -422,11 +422,7 @@ describe('SpaceWorktreeWindow flow', () => {
     })
     fireEvent.click(screen.getByTestId('space-worktree-archive-submit'))
 
-    expect(
-      await screen.findByText(
-        'Worktree API 不可用。请重启 FreeCli 后重试。',
-      ),
-    ).toBeVisible()
+    expect(await screen.findByText('Worktree API 不可用。请重启 FreeCli 后重试。')).toBeVisible()
   })
 
   it('archives a managed worktree and surfaces cleanup warnings through app message', async () => {

@@ -336,9 +336,7 @@ const freecliApi = {
       ): Promise<ResolveGitWorklogRepositoryResult> =>
         invokeIpc(IPC_CHANNELS.pluginsGitWorklogResolveRepository, payload),
       refresh: (): Promise<GitWorklogStateDto> => invokeIpc(IPC_CHANNELS.pluginsGitWorklogRefresh),
-      refreshWorkspace: (
-        payload: RefreshGitWorklogWorkspaceInput,
-      ): Promise<GitWorklogStateDto> =>
+      refreshWorkspace: (payload: RefreshGitWorklogWorkspaceInput): Promise<GitWorklogStateDto> =>
         invokeIpc(IPC_CHANNELS.pluginsGitWorklogRefreshWorkspace, payload),
       repairRepositories: (
         payload: RepairGitWorklogRepositoriesInput,
@@ -412,14 +410,15 @@ const freecliApi = {
         invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantGetState),
       testConnection: (): Promise<WorkspaceAssistantConnectionTestResult> =>
         invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantTestConnection),
-      prompt: (
-        payload: WorkspaceAssistantPromptInput,
-      ): Promise<WorkspaceAssistantPromptResult> =>
+      prompt: (payload: WorkspaceAssistantPromptInput): Promise<WorkspaceAssistantPromptResult> =>
         invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantPrompt, payload),
       stopPrompt: (): Promise<WorkspaceAssistantStopPromptResult> =>
         invokeIpc(IPC_CHANNELS.pluginsWorkspaceAssistantStopPrompt),
       onState: (listener: (state: WorkspaceAssistantStateDto) => void): UnsubscribeFn => {
-        const handler = (_event: Electron.IpcRendererEvent, payload: WorkspaceAssistantStateDto) => {
+        const handler = (
+          _event: Electron.IpcRendererEvent,
+          payload: WorkspaceAssistantStateDto,
+        ) => {
           listener(payload)
         }
 

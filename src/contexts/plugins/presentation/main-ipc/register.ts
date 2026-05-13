@@ -286,7 +286,8 @@ export function registerPluginIpcHandlers(
       const isApproved = await approvedWorkspaces.isPathApproved(normalized.path)
       if (!isApproved) {
         throw createAppError('common.approved_path_required', {
-          debugMessage: 'plugins:git-worklog:resolve-repository path is outside approved workspaces',
+          debugMessage:
+            'plugins:git-worklog:resolve-repository path is outside approved workspaces',
         })
       }
 
@@ -322,7 +323,10 @@ export function registerPluginIpcHandlers(
     { defaultErrorCode: 'common.unexpected' },
   )
 
-  registerHandledIpc<UndoGitWorklogRepositoriesRepairResultDto, UndoGitWorklogRepositoriesRepairInput>(
+  registerHandledIpc<
+    UndoGitWorklogRepositoriesRepairResultDto,
+    UndoGitWorklogRepositoriesRepairInput
+  >(
     IPC_CHANNELS.pluginsGitWorklogUndoRepositoryRepair,
     async (_event, payload): Promise<UndoGitWorklogRepositoriesRepairResultDto> => {
       const normalized = normalizeUndoGitWorklogRepositoriesRepairPayload(payload)

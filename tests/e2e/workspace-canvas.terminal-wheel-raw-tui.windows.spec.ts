@@ -50,8 +50,9 @@ test.describe('Workspace Canvas - Terminal Wheel Raw TUI (Windows)', () => {
                   }
                 }
                 const sessionId =
-                  currentWindow.__freecliWorkspaceCanvasTestApi?.getSessionIdByNodeId(currentNodeId) ??
-                  null
+                  currentWindow.__freecliWorkspaceCanvasTestApi?.getSessionIdByNodeId(
+                    currentNodeId,
+                  ) ?? null
                 if (!sessionId) {
                   return false
                 }

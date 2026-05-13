@@ -51,9 +51,8 @@ export default function WorkspaceAssistantOverlay({
   const isStreaming = state.status === 'thinking'
   const isCollapsed = assistantSettings.dockCollapsed
   const messages = state.conversation
-  const latestAssistantMessage = [...messages]
-    .reverse()
-    .find(message => message.role === 'assistant') ?? null
+  const latestAssistantMessage =
+    [...messages].reverse().find(message => message.role === 'assistant') ?? null
   const canStopStreaming = isSending || isStreaming
   const modelLabel = assistantSettings.modelName.trim() || '未配置模型'
   const isStreamingReply =
@@ -61,8 +60,7 @@ export default function WorkspaceAssistantOverlay({
     latestAssistantMessage !== null &&
     latestAssistantMessage.content.trim().length > 0
   const shouldShowThinkingBubble =
-    isStreaming &&
-    (!latestAssistantMessage || latestAssistantMessage.content.trim().length === 0)
+    isStreaming && (!latestAssistantMessage || latestAssistantMessage.content.trim().length === 0)
   const displayMessages = React.useMemo(
     () =>
       messages.filter(message => {
@@ -207,7 +205,9 @@ export default function WorkspaceAssistantOverlay({
                 {message.role === 'assistant' ? (
                   <WorkspaceAssistantMarkdown content={message.content} />
                 ) : (
-                  <span className="workspace-assistant-dock__bubble-content">{message.content}</span>
+                  <span className="workspace-assistant-dock__bubble-content">
+                    {message.content}
+                  </span>
                 )}
               </div>
             </div>

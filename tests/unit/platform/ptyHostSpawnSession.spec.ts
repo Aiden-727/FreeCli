@@ -54,17 +54,12 @@ describe('ptyHost spawn session', () => {
         useConptyDll: true,
       }),
     )
-    expect(spawnMock).toHaveBeenNthCalledWith(
-      2,
-      'pwsh.exe',
-      ['-NoLogo'],
-      {
-        cwd: 'D:/Project/freecli',
-        env: { TERM: 'xterm-256color' },
-        cols: 80,
-        rows: 24,
-        name: 'xterm-256color',
-      },
-    )
+    expect(spawnMock).toHaveBeenNthCalledWith(2, 'pwsh.exe', ['-NoLogo'], {
+      cwd: 'D:/Project/freecli',
+      env: { TERM: 'xterm-256color' },
+      cols: 80,
+      rows: 24,
+      name: 'xterm-256color',
+    })
   })
 })

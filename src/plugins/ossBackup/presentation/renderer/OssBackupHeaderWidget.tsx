@@ -5,9 +5,7 @@ import { useOssBackupState } from './useOssBackupState'
 
 type OssHeaderStatus = 'success' | 'syncing' | 'error'
 
-function resolveHeaderStatus(
-  state: ReturnType<typeof useOssBackupState>['state'],
-): {
+function resolveHeaderStatus(state: ReturnType<typeof useOssBackupState>['state']): {
   status: OssHeaderStatus
   titleKey: string
   titleParams?: Record<string, string>

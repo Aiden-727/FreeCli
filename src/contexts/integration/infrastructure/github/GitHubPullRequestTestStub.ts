@@ -3,9 +3,7 @@ import type { GitHubPullRequestSummary } from '../../../../shared/contracts/dto'
 import { isTruthyEnv } from './githubIntegration.shared'
 
 export function shouldUseTestStub(): boolean {
-  return (
-    process.env.NODE_ENV === 'test' && isTruthyEnv(process.env.FREECLI_TEST_GITHUB_INTEGRATION)
-  )
+  return process.env.NODE_ENV === 'test' && isTruthyEnv(process.env.FREECLI_TEST_GITHUB_INTEGRATION)
 }
 
 export function buildStubSummary(branch: string): GitHubPullRequestSummary {

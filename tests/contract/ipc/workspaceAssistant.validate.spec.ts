@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 describe('workspace assistant validation', () => {
   it('preserves project summary and project files when normalizing prompt payload', async () => {
-    const { normalizeWorkspaceAssistantPromptPayload } = await import(
-      '../../../src/contexts/plugins/presentation/main-ipc/validate'
-    )
+    const { normalizeWorkspaceAssistantPromptPayload } =
+      await import('../../../src/contexts/plugins/presentation/main-ipc/validate')
 
     const normalized = normalizeWorkspaceAssistantPromptPayload({
       prompt: '请总结当前项目',

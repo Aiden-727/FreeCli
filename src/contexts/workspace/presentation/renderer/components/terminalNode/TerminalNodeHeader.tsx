@@ -2,7 +2,11 @@ import React, { useCallback, useEffect, useRef, useState, type JSX } from 'react
 import { useTranslation } from '@app/renderer/i18n'
 import { Check, ChevronDown, Copy, KeyRound, LoaderCircle, PencilLine, Tag } from 'lucide-react'
 import type { AgentRuntimeStatus, TerminalPersistenceMode, WorkspaceNodeKind } from '../../types'
-import { LABEL_COLORS, type LabelColor, type NodeLabelColorOverride } from '@shared/types/labelColor'
+import {
+  LABEL_COLORS,
+  type LabelColor,
+  type NodeLabelColorOverride,
+} from '@shared/types/labelColor'
 import { getStatusClassName } from './status'
 
 interface TerminalNodeHeaderProps {
@@ -410,7 +414,9 @@ export function TerminalNodeHeader({
                   className="workspace-context-menu__icon workspace-label-color-menu__dot workspace-label-color-menu__dot--auto"
                   aria-hidden="true"
                 />
-                <span className="workspace-context-menu__label">{t('labelColors.autoInherit')}</span>
+                <span className="workspace-context-menu__label">
+                  {t('labelColors.autoInherit')}
+                </span>
               </button>
               <button
                 type="button"

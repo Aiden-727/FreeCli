@@ -170,9 +170,7 @@ export function normalizeGitWorklogRepositories(value: unknown): GitWorklogRepos
     const record = item as Record<string, unknown>
     const fallback = createDefaultGitWorklogRepository(index)
     const rawId = normalizeText(record.id, fallback.id) || fallback.id
-    const id = seenIds.has(rawId)
-      ? createNextGitWorklogRepositoryId([...seenIds])
-      : rawId
+    const id = seenIds.has(rawId) ? createNextGitWorklogRepositoryId([...seenIds]) : rawId
 
     const path = normalizeText(record.path)
     const normalizedPathKey = path.length > 0 ? normalizeRepositoryPathKey(path) : null
