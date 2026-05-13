@@ -70,13 +70,16 @@ async function waitForCondition(
   predicate: () => boolean,
   attempts: number = 20,
 ): Promise<void> {
-  for (let index = 0; index < attempts; index += 1) {
-    if (predicate()) {
+  const tick = async (remainingAttempts: number): Promise<void> => {
+    if (predicate() || remainingAttempts <= 0) {
       return
     }
 
     await flushAsyncWork()
+    await tick(remainingAttempts - 1)
   }
+
+  await tick(attempts)
 }
 
 function createBrowserWindowMock() {
