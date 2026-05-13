@@ -63,6 +63,15 @@ import { TerminalNodeFrame } from './terminalNode/TerminalNodeFrame'
 import { resolveCanonicalNodeMinSize } from '../utils/workspaceNodeSizing'
 import type { TerminalNodeProps } from './TerminalNode.types'
 
+function bindTerminalMethod<TArgs extends unknown[]>(
+  terminal: Terminal,
+  methodName: 'clearSelection' | 'getSelection' | 'hasSelection' | 'selectAll',
+  fallback: (...args: TArgs) => unknown,
+): (...args: TArgs) => unknown {
+  const method = (terminal as unknown as Record<string, unknown>)[methodName]
+  return typeof method === 'function' ? (method as (...args: TArgs) => unknown).bind(terminal) : fallback
+}
+
 export function TerminalNode({
   nodeId,
   sessionId,
@@ -516,10 +525,10 @@ export function TerminalNode({
       cancelMouseServicePatch = patchXtermMouseServiceWithRetry(terminal)
       if (window.freecliApi.meta.isTest) {
         disposeTerminalSelectionTestHandle = registerTerminalSelectionTestHandle(nodeId, {
-          clearSelection: terminal.clearSelection.bind(terminal),
-          getSelection: terminal.getSelection.bind(terminal),
-          hasSelection: terminal.hasSelection.bind(terminal),
-          selectAll: terminal.selectAll.bind(terminal),
+          clearSelection: bindTerminalMethod(terminal, 'clearSelection', () => undefined),
+          getSelection: bindTerminalMethod(terminal, 'getSelection', () => ''),
+          hasSelection: bindTerminalMethod(terminal, 'hasSelection', () => false),
+          selectAll: bindTerminalMethod(terminal, 'selectAll', () => undefined),
           cols: terminal.cols,
           rows: terminal.rows,
           element: terminal.element,

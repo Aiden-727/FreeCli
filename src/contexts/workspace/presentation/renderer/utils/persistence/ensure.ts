@@ -298,14 +298,25 @@ function ensurePersistedNode(node: unknown): PersistedTerminalNode | null {
 
   const record = node as Record<string, unknown>
   const id = record.id
-  const title = record.title
+  const rawTitle = normalizeOptionalString(record.title)
   const width = record.width
   const height = record.height
   const position = record.position
+  const kind = normalizeNodeKind(record.kind)
+  const title =
+    rawTitle ??
+    (kind === 'task'
+      ? '未命名任务'
+      : kind === 'note'
+        ? '未命名笔记'
+        : kind === 'agent'
+          ? '未命名 Agent'
+          : kind === 'image'
+            ? '未命名图片'
+            : 'terminal')
 
   if (
     typeof id !== 'string' ||
-    typeof title !== 'string' ||
     typeof width !== 'number' ||
     typeof height !== 'number' ||
     !position ||
@@ -319,12 +330,11 @@ function ensurePersistedNode(node: unknown): PersistedTerminalNode | null {
     return null
   }
 
-  const kind = normalizeNodeKind(record.kind)
   const agent = ensurePersistedAgentData(record.agent)
   const hostedAgent = ensurePersistedHostedAgentData(record.hostedAgent)
   const task = ensurePersistedTaskData(record.task)
-  const note = ensurePersistedNoteData(record.task)
-  const image = ensurePersistedImageData(record.task)
+  const note = ensurePersistedNoteData(record.note)
+  const image = ensurePersistedImageData(record.image)
   const runtimeKindInput = record.runtimeKind
   const runtimeKind: TerminalRuntimeKind | undefined =
     runtimeKindInput === 'windows' || runtimeKindInput === 'wsl' || runtimeKindInput === 'posix'
@@ -353,7 +363,9 @@ function ensurePersistedNode(node: unknown): PersistedTerminalNode | null {
     expectedDirectory: normalizeOptionalString(record.expectedDirectory),
     agent: kind === 'agent' ? agent : null,
     hostedAgent: kind === 'terminal' ? hostedAgent : null,
-    task: kind === 'task' ? task : kind === 'note' ? note : kind === 'image' ? image : null,
+    task: kind === 'task' ? task : null,
+    note: kind === 'note' ? note : null,
+    image: kind === 'image' ? image : null,
     position: {
       x: positionRecord.x,
       y: positionRecord.y,
@@ -393,6 +405,36 @@ export function ensurePersistedWorkspace(workspace: unknown): PersistedWorkspace
   const normalizedNodes = nodes
     .map(node => ensurePersistedNode(node))
     .filter((node): node is PersistedTerminalNode => node !== null)
+    .map(node => ({ ...node }))
+
+  const agentBindingIdByNodeId = new Map(
+    normalizedNodes
+      .filter(node => node.kind === 'agent' && node.agent)
+      .map(node => [node.id, node.agent?.bindingId ?? null]),
+  )
+
+  for (const node of normalizedNodes) {
+    if (node.kind !== 'task' || !node.task) {
+      continue
+    }
+
+    if (node.task.linkedAgentBindingId) {
+      continue
+    }
+
+    const linkedAgentBindingId = node.task.linkedAgentNodeId
+      ? (agentBindingIdByNodeId.get(node.task.linkedAgentNodeId) ?? null)
+      : null
+
+    if (!linkedAgentBindingId) {
+      continue
+    }
+
+    node.task = {
+      ...node.task,
+      linkedAgentBindingId,
+    }
+  }
 
   const normalizedSpaces = Array.isArray(spaces)
     ? spaces

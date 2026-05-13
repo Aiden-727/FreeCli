@@ -12,6 +12,7 @@ function createMockApp() {
     isPackaged: false,
     commandLine: {
       appendSwitch: vi.fn(),
+      getSwitchValue: vi.fn(() => ''),
     },
     on: vi.fn((event: string, listener: Listener) => {
       const existing = listeners.get(event) ?? []
@@ -48,6 +49,20 @@ async function flushAsyncWork(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
   await Promise.resolve()
+  await new Promise(resolve => setTimeout(resolve, 0))
+}
+
+async function waitForCondition(
+  predicate: () => boolean,
+  attempts: number = 20,
+): Promise<void> {
+  for (let index = 0; index < attempts; index += 1) {
+    if (predicate()) {
+      return
+    }
+
+    await flushAsyncWork()
+  }
 }
 
 describe('main process lifecycle', () => {
@@ -66,6 +81,7 @@ describe('main process lifecycle', () => {
       }
 
       public webContents = {
+        id: 1,
         isDestroyed: vi.fn(() => false),
         getType: vi.fn(() => 'window'),
         send: vi.fn(),
@@ -82,6 +98,17 @@ describe('main process lifecycle', () => {
         existing.push(listener)
         this.listeners.set(event, existing)
       }
+      public once(event: string, listener: (...args: unknown[]) => void): void {
+        const onceListener = (...args: unknown[]): void => {
+          const existing = this.listeners.get(event) ?? []
+          this.listeners.set(
+            event,
+            existing.filter(candidate => candidate !== onceListener),
+          )
+          listener(...args)
+        }
+        this.on(event, onceListener)
+      }
       public emit(event: string, ...args: unknown[]): void {
         const handlers = this.listeners.get(event) ?? []
         handlers.forEach(handler => handler(...args))
@@ -92,35 +119,52 @@ describe('main process lifecycle', () => {
       public isMinimized(): boolean {
         return false
       }
+      public isVisible(): boolean {
+        return false
+      }
       public restore(): void {}
       public focus(): void {}
       public hide(): void {}
       public destroy(): void {}
       public show(): void {}
+      public showInactive(): void {}
+      public setPosition(): void {}
       public loadURL(): void {}
       public loadFile(): void {}
     }
 
     const Tray = createMockTray()
 
-    vi.doMock('electron', () => ({
-      app,
-      shell: {
-        openExternal: vi.fn(),
-      },
-      BrowserWindow,
-      Tray,
-      ipcMain: {
-        on: vi.fn(),
-        removeListener: vi.fn(),
-      },
-      Menu: {
-        buildFromTemplate: vi.fn(() => ({})),
-      },
-      nativeImage: {
-        createFromPath: vi.fn(() => null),
-      },
-    }))
+    vi.doMock('electron', () => {
+      const nativeImage = {
+        createFromPath: vi.fn(() => ({
+          isEmpty: () => true,
+          getSize: () => ({ width: 0, height: 0 }),
+          toBitmap: () => Buffer.alloc(0),
+        })),
+        createFromBitmap: vi.fn(() => null),
+      }
+      const module = {
+        app,
+        shell: {
+          openExternal: vi.fn(),
+        },
+        BrowserWindow,
+        Tray,
+        ipcMain: {
+          on: vi.fn(),
+          removeListener: vi.fn(),
+        },
+        Menu: {
+          buildFromTemplate: vi.fn(() => ({})),
+        },
+        nativeImage,
+      }
+      return {
+        ...module,
+        default: module,
+      }
+    })
 
     vi.doMock('@electron-toolkit/utils', () => ({
       electronApp: {
@@ -131,13 +175,17 @@ describe('main process lifecycle', () => {
       },
       is: {
         dev: false,
-      },
-    }))
+        },
+      }))
 
-    vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
-      createPtyRuntime: () => ({
-        deactivateTransientSessions: vi.fn(),
-        dispose: vi.fn(),
+      vi.doMock('../../../src/app/main/runtimeIconVariant', () => ({
+        createDevelopmentRuntimeIcon: vi.fn(() => null),
+      }))
+
+      vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
+        createPtyRuntime: () => ({
+          deactivateTransientSessions: vi.fn(),
+          dispose: vi.fn(),
       }),
     }))
 
@@ -150,7 +198,7 @@ describe('main process lifecycle', () => {
     }))
 
     await import('../../../src/app/main/index')
-    await flushAsyncWork()
+    await waitForCondition(() => BrowserWindow.windows.length > 0)
 
     app.emit('window-all-closed')
 
@@ -180,9 +228,12 @@ describe('main process lifecycle', () => {
         public static windows: BrowserWindow[] = []
         private readonly listeners = new Map<string, Array<(...args: unknown[]) => void>>()
         public webContents = {
+          id: 1,
           isDestroyed: vi.fn(() => false),
           getType: vi.fn(() => 'window'),
-          send: vi.fn(),
+          send: vi.fn(() => {
+            throw new Error('mock renderer unavailable')
+          }),
           setWindowOpenHandler: vi.fn(),
           on: vi.fn(),
         }
@@ -205,6 +256,17 @@ describe('main process lifecycle', () => {
           existing.push(listener)
           this.listeners.set(event, existing)
         }
+        public once(event: string, listener: (...args: unknown[]) => void): void {
+          const onceListener = (...args: unknown[]): void => {
+            const existing = this.listeners.get(event) ?? []
+            this.listeners.set(
+              event,
+              existing.filter(candidate => candidate !== onceListener),
+            )
+            listener(...args)
+          }
+          this.on(event, onceListener)
+        }
 
         public emit(event: string, ...args: unknown[]): void {
           const handlers = this.listeners.get(event) ?? []
@@ -218,9 +280,14 @@ describe('main process lifecycle', () => {
         public isMinimized(): boolean {
           return false
         }
+        public isVisible(): boolean {
+          return false
+        }
 
         public loadURL(): void {}
         public loadFile(): void {}
+        public showInactive(): void {}
+        public setPosition(): void {}
       }
 
       const Tray = createMockTray()
@@ -228,24 +295,38 @@ describe('main process lifecycle', () => {
         deactivateTransientSessions: vi.fn(),
       }
 
-      vi.doMock('electron', () => ({
-        app,
-        shell: {
-          openExternal: vi.fn(),
-        },
-        BrowserWindow,
-        Tray,
-        ipcMain: {
-          on: vi.fn(),
-          removeListener: vi.fn(),
-        },
-        Menu: {
-          buildFromTemplate: vi.fn(() => ({})),
-        },
-        nativeImage: {
-          createFromPath: vi.fn(() => null),
-        },
-      }))
+      vi.doMock('electron', () => {
+        const nativeImage = {
+          createFromPath: vi.fn(() => ({
+            isEmpty: () => false,
+            getSize: () => ({ width: 16, height: 16 }),
+            toBitmap: () => Buffer.alloc(16 * 16 * 4),
+          })),
+          createFromBitmap: vi.fn(() => ({
+            isEmpty: () => false,
+          })),
+        }
+        const module = {
+          app,
+          shell: {
+            openExternal: vi.fn(),
+          },
+          BrowserWindow,
+          Tray,
+          ipcMain: {
+            on: vi.fn(),
+            removeListener: vi.fn(),
+          },
+          Menu: {
+            buildFromTemplate: vi.fn(() => ({})),
+          },
+          nativeImage,
+        }
+        return {
+          ...module,
+          default: module,
+        }
+      })
 
       vi.doMock('@electron-toolkit/utils', () => ({
         electronApp: {
@@ -271,8 +352,27 @@ describe('main process lifecycle', () => {
         createPtyRuntime: () => ptyRuntime,
       }))
 
+      vi.doMock('../../../src/app/main/runtimeIconVariant', () => ({
+        createDevelopmentRuntimeIcon: vi.fn(() => ({
+          isEmpty: () => false,
+        })),
+      }))
+
+      vi.doMock('fs', async importOriginal => {
+        const actual = await importOriginal<typeof import('fs')>()
+        return {
+          ...actual,
+          existsSync: vi.fn(() => true),
+          default: {
+            ...(actual as unknown as { default?: object }).default,
+            ...actual,
+            existsSync: vi.fn(() => true),
+          },
+        }
+      })
+
       await import('../../../src/app/main/index')
-      await flushAsyncWork()
+      await waitForCondition(() => BrowserWindow.windows.length > 0)
 
       const mainWindow = BrowserWindow.windows[0]
       const preventDefault = vi.fn()

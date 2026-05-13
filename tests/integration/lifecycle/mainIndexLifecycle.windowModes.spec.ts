@@ -12,6 +12,7 @@ function createMockApp() {
     isPackaged: false,
     commandLine: {
       appendSwitch: vi.fn(),
+      getSwitchValue: vi.fn(() => ''),
     },
     on: vi.fn((event: string, listener: Listener) => {
       const existing = listeners.get(event) ?? []
@@ -62,6 +63,20 @@ async function flushAsyncWork(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
   await Promise.resolve()
+  await new Promise(resolve => setTimeout(resolve, 0))
+}
+
+async function waitForCondition(
+  predicate: () => boolean,
+  attempts: number = 20,
+): Promise<void> {
+  for (let index = 0; index < attempts; index += 1) {
+    if (predicate()) {
+      return
+    }
+
+    await flushAsyncWork()
+  }
 }
 
 function createBrowserWindowMock() {
@@ -76,6 +91,7 @@ function createBrowserWindowMock() {
     }
 
     public webContents = {
+      id: 1,
       isDestroyed: vi.fn(() => false),
       getType: vi.fn(() => 'window'),
       send: vi.fn(),
@@ -98,11 +114,37 @@ function createBrowserWindowMock() {
       this.listeners.set(event, existing)
     }
 
+    public once(event: string, listener: Listener): void {
+      const onceListener: Listener = (...args: unknown[]) => {
+        const existing = this.listeners.get(event) ?? []
+        this.listeners.set(
+          event,
+          existing.filter(candidate => candidate !== onceListener),
+        )
+        listener(...args)
+      }
+      this.on(event, onceListener)
+    }
+
     public emit(event: string, ...args: unknown[]): void {
       const handlers = this.listeners.get(event) ?? []
       handlers.forEach(handler => handler(...args))
     }
 
+    public isDestroyed(): boolean {
+      return false
+    }
+
+    public isVisible(): boolean {
+      return false
+    }
+
+    public isMinimized(): boolean {
+      return false
+    }
+
+    public restore(): void {}
+    public focus(): void {}
     public loadURL(): void {}
     public loadFile(): void {}
   }
@@ -189,6 +231,7 @@ describe('main process lifecycle window modes', () => {
         mockMainIndexDependencies({ app, dispose, BrowserWindow })
 
         await importMainIndex()
+        await waitForCondition(() => BrowserWindow.windows.length > 0)
 
         const mainWindow = BrowserWindow.windows[0]
         expect(mainWindow).toBeDefined()
@@ -229,6 +272,7 @@ describe('main process lifecycle window modes', () => {
         mockMainIndexDependencies({ app, dispose, BrowserWindow })
 
         await importMainIndex()
+        await waitForCondition(() => BrowserWindow.windows.length > 0)
 
         const mainWindow = BrowserWindow.windows[0]
         expect(mainWindow).toBeDefined()
@@ -262,6 +306,7 @@ describe('main process lifecycle window modes', () => {
         mockMainIndexDependencies({ app, dispose, BrowserWindow })
 
         await importMainIndex()
+        await waitForCondition(() => BrowserWindow.windows.length > 0)
 
         const mainWindow = BrowserWindow.windows[0]
         expect(mainWindow).toBeDefined()
@@ -303,6 +348,7 @@ describe('main process lifecycle window modes', () => {
         mockMainIndexDependencies({ app, dispose, BrowserWindow })
 
         await importMainIndex()
+        await waitForCondition(() => BrowserWindow.windows.length > 0)
 
         const mainWindow = BrowserWindow.windows[0]
         expect(mainWindow).toBeDefined()

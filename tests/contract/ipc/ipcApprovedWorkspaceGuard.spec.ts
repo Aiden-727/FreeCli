@@ -137,6 +137,7 @@ describe('IPC approved workspace guards', () => {
 
       await expect(
         invokeHandledIpc(launchHandler, null, {
+          bindingId: 'binding-relative',
           provider: 'codex',
           cwd: 'relative/path',
           prompt: 'hello',
@@ -147,6 +148,7 @@ describe('IPC approved workspace guards', () => {
 
       await expect(
         invokeHandledIpc(launchHandler, null, {
+          bindingId: 'binding-outside',
           provider: 'codex',
           cwd: '/tmp/outside-approved',
           prompt: 'hello',
@@ -185,6 +187,7 @@ describe('IPC approved workspace guards', () => {
       expect(launchHandler).toBeTypeOf('function')
 
       const result = await invokeHandledIpc(launchHandler, null, {
+        bindingId: 'binding-approved',
         provider: 'codex',
         cwd: '/tmp/approved',
         prompt: 'hello',
@@ -241,6 +244,7 @@ describe('IPC approved workspace guards', () => {
       expect(launchHandler).toBeTypeOf('function')
 
       const result = await invokeHandledIpc(launchHandler, null, {
+        bindingId: 'binding-win-cmd',
         provider: 'codex',
         cwd: '/approved',
         prompt: 'hello',
@@ -298,6 +302,7 @@ describe('IPC approved workspace guards', () => {
       expect(launchHandler).toBeTypeOf('function')
 
       const result = await invokeHandledIpc(launchHandler, null, {
+        bindingId: 'binding-background',
         provider: 'codex',
         cwd: '/tmp/approved',
         prompt: '',
@@ -350,6 +355,7 @@ describe('IPC approved workspace guards', () => {
       expect(launchHandler).toBeTypeOf('function')
 
       const result = await invokeHandledIpc(launchHandler, null, {
+        bindingId: 'binding-opencode',
         provider: 'opencode',
         cwd: '/tmp/approved',
         prompt: 'Ship the fix',

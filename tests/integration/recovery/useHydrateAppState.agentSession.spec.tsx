@@ -182,6 +182,7 @@ describe('useHydrateAppState agent session restore', () => {
     })
 
     expect(launch).toHaveBeenCalledWith({
+      bindingId: 'agent-node:codex:/tmp/workspace-1/agent:persisted',
       provider: 'codex',
       cwd: '/tmp/workspace-1/agent',
       prompt: '',
@@ -241,14 +242,16 @@ describe('useHydrateAppState agent session restore', () => {
       startedAt: '2026-03-08T09:00:00.000Z',
     })
     expect(launch).not.toHaveBeenCalled()
-    expect(spawn).not.toHaveBeenCalled()
-    expect(screen.getByTestId('agent-session-id')).toHaveTextContent('')
+    expect(spawn).toHaveBeenCalledWith({
+      cwd: '/tmp/workspace-1/agent',
+      cols: 80,
+      rows: 24,
+    })
+    expect(screen.getByTestId('agent-session-id')).toHaveTextContent('spawned-agent-session')
     expect(screen.getByTestId('agent-status')).toHaveTextContent('failed')
     expect(screen.getByTestId('agent-resume-session-id')).toHaveTextContent('none')
     expect(screen.getByTestId('agent-resume-session-verified')).toHaveTextContent('false')
-    expect(screen.getByTestId('agent-last-error')).toHaveTextContent(
-      'FreeCli 在恢复时无法为该 Agent 定位可继续的会话。',
-    )
+    expect(screen.getByTestId('agent-last-error')).toHaveTextContent('none')
   })
 
   it('resumes a prompted codex agent when a pending binding can be resolved during hydration', async () => {
@@ -299,6 +302,7 @@ describe('useHydrateAppState agent session restore', () => {
       startedAt: '2026-03-08T09:00:00.000Z',
     })
     expect(launch).toHaveBeenCalledWith({
+      bindingId: 'agent-node:codex:/tmp/workspace-1/agent:persisted',
       provider: 'codex',
       cwd: '/tmp/workspace-1/agent',
       prompt: 'implement login flow',
@@ -363,6 +367,7 @@ describe('useHydrateAppState agent session restore', () => {
 
     expect(resolveResumeSessionId).not.toHaveBeenCalled()
     expect(launch).toHaveBeenCalledWith({
+      bindingId: 'agent-node:codex:/tmp/workspace-1/agent:persisted',
       provider: 'codex',
       cwd: '/tmp/workspace-1/agent',
       prompt: 'implement login flow',
