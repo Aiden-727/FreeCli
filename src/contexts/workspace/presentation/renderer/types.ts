@@ -285,7 +285,9 @@ export interface PersistedTerminalNode {
   expectedDirectory?: string | null
   agent: AgentNodeData | null
   hostedAgent?: HostedTerminalAgent | null
-  task: TaskNodeData | NoteNodeData | ImageNodeData | null
+  task: TaskNodeData | null
+  note?: NoteNodeData | null
+  image?: ImageNodeData | null
 }
 
 export interface PersistedAppState {

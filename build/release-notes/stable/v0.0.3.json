@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "version": "0.0.3",
+  "channel": "stable",
+  "publishedAt": "2026-05-14T00:00:00.000Z",
+  "provenance": "curated",
+  "defaultLocale": "en",
+  "compareUrl": "https://github.com/Aiden-727/FreeCli/compare/v0.0.2...v0.0.3",
+  "locales": {
+    "en": {
+      "summary": "FreeCli 0.0.3 strengthens workspace reliability with richer canvas tools, safer recovery behavior, and a more resilient release pipeline.",
+      "items": [
+        {
+          "kind": "added",
+          "summary": "Added richer workspace arrange controls, including Arrange By options, live magnetic snap guides, and standard-size tiled layouts.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "Added image paste and drag-drop support on the canvas, plus in-app search, Control Center notifications, and Space Archives replay.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "Refined workspace canvas interactions, shortcuts, context menus, and visual defaults for steadier editing and navigation flow.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "Hardened the GitHub Actions release pipeline against future Node runtime migration and reduced artifact retention pressure.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "Fixed persistence normalization, legacy workspace recovery, and agent session hydration so restored workspaces keep the correct bindings and node data.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "Improved packaged terminal rendering, PTY isolation, theme syncing, and terminal input behavior to reduce startup and runtime failures.",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        }
+      ]
+    },
+    "zh-CN": {
+      "summary": "FreeCli 0.0.3 重点强化了工作区可靠性，补齐了更完整的画布能力、恢复链路修复，以及更稳健的发版流水线。",
+      "items": [
+        {
+          "kind": "added",
+          "summary": "新增更完整的画布排布能力，包括 Arrange By 选项、实时磁吸参考线和标准尺寸平铺布局。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "added",
+          "summary": "新增画布图片粘贴/拖放、应用内搜索、Control Center 通知以及 Space Archives 回放能力。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "优化工作区画布交互、快捷键、上下文菜单和视觉默认值，让编辑与导航更稳定顺手。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "changed",
+          "summary": "加固 GitHub Actions 发版流水线，提前适配后续 Node 运行时迁移，并降低 artifact 存储压力。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "修复持久化归一化、旧工作区恢复和 Agent 会话恢复链路，确保恢复后绑定关系和节点数据正确保留。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        },
+        {
+          "kind": "fixed",
+          "summary": "改进打包版终端渲染、PTY 隔离、主题同步和终端输入行为，减少启动与运行时异常。",
+          "url": null,
+          "prNumber": null,
+          "sha": null
+        }
+      ]
+    }
+  }
+}

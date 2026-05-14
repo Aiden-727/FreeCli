@@ -63,14 +63,26 @@ import { TerminalNodeFrame } from './terminalNode/TerminalNodeFrame'
 import { resolveCanonicalNodeMinSize } from '../utils/workspaceNodeSizing'
 import type { TerminalNodeProps } from './TerminalNode.types'
 
-function bindTerminalMethod<TArgs extends unknown[]>(
+type TerminalSelectionMethodName = 'clearSelection' | 'getSelection' | 'hasSelection' | 'selectAll'
+
+type TerminalSelectionMethodReturn<TMethodName extends TerminalSelectionMethodName> =
+  TMethodName extends 'getSelection' ? string : TMethodName extends 'hasSelection' ? boolean : void
+
+function bindTerminalMethod<
+  TMethodName extends TerminalSelectionMethodName,
+  TArgs extends unknown[],
+>(
   terminal: Terminal,
-  methodName: 'clearSelection' | 'getSelection' | 'hasSelection' | 'selectAll',
-  fallback: (...args: TArgs) => unknown,
-): (...args: TArgs) => unknown {
+  methodName: TMethodName,
+  fallback: (...args: TArgs) => TerminalSelectionMethodReturn<TMethodName>,
+): (...args: TArgs) => TerminalSelectionMethodReturn<TMethodName> {
   const method = (terminal as unknown as Record<string, unknown>)[methodName]
   return typeof method === 'function'
-    ? (method as (...args: TArgs) => unknown).bind(terminal)
+    ? (((...args: TArgs) =>
+        (method as (...args: TArgs) => TerminalSelectionMethodReturn<TMethodName>).apply(
+          terminal,
+          args,
+        )) as (...args: TArgs) => TerminalSelectionMethodReturn<TMethodName>)
     : fallback
 }
 

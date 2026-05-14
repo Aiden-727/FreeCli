@@ -79,12 +79,9 @@ export function toPersistedWorkspaceState(workspace: WorkspaceState): PersistedW
       expectedDirectory: normalizeOptionalString(node.data.expectedDirectory),
       agent: node.data.agent,
       hostedAgent: node.data.hostedAgent,
-      task:
-        node.data.kind === 'note'
-          ? node.data.note
-          : node.data.kind === 'image'
-            ? node.data.image
-            : node.data.task,
+      task: node.data.kind === 'task' ? node.data.task : null,
+      note: node.data.kind === 'note' ? node.data.note : null,
+      image: node.data.kind === 'image' ? node.data.image : null,
     })),
   }
 }

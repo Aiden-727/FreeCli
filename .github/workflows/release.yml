@@ -42,6 +42,7 @@ concurrency:
 env:
   FREECLI_RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
   FREECLI_RELEASE_TARGET: ${{ inputs.target_commitish || github.sha }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:
@@ -105,6 +106,7 @@ jobs:
         run: ${{ matrix.build_command }}
 
       - name: Upload release artifacts
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ matrix.artifact_name }}
@@ -116,7 +118,7 @@ jobs:
             dist/*.zip
             dist/*.yml
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 2
 
   publish:
     name: Publish Release

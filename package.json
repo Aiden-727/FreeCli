@@ -1,6 +1,6 @@
 {
   "name": "freecli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "productName": "FreeCli",
   "description": "An infinite canvas for Claude Code, Codex, terminals, tasks, and notes.",
   "main": "./out/main/index.js",
