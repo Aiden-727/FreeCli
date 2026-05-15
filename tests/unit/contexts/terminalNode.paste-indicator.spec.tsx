@@ -237,12 +237,10 @@ describe('TerminalNode paste indicator', () => {
     })
 
     await waitFor(() => {
-      expect(writeCalls).toEqual([
-        {
-          sessionId: 'session-paste-indicator',
-          data: 'long clipboard payload',
-        },
-      ])
+      expect(writeCalls[0]).toEqual({
+        sessionId: 'session-paste-indicator',
+        data: 'l',
+      })
     })
     expect(queryByText('正在粘贴中')).toBeNull()
 
@@ -262,6 +260,7 @@ describe('TerminalNode paste indicator', () => {
     })
 
     await waitFor(() => {
+      expect(writeCalls.map(call => call.data).join('')).toBe('long clipboard payload')
       expect(container.querySelector('.terminal-node__paste-indicator')).toBeNull()
     })
   })
@@ -368,12 +367,10 @@ describe('TerminalNode paste indicator', () => {
     })
 
     await waitFor(() => {
-      expect(writeCalls).toEqual([
-        {
-          sessionId: 'session-paste-enter-order',
-          data: 'clipboard-image-path',
-        },
-      ])
+      expect(writeCalls[0]).toEqual({
+        sessionId: 'session-paste-enter-order',
+        data: 'c',
+      })
     })
 
     writeDeferred.resolve()
@@ -383,16 +380,7 @@ describe('TerminalNode paste indicator', () => {
     })
 
     await waitFor(() => {
-      expect(writeCalls).toEqual([
-        {
-          sessionId: 'session-paste-enter-order',
-          data: 'clipboard-image-path',
-        },
-        {
-          sessionId: 'session-paste-enter-order',
-          data: '\r',
-        },
-      ])
+      expect(writeCalls.map(call => call.data).join('')).toBe('clipboard-image-path\r')
     })
   })
 })

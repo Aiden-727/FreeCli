@@ -23,7 +23,7 @@ function resolveLocalRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'>): 
   start: number
   end: number
 } {
-  const cursorY = terminal.buffer.active.cursorY
+  const cursorY = terminal.buffer?.active?.cursorY ?? -1
   return {
     start: Math.max(0, cursorY - 1),
     end: Math.min(terminal.rows - 1, cursorY + 1),
@@ -46,7 +46,7 @@ function shouldScheduleLocalRefresh(
     return false
   }
 
-  const cursorY = terminal.buffer.active.cursorY
+  const cursorY = terminal.buffer?.active?.cursorY ?? -1
   if (!Number.isFinite(cursorY) || cursorY < 0 || cursorY >= terminal.rows) {
     return false
   }
