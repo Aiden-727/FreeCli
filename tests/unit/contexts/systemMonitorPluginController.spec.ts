@@ -12,12 +12,23 @@ vi.mock('electron', () => ({
 }))
 
 describe('SystemMonitorPluginController', () => {
+  const originalPlatform = process.platform
+
+  function setPlatform(platform: NodeJS.Platform): void {
+    Object.defineProperty(process, 'platform', {
+      value: platform,
+      configurable: true,
+    })
+  }
+
   afterEach(() => {
+    setPlatform(originalPlatform)
     vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
   it('schedules the next refresh against the original one-second cadence instead of refresh duration', async () => {
+    setPlatform('win32')
     vi.useFakeTimers()
 
     const nowRef = { value: 0 }
@@ -92,6 +103,8 @@ describe('SystemMonitorPluginController', () => {
   })
 
   it('moves to error state with helper diagnostics when the first snapshot fails', async () => {
+    setPlatform('win32')
+
     const helperClient = {
       configure: vi.fn().mockResolvedValue(undefined),
       getSnapshot: vi

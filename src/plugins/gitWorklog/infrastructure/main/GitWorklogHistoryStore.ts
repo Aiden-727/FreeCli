@@ -116,10 +116,17 @@ const MAX_RANGE_STATS_PER_REPO = 18
 const MAX_CODE_STATS_PER_REPO = 18
 const MAX_HEATMAP_STATS_PER_REPO = 6
 
+function isWindowsAbsolutePath(pathValue: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(pathValue) || /^\\\\/.test(pathValue)
+}
+
 function normalizePathForCompare(pathValue: string): string {
-  const resolved = resolve(pathValue.trim())
+  const trimmed = pathValue.trim()
+  const resolved = isWindowsAbsolutePath(trimmed) ? trimmed : resolve(trimmed)
   const normalized = resolved.replaceAll('\\', '/').replaceAll(/\/+/g, '/')
-  return process.platform === 'win32' ? normalized.toLowerCase() : normalized
+  return process.platform === 'win32' || isWindowsAbsolutePath(trimmed)
+    ? normalized.toLowerCase()
+    : normalized
 }
 
 function normalizeNonNegativeInteger(value: unknown): number {

@@ -674,7 +674,15 @@ describe('OssBackupPluginController', () => {
     await controller.restoreBackup()
 
     expect(gitWorklogHistoryStore.importForSync).toHaveBeenCalledTimes(1)
-    expect(gitWorklogHistoryStore.importForSync).toHaveBeenCalledWith(remoteGitWorklogHistory)
+    expect(gitWorklogHistoryStore.importForSync).toHaveBeenCalledWith({
+      ...remoteGitWorklogHistory,
+      repositories: [
+        {
+          ...remoteGitWorklogHistory.repositories[0],
+          repoPath: 'd:/project/repo-a',
+        },
+      ],
+    })
 
     await controller.dispose()
   })

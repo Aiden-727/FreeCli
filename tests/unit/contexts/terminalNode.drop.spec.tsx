@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 declare global {
@@ -117,6 +117,8 @@ function installFreeCliApiMock({
   resolveDroppedPaths: (files: readonly File[]) => string[]
   materializeImageTempFile?: () => Promise<{ path: string } | null>
 }) {
+  const ptyWrite = vi.fn(async () => undefined)
+
   Object.defineProperty(window, 'freecliApi', {
     configurable: true,
     writable: true,
@@ -136,11 +138,15 @@ function installFreeCliApiMock({
         snapshot: vi.fn(async () => ({ data: '' })),
         onData: vi.fn(() => () => undefined),
         onExit: vi.fn(() => () => undefined),
-        write: vi.fn(async () => undefined),
+        write: ptyWrite,
         resize: vi.fn(async () => undefined),
       },
     },
   })
+
+  return {
+    ptyWrite,
+  }
 }
 
 describe('TerminalNode file drop', () => {
@@ -149,7 +155,7 @@ describe('TerminalNode file drop', () => {
   })
 
   it('pastes quoted paths into the terminal and stops canvas bubbling', async () => {
-    installFreeCliApiMock({
+    const { ptyWrite } = installFreeCliApiMock({
       resolveDroppedPaths: () => ['C:\\Demo Path\\dropped-image.png'],
     })
     const parentDrop = vi.fn()
@@ -187,17 +193,21 @@ describe('TerminalNode file drop', () => {
     }
 
     const file = new File(['x'], 'dropped-image.png', { type: 'image/png' })
-    fireEvent.drop(terminalBody, {
-      dataTransfer: {
-        files: [file],
-        items: [{ kind: 'file', type: 'image/png' }],
-        types: ['Files'],
-      },
+    await act(async () => {
+      fireEvent.drop(terminalBody, {
+        dataTransfer: {
+          files: [file],
+          items: [{ kind: 'file', type: 'image/png' }],
+          types: ['Files'],
+        },
+      })
     })
 
-    const { __getLastTerminal } = await import('@xterm/xterm')
     await waitFor(() => {
-      expect(__getLastTerminal()?.pasteCalls).toEqual([`'C:\\Demo Path\\dropped-image.png'`])
+      expect(ptyWrite).toHaveBeenCalledWith({
+        sessionId: 'session-drop',
+        data: `'C:\\Demo Path\\dropped-image.png'`,
+      })
     })
 
     expect(parentDrop).not.toHaveBeenCalled()
@@ -205,7 +215,7 @@ describe('TerminalNode file drop', () => {
   })
 
   it('turns pasted clipboard images into temporary file paths and stops canvas paste bubbling', async () => {
-    installFreeCliApiMock({
+    const { ptyWrite } = installFreeCliApiMock({
       resolveDroppedPaths: () => [],
       materializeImageTempFile: vi.fn(async () => ({
         path: 'C:\\Temp\\clipboard-image.png',
@@ -246,17 +256,21 @@ describe('TerminalNode file drop', () => {
     }
 
     const file = new File(['x'], 'clipboard-image.png', { type: 'image/png' })
-    fireEvent.paste(terminalBody, {
-      clipboardData: {
-        files: [file],
-        items: [{ kind: 'file', type: 'image/png' }],
-        types: ['Files'],
-      },
+    await act(async () => {
+      fireEvent.paste(terminalBody, {
+        clipboardData: {
+          files: [file],
+          items: [{ kind: 'file', type: 'image/png' }],
+          types: ['Files'],
+        },
+      })
     })
 
-    const { __getLastTerminal } = await import('@xterm/xterm')
     await waitFor(() => {
-      expect(__getLastTerminal()?.pasteCalls).toEqual([`'C:\\Temp\\clipboard-image.png'`])
+      expect(ptyWrite).toHaveBeenCalledWith({
+        sessionId: 'session-paste-image',
+        data: `'C:\\Temp\\clipboard-image.png'`,
+      })
     })
 
     expect(parentPaste).not.toHaveBeenCalled()

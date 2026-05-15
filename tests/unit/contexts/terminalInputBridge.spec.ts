@@ -76,6 +76,10 @@ describe('handleTerminalCustomKeyEvent', () => {
 
   it('pastes clipboard text on Windows Ctrl+V', () => {
     const pasteClipboardText = vi.fn()
+    const ptyWriteQueue = {
+      enqueue: vi.fn(),
+      flush: vi.fn(),
+    }
     const event = {
       type: 'keydown',
       key: 'v',
@@ -96,21 +100,22 @@ describe('handleTerminalCustomKeyEvent', () => {
       event,
       pasteClipboardText,
       platformInfo: { platform: 'Win32' },
-      ptyWriteQueue: {
-        enqueue: vi.fn(),
-        flush: vi.fn(),
-      },
+      ptyWriteQueue,
       terminal,
     })
 
     expect(result).toBe(false)
-    expect(pasteClipboardText).toHaveBeenCalledWith({ terminal })
+    expect(pasteClipboardText).toHaveBeenCalledWith({ ptyWriteQueue, terminal })
     expect(event.preventDefault).toHaveBeenCalledTimes(1)
     expect(event.stopPropagation).toHaveBeenCalledTimes(1)
   })
 
   it('pastes clipboard text on Windows Shift+Insert', () => {
     const pasteClipboardText = vi.fn()
+    const ptyWriteQueue = {
+      enqueue: vi.fn(),
+      flush: vi.fn(),
+    }
     const event = {
       type: 'keydown',
       key: 'Insert',
@@ -131,15 +136,12 @@ describe('handleTerminalCustomKeyEvent', () => {
       event,
       pasteClipboardText,
       platformInfo: { platform: 'Win32' },
-      ptyWriteQueue: {
-        enqueue: vi.fn(),
-        flush: vi.fn(),
-      },
+      ptyWriteQueue,
       terminal,
     })
 
     expect(result).toBe(false)
-    expect(pasteClipboardText).toHaveBeenCalledWith({ terminal })
+    expect(pasteClipboardText).toHaveBeenCalledWith({ ptyWriteQueue, terminal })
     expect(event.preventDefault).toHaveBeenCalledTimes(1)
     expect(event.stopPropagation).toHaveBeenCalledTimes(1)
   })
@@ -165,19 +167,25 @@ describe('handleTerminalCustomKeyEvent', () => {
     expect(ptyWriteQueue.flush).toHaveBeenCalledTimes(1)
   })
 
-  it('writes clipboard text through xterm paste', async () => {
+  it('writes clipboard text through the PTY queue', async () => {
     const readClipboardText = vi.fn(async () => 'clipboard payload')
+    const ptyWriteQueue = {
+      enqueue: vi.fn(),
+      flush: vi.fn(),
+    }
     const terminal = {
-      paste: vi.fn(),
+      modes: {},
     }
 
     await pasteTextFromClipboard({
       readClipboardText,
+      ptyWriteQueue,
       terminal,
     })
 
     expect(readClipboardText).toHaveBeenCalledTimes(1)
-    expect(terminal.paste).toHaveBeenCalledWith('clipboard payload')
+    expect(ptyWriteQueue.enqueue).toHaveBeenCalledWith('clipboard payload')
+    expect(ptyWriteQueue.flush).toHaveBeenCalledTimes(1)
   })
 
   it('preserves binary writes as a separate PTY payload', async () => {
@@ -194,8 +202,8 @@ describe('handleTerminalCustomKeyEvent', () => {
     await Promise.resolve()
 
     expect(writes).toEqual([
-      { data: 'plain-text', encoding: 'utf8' },
-      { data: String.fromCharCode(64, 80), encoding: 'binary' },
+      { data: 'plain-text', encoding: 'utf8', coalesce: true },
+      { data: String.fromCharCode(64, 80), encoding: 'binary', coalesce: true },
     ])
   })
 

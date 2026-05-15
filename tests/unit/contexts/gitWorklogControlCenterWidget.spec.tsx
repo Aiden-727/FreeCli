@@ -29,7 +29,7 @@ describe('GitWorklogControlCenterWidget', () => {
     delete (window as unknown as { freecliApi?: unknown }).freecliApi
   })
 
-  it('renders only commit and changed-line metrics', async () => {
+  it('renders only changed-line metrics for today and cumulative range', async () => {
     installGitWorklogApiMock({
       isEnabled: true,
       isRefreshing: false,
@@ -67,8 +67,10 @@ describe('GitWorklogControlCenterWidget', () => {
     const button = await screen.findByTestId('control-center-plugin-git-worklog')
     const scope = within(button)
 
-    expect(scope.getByText('5')).toBeVisible()
     expect(scope.getByText('140')).toBeVisible()
+    expect(scope.getByText('500')).toBeVisible()
+    expect(scope.getByText('今日')).toBeVisible()
+    expect(scope.getByText('累计')).toBeVisible()
     expect(scope.queryByText('新增')).not.toBeInTheDocument()
     expect(scope.queryByText('删除')).not.toBeInTheDocument()
     expect(scope.queryByText('仓库')).not.toBeInTheDocument()
