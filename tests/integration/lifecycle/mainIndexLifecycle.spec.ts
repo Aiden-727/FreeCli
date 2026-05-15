@@ -68,151 +68,157 @@ async function waitForCondition(predicate: () => boolean, attempts: number = 20)
 describe('main process lifecycle', () => {
   it('quits on window-all-closed during tests', async () => {
     vi.resetModules()
+    const previousNodeEnv = process.env['NODE_ENV']
+    process.env['NODE_ENV'] = 'test'
 
-    const app = createMockApp()
-    const dispose = vi.fn()
+    try {
+      const app = createMockApp()
+      const dispose = vi.fn()
 
-    class BrowserWindow {
-      public static windows: BrowserWindow[] = []
-      private readonly listeners = new Map<string, Array<(...args: unknown[]) => void>>()
+      class BrowserWindow {
+        public static windows: BrowserWindow[] = []
+        private readonly listeners = new Map<string, Array<(...args: unknown[]) => void>>()
 
-      public static getAllWindows(): BrowserWindow[] {
-        return BrowserWindow.windows
-      }
-
-      public webContents = {
-        id: 1,
-        isDestroyed: vi.fn(() => false),
-        getType: vi.fn(() => 'window'),
-        send: vi.fn(),
-        setWindowOpenHandler: vi.fn(),
-        on: vi.fn(),
-      }
-
-      public constructor() {
-        BrowserWindow.windows.push(this)
-      }
-
-      public on(event: string, listener: (...args: unknown[]) => void): void {
-        const existing = this.listeners.get(event) ?? []
-        existing.push(listener)
-        this.listeners.set(event, existing)
-      }
-      public once(event: string, listener: (...args: unknown[]) => void): void {
-        const onceListener = (...args: unknown[]): void => {
-          const existing = this.listeners.get(event) ?? []
-          this.listeners.set(
-            event,
-            existing.filter(candidate => candidate !== onceListener),
-          )
-          listener(...args)
+        public static getAllWindows(): BrowserWindow[] {
+          return BrowserWindow.windows
         }
-        this.on(event, onceListener)
-      }
-      public emit(event: string, ...args: unknown[]): void {
-        const handlers = this.listeners.get(event) ?? []
-        handlers.forEach(handler => handler(...args))
-      }
-      public isDestroyed(): boolean {
-        return false
-      }
-      public isMinimized(): boolean {
-        return false
-      }
-      public isVisible(): boolean {
-        return false
-      }
-      public restore(): void {}
-      public focus(): void {}
-      public hide(): void {}
-      public destroy(): void {}
-      public show(): void {}
-      public showInactive(): void {}
-      public setPosition(): void {}
-      public loadURL(): void {}
-      public loadFile(): void {}
-    }
 
-    const Tray = createMockTray()
-
-    vi.doMock('electron', () => {
-      const nativeImage = {
-        createFromPath: vi.fn(() => ({
-          isEmpty: () => true,
-          getSize: () => ({ width: 0, height: 0 }),
-          toBitmap: () => Buffer.alloc(0),
-        })),
-        createFromBitmap: vi.fn(() => null),
-      }
-      const module = {
-        app,
-        shell: {
-          openExternal: vi.fn(),
-        },
-        BrowserWindow,
-        Tray,
-        ipcMain: {
+        public webContents = {
+          id: 1,
+          isDestroyed: vi.fn(() => false),
+          getType: vi.fn(() => 'window'),
+          send: vi.fn(),
+          setWindowOpenHandler: vi.fn(),
           on: vi.fn(),
-          removeListener: vi.fn(),
-        },
-        Menu: {
-          buildFromTemplate: vi.fn(() => ({})),
-        },
-        nativeImage,
+        }
+
+        public constructor() {
+          BrowserWindow.windows.push(this)
+        }
+
+        public on(event: string, listener: (...args: unknown[]) => void): void {
+          const existing = this.listeners.get(event) ?? []
+          existing.push(listener)
+          this.listeners.set(event, existing)
+        }
+        public once(event: string, listener: (...args: unknown[]) => void): void {
+          const onceListener = (...args: unknown[]): void => {
+            const existing = this.listeners.get(event) ?? []
+            this.listeners.set(
+              event,
+              existing.filter(candidate => candidate !== onceListener),
+            )
+            listener(...args)
+          }
+          this.on(event, onceListener)
+        }
+        public emit(event: string, ...args: unknown[]): void {
+          const handlers = this.listeners.get(event) ?? []
+          handlers.forEach(handler => handler(...args))
+        }
+        public isDestroyed(): boolean {
+          return false
+        }
+        public isMinimized(): boolean {
+          return false
+        }
+        public isVisible(): boolean {
+          return false
+        }
+        public restore(): void {}
+        public focus(): void {}
+        public hide(): void {}
+        public destroy(): void {}
+        public show(): void {}
+        public showInactive(): void {}
+        public setPosition(): void {}
+        public loadURL(): void {}
+        public loadFile(): void {}
       }
-      return {
-        ...module,
-        default: module,
-      }
-    })
 
-    vi.doMock('@electron-toolkit/utils', () => ({
-      electronApp: {
-        setAppUserModelId: vi.fn(),
-      },
-      optimizer: {
-        watchWindowShortcuts: vi.fn(),
-      },
-      is: {
-        dev: false,
-      },
-    }))
+      const Tray = createMockTray()
 
-    vi.doMock('../../../src/app/main/runtimeIconVariant', () => ({
-      createDevelopmentRuntimeIcon: vi.fn(() => null),
-    }))
+      vi.doMock('electron', () => {
+        const nativeImage = {
+          createFromPath: vi.fn(() => ({
+            isEmpty: () => true,
+            getSize: () => ({ width: 0, height: 0 }),
+            toBitmap: () => Buffer.alloc(0),
+          })),
+          createFromBitmap: vi.fn(() => null),
+        }
+        const module = {
+          app,
+          shell: {
+            openExternal: vi.fn(),
+          },
+          BrowserWindow,
+          Tray,
+          ipcMain: {
+            on: vi.fn(),
+            removeListener: vi.fn(),
+          },
+          Menu: {
+            buildFromTemplate: vi.fn(() => ({})),
+          },
+          nativeImage,
+        }
+        return {
+          ...module,
+          default: module,
+        }
+      })
 
-    vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
-      createPtyRuntime: () => ({
-        deactivateTransientSessions: vi.fn(),
-        dispose: vi.fn(),
-      }),
-    }))
+      vi.doMock('@electron-toolkit/utils', () => ({
+        electronApp: {
+          setAppUserModelId: vi.fn(),
+        },
+        optimizer: {
+          watchWindowShortcuts: vi.fn(),
+        },
+        is: {
+          dev: false,
+        },
+      }))
 
-    vi.doMock('../../../src/app/main/controlSurface/registerControlSurfaceServer', () => ({
-      registerControlSurfaceServer: () => ({ dispose: vi.fn() }),
-    }))
+      vi.doMock('../../../src/app/main/runtimeIconVariant', () => ({
+        createDevelopmentRuntimeIcon: vi.fn(() => null),
+      }))
 
-    vi.doMock('../../../src/app/main/ipc/registerIpcHandlers', () => ({
-      registerIpcHandlers: () => ({ dispose }),
-    }))
+      vi.doMock('../../../src/contexts/terminal/presentation/main-ipc/runtime', () => ({
+        createPtyRuntime: () => ({
+          deactivateTransientSessions: vi.fn(),
+          dispose: vi.fn(),
+        }),
+      }))
 
-    await import('../../../src/app/main/index')
-    await waitForCondition(() => BrowserWindow.windows.length > 0)
+      vi.doMock('../../../src/app/main/controlSurface/registerControlSurfaceServer', () => ({
+        registerControlSurfaceServer: () => ({ dispose: vi.fn() }),
+      }))
 
-    app.emit('window-all-closed')
+      vi.doMock('../../../src/app/main/ipc/registerIpcHandlers', () => ({
+        registerIpcHandlers: () => ({ dispose }),
+      }))
 
-    expect(dispose).not.toHaveBeenCalled()
-    expect(app.quit).toHaveBeenCalledTimes(1)
+      await import('../../../src/app/main/index')
+      await waitForCondition(() => BrowserWindow.windows.length > 0)
 
-    const preventDefault = vi.fn()
-    app.emit('before-quit', { preventDefault })
-    expect(preventDefault).toHaveBeenCalledTimes(1)
-    expect(dispose).not.toHaveBeenCalled()
+      app.emit('window-all-closed')
 
-    app.emit('will-quit')
-    await flushAsyncWork()
-    expect(dispose).toHaveBeenCalledTimes(1)
+      expect(dispose).not.toHaveBeenCalled()
+      expect(app.quit).toHaveBeenCalledTimes(1)
+
+      const preventDefault = vi.fn()
+      app.emit('before-quit', { preventDefault })
+      expect(preventDefault).toHaveBeenCalledTimes(1)
+      expect(dispose).not.toHaveBeenCalled()
+
+      app.emit('will-quit')
+      await flushAsyncWork()
+      expect(dispose).toHaveBeenCalledTimes(1)
+    } finally {
+      process.env['NODE_ENV'] = previousNodeEnv
+    }
   })
 
   it('destroys the main window into tray state instead of quitting on close in non-test mode', async () => {
