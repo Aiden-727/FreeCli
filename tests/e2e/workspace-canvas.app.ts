@@ -237,7 +237,6 @@ async function launchAppInMode(
     }
 
     const window = await electronApp.firstWindow()
-    await window.waitForLoadState('domcontentloaded')
     return { electronApp, window }
   } catch (error) {
     if (electronApp) {
