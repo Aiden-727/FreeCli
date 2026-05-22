@@ -142,6 +142,70 @@ describe('terminal output scheduler', () => {
     expect(write).toHaveBeenCalledTimes(1)
     expect(refresh).not.toHaveBeenCalled()
   })
+
+  it('strips bracketed paste markers before rendering terminal output', () => {
+    const refresh = vi.fn()
+    const write = vi.fn((_: string, callback?: () => void) => {
+      callback?.()
+    })
+
+    const scheduler = createTerminalOutputScheduler({
+      terminal: {
+        write,
+        refresh,
+        rows: 24,
+        buffer: {
+          active: {
+            cursorY: 5,
+          },
+        },
+      } as never,
+      scrollbackBuffer: {
+        append: vi.fn(),
+      },
+      markScrollbackDirty: vi.fn(),
+    })
+
+    scheduler.handleChunk('\u001b[200~hello\u001b[201~')
+
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(write).toHaveBeenCalledWith('hello', expect.any(Function))
+  })
+
+  it('strips split bracketed paste markers across chunks before rendering terminal output', () => {
+    const refresh = vi.fn()
+    const write = vi.fn((_: string, callback?: () => void) => {
+      callback?.()
+    })
+    const scrollbackAppend = vi.fn()
+
+    const scheduler = createTerminalOutputScheduler({
+      terminal: {
+        write,
+        refresh,
+        rows: 24,
+        buffer: {
+          active: {
+            cursorY: 5,
+          },
+        },
+      } as never,
+      scrollbackBuffer: {
+        append: scrollbackAppend,
+      },
+      markScrollbackDirty: vi.fn(),
+    })
+
+    scheduler.handleChunk('\u001b[')
+    scheduler.handleChunk('200~hello')
+    scheduler.handleChunk('\u001b[20')
+    scheduler.handleChunk('1~')
+
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(write).toHaveBeenCalledWith('hello', expect.any(Function))
+    expect(scrollbackAppend).toHaveBeenCalledTimes(1)
+    expect(scrollbackAppend).toHaveBeenCalledWith('hello')
+  })
 })
 
 describe('terminal rendering heuristics', () => {

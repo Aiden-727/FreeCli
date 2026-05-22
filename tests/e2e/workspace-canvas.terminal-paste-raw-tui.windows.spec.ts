@@ -54,6 +54,8 @@ test.describe('Workspace Canvas - Terminal Paste Raw TUI (Windows)', () => {
 
         await expect(terminal).toContainText(`[freecli-test-paste] ${pastedToken}`)
         await expect(terminal).not.toContainText('[freecli-test-paste] ctrl-v')
+        await expect(terminal).not.toContainText('[200~')
+        await expect(terminal).not.toContainText('[201~')
       } finally {
         await electronApp.close()
       }

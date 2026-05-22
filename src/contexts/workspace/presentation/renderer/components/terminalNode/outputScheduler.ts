@@ -18,6 +18,49 @@ type ScrollbackBuffer = {
 }
 
 const INLINE_ACTIVE_LINE_REFRESH_MAX_CHARS = 256
+const TERMINAL_TRANSIENT_MARKERS = ['\u001b[200~', '\u001b[201~'] as const
+
+function resolveTerminalMarkerBoundaryCarry(input: string): string {
+  for (let length = Math.min(input.length, 6); length > 0; length -= 1) {
+    const suffix = input.slice(-length)
+    if (TERMINAL_TRANSIENT_MARKERS.some(marker => marker.startsWith(suffix))) {
+      return suffix
+    }
+  }
+
+  return ''
+}
+
+function stripTransientTerminalMarkers({
+  carry,
+  data,
+}: {
+  carry: string
+  data: string
+}): {
+  carry: string
+  data: string
+} {
+  const combined = `${carry}${data}`
+  if (combined.length === 0) {
+    return { carry: '', data: '' }
+  }
+
+  let sanitized = combined
+  for (const marker of TERMINAL_TRANSIENT_MARKERS) {
+    sanitized = sanitized.split(marker).join('')
+  }
+
+  const nextCarry = resolveTerminalMarkerBoundaryCarry(sanitized)
+  if (nextCarry.length === 0) {
+    return { carry: '', data: sanitized }
+  }
+
+  return {
+    carry: nextCarry,
+    data: sanitized.slice(0, -nextCarry.length),
+  }
+}
 
 function resolveLocalRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'>): {
   start: number
@@ -86,6 +129,7 @@ export function createTerminalOutputScheduler({
   let isDisposed = false
   let isDraining = false
   let isViewportInteractionActive = false
+  let pendingMarkerCarry = ''
 
   const hasPending = (): boolean => {
     return pendingWritesHead < pendingWrites.length
@@ -271,13 +315,23 @@ export function createTerminalOutputScheduler({
       return
     }
 
-    scrollbackBuffer.append(data)
+    const sanitizedChunk = stripTransientTerminalMarkers({
+      carry: pendingMarkerCarry,
+      data,
+    })
+    pendingMarkerCarry = sanitizedChunk.carry
+
+    if (sanitizedChunk.data.length === 0) {
+      return
+    }
+
+    scrollbackBuffer.append(sanitizedChunk.data)
     markScrollbackDirty(chunkOptions?.immediateScrollbackPublish === true)
 
     const shouldDeferWrite = isViewportInteractionActive || isDraining || hasPending()
 
     if (shouldDeferWrite) {
-      enqueue(data)
+      enqueue(sanitizedChunk.data)
 
       if (isViewportInteractionActive) {
         if (pendingWriteChars >= maxPendingChars) {
@@ -292,8 +346,8 @@ export function createTerminalOutputScheduler({
       return
     }
 
-    terminal.write(data, () => {
-      scheduleLocalRefresh(data)
+    terminal.write(sanitizedChunk.data, () => {
+      scheduleLocalRefresh(sanitizedChunk.data)
     })
   }
 
@@ -328,6 +382,7 @@ export function createTerminalOutputScheduler({
       pendingWrites.length = 0
       pendingWritesHead = 0
       pendingWriteChars = 0
+      pendingMarkerCarry = ''
       isDraining = false
     },
   }
