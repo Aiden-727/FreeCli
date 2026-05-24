@@ -24,6 +24,7 @@ import type {
 } from '../../../../contexts/plugins/application/MainPluginRuntimeHost'
 import { QuotaMonitorHttpClient, QuotaMonitorRequestError } from './QuotaMonitorHttpClient'
 import { QuotaMonitorHistoryStore } from '../../infrastructure/main/QuotaMonitorHistoryStore'
+import { createQuotaMonitorModelLogFingerprint } from '../../domain/modelLogFingerprint'
 
 const CONFIG_REFRESH_DEBOUNCE_MS = 400
 const BACKGROUND_REFRESH_RETRY_MS = 5_000
@@ -497,7 +498,7 @@ export class QuotaMonitorPluginController {
     profile: QuotaMonitorKeyProfileDto,
     state: QuotaMonitorProfileStateDto,
   ): Promise<void> {
-    const latestEpoch = await this.historyStore.getLatestModelLogEpoch(profile.id)
+    const latestBoundary = await this.historyStore.getLatestModelLogBoundary(profile.id)
     const syncPage = async (page: number): Promise<void> => {
       if (page > MAX_MODEL_LOG_PAGES) {
         return
@@ -512,16 +513,26 @@ export class QuotaMonitorPluginController {
 
       let reachedKnownBoundary = false
       const nextLogs = pageResult.logs.filter(log => {
-        if (latestEpoch === null) {
+        if (latestBoundary.maxEpoch === null) {
           return true
         }
 
-        if (log.requestEpochSeconds > latestEpoch) {
+        if (log.requestEpochSeconds > latestBoundary.maxEpoch) {
           return true
         }
 
-        reachedKnownBoundary = true
-        return false
+        if (log.requestEpochSeconds < latestBoundary.maxEpoch) {
+          reachedKnownBoundary = true
+          return false
+        }
+
+        const fingerprint = createQuotaMonitorModelLogFingerprint(log)
+        if (latestBoundary.fingerprintsAtMaxEpoch.has(fingerprint)) {
+          reachedKnownBoundary = true
+          return false
+        }
+
+        return true
       })
 
       if (nextLogs.length > 0) {

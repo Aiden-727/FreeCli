@@ -131,4 +131,62 @@ describe('QuotaMonitorHttpClient', () => {
     expect(state.estimatedRemainingHours).toBeCloseTo(60.2, 1)
     expect(state.estimatedRemainingTimeLabel).toBe('60时12分')
   })
+
+  it('prefers backend total_tokens over prompt plus completion when parsing log entries', async () => {
+    server = createServer((_request, response) => {
+      response.statusCode = 200
+      response.setHeader('Content-Type', 'application/json')
+      response.end(
+        JSON.stringify({
+          data: {
+            logs: [
+              {
+                id: 'log-1',
+                model_name: 'gpt-5',
+                created_at: 1775091900,
+                created_time: '2026-04-02 09:05:00',
+                prompt_tokens: 100,
+                completion_tokens: 50,
+                total_tokens: 180,
+                quota: 12,
+              },
+            ],
+            pagination: {
+              page: 1,
+              page_size: 100,
+              total: 1,
+              total_pages: 1,
+            },
+          },
+        }),
+      )
+    })
+
+    await new Promise<void>(resolve => {
+      server?.listen(0, '127.0.0.1', () => resolve())
+    })
+
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+      throw new Error('Expected an IPv4 test server address')
+    }
+
+    const client = new QuotaMonitorHttpClient()
+    const page = await client.fetchProfileLogs({
+      settings: createSettings(`http://127.0.0.1:${address.port}/api/token-logs`),
+      profile: {
+        ...createDefaultQuotaMonitorKeyProfile(0),
+        apiKey: 'valid-key',
+      },
+      page: 1,
+    })
+
+    expect(page.logs).toHaveLength(1)
+    expect(page.logs[0]).toMatchObject({
+      sourceId: 'log-1',
+      totalTokens: 180,
+      promptTokens: 100,
+      completionTokens: 50,
+    })
+  })
 })

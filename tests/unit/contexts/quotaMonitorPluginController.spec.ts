@@ -13,6 +13,7 @@ import {
   QuotaMonitorHttpClient,
   QuotaMonitorRequestError,
 } from '../../../src/plugins/quotaMonitor/presentation/main/QuotaMonitorHttpClient'
+import { createQuotaMonitorModelLogFingerprint } from '../../../src/plugins/quotaMonitor/domain/modelLogFingerprint'
 
 function createSettings(overrides: Partial<QuotaMonitorSettingsDto> = {}): QuotaMonitorSettingsDto {
   return {
@@ -83,6 +84,10 @@ describe('QuotaMonitorPluginController', () => {
     const historyStore = {
       appendSnapshot: vi.fn().mockResolvedValue(undefined),
       getLatestModelLogEpoch: vi.fn().mockResolvedValue(null),
+      getLatestModelLogBoundary: vi.fn().mockResolvedValue({
+        maxEpoch: null,
+        fingerprintsAtMaxEpoch: new Set<string>(),
+      }),
       saveModelLogs: vi.fn().mockResolvedValue(0),
       buildProfileHistory: vi.fn().mockResolvedValue({
         estimatedRemainingHours: 20,
@@ -145,6 +150,10 @@ describe('QuotaMonitorPluginController', () => {
     const historyStore = {
       appendSnapshot: vi.fn().mockResolvedValue(undefined),
       getLatestModelLogEpoch: vi.fn().mockResolvedValue(null),
+      getLatestModelLogBoundary: vi.fn().mockResolvedValue({
+        maxEpoch: null,
+        fingerprintsAtMaxEpoch: new Set<string>(),
+      }),
       saveModelLogs: vi.fn().mockResolvedValue(0),
       buildProfileHistory: vi.fn().mockResolvedValue({
         estimatedRemainingHours: null,
@@ -256,6 +265,100 @@ describe('QuotaMonitorPluginController', () => {
     focusState.current = true
     await vi.advanceTimersByTimeAsync(5_000)
     expect(client.fetchProfile).toHaveBeenCalledTimes(2)
+
+    await controller.dispose()
+  })
+
+  it('keeps fetching same-second pages until unseen records at the boundary are persisted', async () => {
+    const fetchedPages: number[] = []
+    const knownSameSecondLog = {
+      sourceId: 'known-same-second',
+      modelName: 'gpt-5',
+      requestEpochSeconds: 1_775_091_900,
+      requestTimeText: '2026-04-02 09:05:00.100',
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+      quota: 12,
+    }
+    const client = {
+      fetchProfile: vi.fn().mockResolvedValue(createProfileState()),
+      fetchProfileLogs: vi.fn().mockImplementation(async ({ page }: { page: number }) => {
+        fetchedPages.push(page)
+        if (page === 1) {
+          return {
+            logs: [
+              {
+                sourceId: 'new-same-second',
+                modelName: 'gpt-5',
+                requestEpochSeconds: 1_775_091_900,
+                requestTimeText: '2026-04-02 09:05:00.900',
+                promptTokens: 100,
+                completionTokens: 50,
+                totalTokens: 150,
+                quota: 12,
+              },
+            ],
+            page: 1,
+            pageSize: 100,
+            total: 2,
+            totalPages: 2,
+          }
+        }
+
+        return {
+          logs: [knownSameSecondLog],
+          page: 2,
+          pageSize: 100,
+          total: 2,
+          totalPages: 2,
+        }
+      }),
+    }
+    const historyStore = {
+      appendSnapshot: vi.fn().mockResolvedValue(undefined),
+      getLatestModelLogBoundary: vi.fn().mockResolvedValue({
+        maxEpoch: 1_775_091_900,
+        fingerprintsAtMaxEpoch: new Set([createQuotaMonitorModelLogFingerprint(knownSameSecondLog)]),
+      }),
+      saveModelLogs: vi.fn().mockResolvedValue(1),
+      buildProfileHistory: vi.fn().mockResolvedValue({
+        estimatedRemainingHours: null,
+        workDurationTodaySeconds: 0,
+        workDurationAllTimeSeconds: 0,
+        dailyTrend: [],
+        hourlyTrend: [],
+        modelUsageSummary: null,
+        dailyTokenTrend: { labels: [], seriesByModel: {} },
+        hourlyTokenTrend: { labels: [], seriesByModel: {} },
+        cappedInsight: null,
+      }),
+      dispose: vi.fn(),
+    }
+
+    const controller = new QuotaMonitorPluginController({
+      client: client as unknown as QuotaMonitorHttpClient,
+      historyStore: historyStore as never,
+      emitState: () => undefined,
+    })
+
+    controller.syncSettings(createSettings())
+    const runtime = controller.createRuntimeFactory()()
+    await runtime.activate()
+
+    expect(historyStore.getLatestModelLogBoundary).toHaveBeenCalledTimes(1)
+    expect(client.fetchProfileLogs).toHaveBeenCalledTimes(2)
+    expect(fetchedPages).toEqual([1, 2])
+    expect(historyStore.saveModelLogs).toHaveBeenCalledTimes(1)
+    expect(historyStore.saveModelLogs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logs: [
+          expect.objectContaining({
+            sourceId: 'new-same-second',
+          }),
+        ],
+      }),
+    )
 
     await controller.dispose()
   })

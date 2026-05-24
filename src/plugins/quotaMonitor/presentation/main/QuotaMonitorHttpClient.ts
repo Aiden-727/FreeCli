@@ -27,11 +27,13 @@ interface TokenStatsResponse {
 }
 
 interface TokenLogResponseItem {
+  id?: unknown
   model_name?: unknown
   created_at?: unknown
   created_time?: unknown
   prompt_tokens?: unknown
   completion_tokens?: unknown
+  total_tokens?: unknown
   quota?: unknown
 }
 
@@ -50,6 +52,7 @@ interface TokenLogPageResponse {
 }
 
 export interface QuotaMonitorModelLogEntry {
+  sourceId: string | null
   modelName: string
   requestEpochSeconds: number
   requestTimeText: string
@@ -670,6 +673,12 @@ export class QuotaMonitorHttpClient {
     }
 
     const record = raw as TokenLogResponseItem
+    const sourceId =
+      typeof record.id === 'string' && record.id.trim().length > 0
+        ? record.id.trim()
+        : typeof record.id === 'number' && Number.isFinite(record.id)
+          ? String(record.id)
+          : null
     const createdTimeRaw = typeof record.created_time === 'string' ? record.created_time.trim() : ''
     const createdTime =
       createdTimeRaw.length > 0
@@ -682,8 +691,12 @@ export class QuotaMonitorHttpClient {
     )
     const promptTokens = normalizeInteger(record.prompt_tokens)
     const completionTokens = normalizeInteger(record.completion_tokens)
+    const explicitTotalTokens = normalizeInteger(record.total_tokens)
+    const totalTokens =
+      explicitTotalTokens > 0 ? explicitTotalTokens : promptTokens + completionTokens
 
     return {
+      sourceId,
       modelName:
         typeof record.model_name === 'string' && record.model_name.trim().length > 0
           ? record.model_name.trim()
@@ -692,7 +705,7 @@ export class QuotaMonitorHttpClient {
       requestTimeText: createdTime,
       promptTokens,
       completionTokens,
-      totalTokens: promptTokens + completionTokens,
+      totalTokens,
       quota: normalizeNumber(record.quota),
     }
   }

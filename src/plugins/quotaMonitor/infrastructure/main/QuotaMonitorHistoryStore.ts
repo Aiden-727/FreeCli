@@ -5,10 +5,12 @@ import type {
   QuotaMonitorModelUsageSummaryDto,
   QuotaMonitorTrendPointDto,
 } from '@shared/contracts/dto'
+import { createQuotaMonitorModelLogFingerprint } from '../../domain/modelLogFingerprint'
 
 const DEFAULT_IDLE_THRESHOLD_MS = 10 * 60 * 1000
 
 export interface QuotaMonitorModelLogEntryInput {
+  sourceId: string | null
   modelName: string
   requestEpochSeconds: number
   requestTimeText: string
@@ -79,6 +81,7 @@ export interface QuotaMonitorHistorySyncSnapshotRow {
 export interface QuotaMonitorHistorySyncModelLogRow {
   profileId: string
   tokenName: string
+  sourceId: string | null
   modelName: string
   createdAtEpoch: number
   createdTimeText: string
@@ -232,6 +235,39 @@ export class QuotaMonitorHistoryStore {
     return typeof row?.max_epoch === 'number' && row.max_epoch > 0 ? row.max_epoch : null
   }
 
+  public async getLatestModelLogBoundary(profileId: string): Promise<{
+    maxEpoch: number | null
+    fingerprintsAtMaxEpoch: Set<string>
+  }> {
+    const maxEpoch = await this.getLatestModelLogEpoch(profileId)
+    if (maxEpoch === null) {
+      return {
+        maxEpoch: null,
+        fingerprintsAtMaxEpoch: new Set<string>(),
+      }
+    }
+
+    const db = this.getDb()
+    const rows = db
+      .prepare(
+        `
+          SELECT event_fingerprint
+          FROM quota_monitor_model_logs
+          WHERE profile_id = ? AND created_at_epoch = ?
+        `,
+      )
+      .all(profileId, maxEpoch) as Array<{ event_fingerprint?: string }>
+
+    return {
+      maxEpoch,
+      fingerprintsAtMaxEpoch: new Set(
+        rows
+          .map(row => row.event_fingerprint)
+          .filter((value): value is string => typeof value === 'string' && value.length > 0),
+      ),
+    }
+  }
+
   public async saveModelLogs(params: {
     profileId: string
     tokenName: string
@@ -248,6 +284,7 @@ export class QuotaMonitorHistoryStore {
         INSERT OR IGNORE INTO quota_monitor_model_logs (
           profile_id,
           token_name,
+          source_id,
           model_name,
           created_at_epoch,
           created_time_text,
@@ -255,10 +292,12 @@ export class QuotaMonitorHistoryStore {
           completion_tokens,
           total_tokens,
           quota,
+          event_fingerprint,
           fetched_at
         ) VALUES (
           @profileId,
           @tokenName,
+          @sourceId,
           @modelName,
           @createdAtEpoch,
           @createdTimeText,
@@ -266,6 +305,7 @@ export class QuotaMonitorHistoryStore {
           @completionTokens,
           @totalTokens,
           @quota,
+          @eventFingerprint,
           @fetchedAt
         )
       `,
@@ -277,6 +317,7 @@ export class QuotaMonitorHistoryStore {
         const result = insert.run({
           profileId: params.profileId,
           tokenName: params.tokenName,
+          sourceId: log.sourceId,
           modelName: log.modelName,
           createdAtEpoch: normalizeEpochSeconds(log.requestEpochSeconds),
           createdTimeText: log.requestTimeText,
@@ -284,6 +325,7 @@ export class QuotaMonitorHistoryStore {
           completionTokens: clampToNonNegative(log.completionTokens),
           totalTokens: clampToNonNegative(log.totalTokens),
           quota: clampToNonNegative(log.quota),
+          eventFingerprint: createQuotaMonitorModelLogFingerprint(log),
           fetchedAt: params.fetchedAt,
         })
         inserted += result.changes
@@ -322,6 +364,7 @@ export class QuotaMonitorHistoryStore {
           SELECT
             profile_id AS profileId,
             token_name AS tokenName,
+            source_id AS sourceId,
             model_name AS modelName,
             created_at_epoch AS createdAtEpoch,
             created_time_text AS createdTimeText,
@@ -378,6 +421,7 @@ export class QuotaMonitorHistoryStore {
         INSERT OR IGNORE INTO quota_monitor_model_logs (
           profile_id,
           token_name,
+          source_id,
           model_name,
           created_at_epoch,
           created_time_text,
@@ -385,10 +429,12 @@ export class QuotaMonitorHistoryStore {
           completion_tokens,
           total_tokens,
           quota,
+          event_fingerprint,
           fetched_at
         ) VALUES (
           @profileId,
           @tokenName,
+          @sourceId,
           @modelName,
           @createdAtEpoch,
           @createdTimeText,
@@ -396,6 +442,7 @@ export class QuotaMonitorHistoryStore {
           @completionTokens,
           @totalTokens,
           @quota,
+          @eventFingerprint,
           @fetchedAt
         )
       `,
@@ -426,6 +473,7 @@ export class QuotaMonitorHistoryStore {
         insertModelLog.run({
           profileId: row.profileId,
           tokenName: row.tokenName,
+          sourceId: row.sourceId,
           modelName: row.modelName,
           createdAtEpoch: normalizeEpochSeconds(row.createdAtEpoch),
           createdTimeText: row.createdTimeText,
@@ -433,6 +481,16 @@ export class QuotaMonitorHistoryStore {
           completionTokens: clampToNonNegative(row.completionTokens),
           totalTokens: clampToNonNegative(row.totalTokens),
           quota: clampToNonNegative(row.quota),
+          eventFingerprint: createQuotaMonitorModelLogFingerprint({
+            sourceId: row.sourceId,
+            modelName: row.modelName,
+            requestEpochSeconds: normalizeEpochSeconds(row.createdAtEpoch),
+            requestTimeText: row.createdTimeText,
+            promptTokens: clampToNonNegative(row.promptTokens),
+            completionTokens: clampToNonNegative(row.completionTokens),
+            totalTokens: clampToNonNegative(row.totalTokens),
+            quota: clampToNonNegative(row.quota),
+          }),
           fetchedAt: row.fetchedAt,
         })
       }
@@ -536,6 +594,7 @@ export class QuotaMonitorHistoryStore {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         profile_id TEXT NOT NULL,
         token_name TEXT NOT NULL,
+        source_id TEXT,
         model_name TEXT NOT NULL,
         created_at_epoch INTEGER NOT NULL,
         created_time_text TEXT NOT NULL,
@@ -543,15 +602,11 @@ export class QuotaMonitorHistoryStore {
         completion_tokens INTEGER NOT NULL,
         total_tokens INTEGER NOT NULL,
         quota REAL NOT NULL,
+        event_fingerprint TEXT,
         fetched_at TEXT NOT NULL,
         UNIQUE (
           profile_id,
-          token_name,
-          model_name,
-          created_at_epoch,
-          prompt_tokens,
-          completion_tokens,
-          quota
+          event_fingerprint
         )
       );
 
@@ -562,8 +617,100 @@ export class QuotaMonitorHistoryStore {
       ON quota_monitor_model_logs(token_name, model_name);
     `)
 
+    this.ensureModelLogSchema(db)
+
     this.db = db
     return db
+  }
+
+  private ensureModelLogSchema(db: Database.Database): void {
+    const columns = db
+      .prepare(`PRAGMA table_info(quota_monitor_model_logs)`)
+      .all() as Array<{ name?: string }>
+    const columnNames = new Set(
+      columns
+        .map(column => column.name)
+        .filter((name): name is string => typeof name === 'string' && name.length > 0),
+    )
+
+    if (columnNames.has('source_id') && columnNames.has('event_fingerprint')) {
+      return
+    }
+
+    db.exec('BEGIN IMMEDIATE TRANSACTION;')
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS quota_monitor_model_logs_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          profile_id TEXT NOT NULL,
+          token_name TEXT NOT NULL,
+          source_id TEXT,
+          model_name TEXT NOT NULL,
+          created_at_epoch INTEGER NOT NULL,
+          created_time_text TEXT NOT NULL,
+          prompt_tokens INTEGER NOT NULL,
+          completion_tokens INTEGER NOT NULL,
+          total_tokens INTEGER NOT NULL,
+          quota REAL NOT NULL,
+          event_fingerprint TEXT NOT NULL,
+          fetched_at TEXT NOT NULL,
+          UNIQUE (
+            profile_id,
+            event_fingerprint
+          )
+        );
+      `)
+
+      db.exec(`
+        INSERT OR IGNORE INTO quota_monitor_model_logs_v2 (
+          id,
+          profile_id,
+          token_name,
+          source_id,
+          model_name,
+          created_at_epoch,
+          created_time_text,
+          prompt_tokens,
+          completion_tokens,
+          total_tokens,
+          quota,
+          event_fingerprint,
+          fetched_at
+        )
+        SELECT
+          id,
+          profile_id,
+          token_name,
+          NULL AS source_id,
+          model_name,
+          created_at_epoch,
+          created_time_text,
+          prompt_tokens,
+          completion_tokens,
+          total_tokens,
+          quota,
+          lower(hex(randomblob(16))) AS event_fingerprint,
+          fetched_at
+        FROM quota_monitor_model_logs
+        ORDER BY id ASC;
+      `)
+
+      db.exec(`
+        DROP TABLE quota_monitor_model_logs;
+        ALTER TABLE quota_monitor_model_logs_v2 RENAME TO quota_monitor_model_logs;
+
+        CREATE INDEX IF NOT EXISTS idx_quota_monitor_model_logs_profile_time
+        ON quota_monitor_model_logs(profile_id, created_at_epoch DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_quota_monitor_model_logs_token_model
+        ON quota_monitor_model_logs(token_name, model_name);
+      `)
+
+      db.exec('COMMIT;')
+    } catch (error) {
+      db.exec('ROLLBACK;')
+      throw error
+    }
   }
 
   private readSnapshotRows(profileId: string, options?: { since?: Date }): SnapshotRow[] {

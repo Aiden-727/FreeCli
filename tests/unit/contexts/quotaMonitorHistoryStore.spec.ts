@@ -223,6 +223,7 @@ describe('QuotaMonitorHistoryStore', () => {
         fetchedAt,
         logs: [
           {
+            sourceId: 'log-1',
             modelName: 'gpt-4.1',
             requestEpochSeconds: Math.floor(createLocalDate(2026, 4, 2, 9, 5).getTime() / 1000),
             requestTimeText: '2026-04-02 09:05:00',
@@ -232,6 +233,7 @@ describe('QuotaMonitorHistoryStore', () => {
             quota: 12,
           },
           {
+            sourceId: 'log-2',
             modelName: 'gpt-4.1',
             requestEpochSeconds: Math.floor(createLocalDate(2026, 4, 2, 9, 35).getTime() / 1000),
             requestTimeText: '2026-04-02 09:35:00',
@@ -241,6 +243,7 @@ describe('QuotaMonitorHistoryStore', () => {
             quota: 8,
           },
           {
+            sourceId: 'log-3',
             modelName: 'claude-3.7',
             requestEpochSeconds: Math.floor(createLocalDate(2026, 4, 2, 10, 10).getTime() / 1000),
             requestTimeText: '2026-04-02 10:10:00',
@@ -258,6 +261,7 @@ describe('QuotaMonitorHistoryStore', () => {
         fetchedAt,
         logs: [
           {
+            sourceId: 'log-1',
             modelName: 'gpt-4.1',
             requestEpochSeconds: Math.floor(createLocalDate(2026, 4, 2, 9, 5).getTime() / 1000),
             requestTimeText: '2026-04-02 09:05:00',
@@ -299,6 +303,64 @@ describe('QuotaMonitorHistoryStore', () => {
       expect(history.dailyTokenTrend.seriesByModel['claude-3.7'].at(-1)).toBe(200)
     },
   )
+
+  historyStoreIt('keeps distinct same-second model log records instead of collapsing them', async () => {
+    const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
+    stores.add(store)
+    const profileId = 'same-second-profile'
+    const fetchedAt = toIso(createLocalDate(2026, 4, 2, 12, 0))
+    const sameSecond = Math.floor(createLocalDate(2026, 4, 2, 9, 5).getTime() / 1000)
+
+    const inserted = await store.saveModelLogs({
+      profileId,
+      tokenName: 'Primary',
+      fetchedAt,
+      logs: [
+        {
+          sourceId: 'log-a',
+          modelName: 'gpt-4.1',
+          requestEpochSeconds: sameSecond,
+          requestTimeText: '2026-04-02 09:05:00.100',
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+          quota: 12,
+        },
+        {
+          sourceId: 'log-b',
+          modelName: 'gpt-4.1',
+          requestEpochSeconds: sameSecond,
+          requestTimeText: '2026-04-02 09:05:00.900',
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+          quota: 12,
+        },
+      ],
+    })
+
+    const history = await store.buildProfileHistory({
+      profileId,
+      tokenName: 'Primary',
+      dailyRangeDays: 1,
+      hourlyRangeHours: 1,
+      keyType: 'normal',
+      dailyInitialQuota: 0,
+      hourlyIncreaseQuota: 0,
+      quotaCap: 0,
+      now: createLocalDate(2026, 4, 2, 12, 30),
+    })
+
+    expect(inserted).toBe(2)
+    expect(history.modelUsageSummary?.totalCalls).toBe(2)
+    expect(history.modelUsageSummary?.totalTokens).toBe(300)
+    expect(history.modelUsageSummary?.models[0]).toMatchObject({
+      modelName: 'gpt-4.1',
+      calls: 2,
+      totalTokens: 300,
+      todayTokens: 300,
+    })
+  })
 
   historyStoreIt('calculates capped insight from persisted snapshots', async () => {
     const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
