@@ -192,6 +192,12 @@ export function registerPluginIpcHandlers(
     { defaultErrorCode: 'common.unexpected' },
   )
 
+  registerHandledIpc<EyeCareStateDto>(
+    IPC_CHANNELS.pluginsEyeCareSkipBreak,
+    (): EyeCareStateDto => eyeCareController.skipBreak(),
+    { defaultErrorCode: 'common.unexpected' },
+  )
+
   registerHandledIpc<InputStatsStateDto, SyncInputStatsSettingsInput>(
     IPC_CHANNELS.pluginsInputStatsSyncSettings,
     async (_event, payload): Promise<InputStatsStateDto> => {
@@ -467,6 +473,7 @@ export function registerPluginIpcHandlers(
       ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareResume)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareStop)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCarePostponeBreak)
+      ipcMain.removeHandler(IPC_CHANNELS.pluginsEyeCareSkipBreak)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsInputStatsSyncSettings)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsInputStatsGetState)
       ipcMain.removeHandler(IPC_CHANNELS.pluginsInputStatsRefresh)

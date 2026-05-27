@@ -130,6 +130,61 @@ test.describe('Workspace Canvas - Terminal Theme', () => {
     }
   })
 
+  test('keeps pending terminal input visible while switching ui theme', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await clearAndSeedWorkspace(
+        window,
+        [
+          {
+            id: 'node-terminal-theme-pending-input',
+            title: 'terminal-theme-pending-input',
+            position: { x: 160, y: 140 },
+            width: 520,
+            height: 320,
+          },
+        ],
+        {
+          settings: {
+            uiTheme: 'dark',
+          },
+        },
+      )
+
+      const terminal = window.locator('.terminal-node').first()
+      const xterm = terminal.locator('.xterm')
+      const helperTextarea = terminal.locator('.xterm-helper-textarea')
+      const pendingInput = 'echo FREECLI_PENDING_THEME_INPUT'
+
+      await expect(terminal).toBeVisible()
+      await expect(xterm).toBeVisible()
+      await xterm.click()
+      await expect(helperTextarea).toBeFocused()
+      await window.keyboard.type(pendingInput)
+      await expect(terminal).toContainText(pendingInput)
+
+      const settingsButton = window.locator('[data-testid="app-header-settings"]')
+      await settingsButton.click({ noWaitAfter: true })
+      await selectCoveOption(window, 'settings-ui-theme', 'light')
+
+      await expect
+        .poll(() =>
+          window.evaluate(() => {
+            return document.documentElement.dataset.coveTheme ?? null
+          }),
+        )
+        .toBe('light')
+      await expect(terminal.locator('.terminal-node__terminal')).toHaveAttribute(
+        'data-cove-terminal-theme',
+        'light',
+      )
+      await expect(terminal).toContainText(pendingInput)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
   test('keeps opencode agent terminal frozen to dark after switching ui theme', async () => {
     const { electronApp, window } = await launchApp()
 

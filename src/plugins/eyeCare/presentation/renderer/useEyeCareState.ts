@@ -30,6 +30,7 @@ export function useEyeCareState(): {
   resume: () => Promise<void>
   stop: () => Promise<void>
   postponeBreak: () => Promise<void>
+  skipBreak: () => Promise<void>
 } {
   const [state, setState] = React.useState<EyeCareStateDto>(EMPTY_STATE)
   const [isHydrated, setIsHydrated] = React.useState(false)
@@ -82,6 +83,9 @@ export function useEyeCareState(): {
     },
     postponeBreak: async () => {
       await call(async () => await window.freecliApi.plugins.eyeCare.postponeBreak())
+    },
+    skipBreak: async () => {
+      await call(async () => await window.freecliApi.plugins.eyeCare.skipBreak())
     },
   }
 }

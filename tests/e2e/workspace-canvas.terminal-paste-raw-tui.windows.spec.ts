@@ -19,10 +19,12 @@ test.describe('Workspace Canvas - Terminal Paste Raw TUI (Windows)', () => {
       const { electronApp, window } = await launchApp({ cleanupUserDataDir: false })
 
       try {
-        await electronApp.evaluate(async ({ clipboard }, token) => {
+        const clipboardToken = await electronApp.evaluate(async ({ clipboard }, token) => {
           clipboard.clear()
-          clipboard.writeText(token)
+          await clipboard.writeText(token)
+          return clipboard.readText()
         }, pastedToken)
+        expect(clipboardToken).toBe(pastedToken)
 
         await clearAndSeedWorkspace(window, [
           {
@@ -42,7 +44,7 @@ test.describe('Workspace Canvas - Terminal Paste Raw TUI (Windows)', () => {
         await xterm.click()
         await expect(terminal.locator('.xterm-helper-textarea')).toBeFocused()
 
-        const launchCommand = `node "${stubScriptPath}" ${providerCase.provider} "${testWorkspacePath}" new default-model raw-bracketed-paste-echo`
+        const launchCommand = `node "${stubScriptPath}" ${providerCase.provider} "${testWorkspacePath}" new default-model raw-paste-echo`
         await window.keyboard.type(launchCommand)
         await window.keyboard.press('Enter')
 

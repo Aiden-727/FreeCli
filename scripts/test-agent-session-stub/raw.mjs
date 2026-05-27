@@ -2,10 +2,12 @@ import { sleep } from './sleep.mjs'
 
 const BRACKETED_PASTE_START = '\u001b[200~'
 const BRACKETED_PASTE_END = '\u001b[201~'
+const CTRL_V = '\u0016'
 const ENTER_ALTERNATE_SCREEN = '\u001b[?1049h'
 const EXIT_ALTERNATE_SCREEN = '\u001b[?1049l'
 const ENABLE_SGR_MOUSE = '\u001b[?1000h\u001b[?1006h'
 const DISABLE_SGR_MOUSE = '\u001b[?1000l\u001b[?1006l'
+const RAW_PASTE_IDLE_SETTLE_MS = 80
 
 function extractBracketedPastePayload(buffer) {
   const startIndex = buffer.indexOf(BRACKETED_PASTE_START)
@@ -20,6 +22,25 @@ function extractBracketedPastePayload(buffer) {
   }
 
   return buffer.slice(contentStartIndex, endIndex)
+}
+
+function stripTransientPasteMarkers(buffer) {
+  return buffer.replaceAll(BRACKETED_PASTE_START, '').replaceAll(BRACKETED_PASTE_END, '')
+}
+
+function extractPlainPastePayload(buffer) {
+  const withoutBracketedMarkers = stripTransientPasteMarkers(buffer)
+  const withoutCtrlV = withoutBracketedMarkers.replaceAll(CTRL_V, '')
+  return Array.from(withoutCtrlV)
+    .filter(character => {
+      const charCode = character.charCodeAt(0)
+      return !(
+        (charCode >= 0x00 && charCode <= 0x08) ||
+        (charCode >= 0x0b && charCode <= 0x1f) ||
+        charCode === 0x7f
+      )
+    })
+    .join('')
 }
 
 function extractMouseWheelLabel(buffer) {
@@ -57,12 +78,13 @@ function extractX10MouseReportBytes(buffer) {
   return Array.from(report, char => char.charCodeAt(0))
 }
 
-export async function runRawBracketedPasteEchoScenario() {
+export async function runRawPasteEchoScenario() {
   process.stdout.write('\u001b[?2004h')
 
   await new Promise(resolveScenario => {
     let settled = false
     let buffer = ''
+    let idleTimer = null
 
     const settle = message => {
       if (settled) {
@@ -70,10 +92,32 @@ export async function runRawBracketedPasteEchoScenario() {
       }
 
       settled = true
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer)
+        idleTimer = null
+      }
       clearTimeout(timeout)
       process.stdout.write(`${message}\n`)
       process.stdout.write('\u001b[?2004l')
       resolveScenario()
+    }
+
+    const scheduleIdleSettle = () => {
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer)
+      }
+
+      idleTimer = setTimeout(() => {
+        const plainPayload = extractPlainPastePayload(buffer)
+        if (plainPayload.length > 0) {
+          settle(`[freecli-test-paste] ${plainPayload}`)
+          return
+        }
+
+        if (buffer.includes(CTRL_V)) {
+          settle('[freecli-test-paste] ctrl-v')
+        }
+      }, RAW_PASTE_IDLE_SETTLE_MS)
     }
 
     const timeout = setTimeout(() => {
@@ -94,8 +138,14 @@ export async function runRawBracketedPasteEchoScenario() {
         return
       }
 
-      if (buffer.includes('\u0016')) {
-        settle('[freecli-test-paste] ctrl-v')
+      const plainPayload = extractPlainPastePayload(buffer)
+      if (plainPayload.length > 0) {
+        scheduleIdleSettle()
+        return
+      }
+
+      if (buffer.includes(CTRL_V)) {
+        scheduleIdleSettle()
       }
     })
     process.stdin.resume()

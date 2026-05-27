@@ -220,6 +220,7 @@ export const en = {
           title: 'Time to take a break',
           summary: 'Step away from the screen for a moment and continue after the countdown ends.',
           postpone: 'Postpone',
+          skip: 'Skip',
         },
       },
       inputStats: {

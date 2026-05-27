@@ -15,7 +15,7 @@ import {
 import { runOpenCodeIdleWithMessageScenario } from './test-agent-session-stub/opencode.mjs'
 import {
   runRawAltScreenWheelEchoScenario,
-  runRawBracketedPasteEchoScenario,
+  runRawPasteEchoScenario,
 } from './test-agent-session-stub/raw.mjs'
 
 async function main() {
@@ -53,8 +53,8 @@ async function main() {
     return
   }
 
-  if (scenario === 'raw-bracketed-paste-echo') {
-    await runRawBracketedPasteEchoScenario()
+  if (scenario === 'raw-paste-echo') {
+    await runRawPasteEchoScenario()
     return
   }
 

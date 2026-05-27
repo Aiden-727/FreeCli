@@ -256,6 +256,7 @@ const freecliApi = {
       stop: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCareStop),
       postponeBreak: (): Promise<EyeCareStateDto> =>
         invokeIpc(IPC_CHANNELS.pluginsEyeCarePostponeBreak),
+      skipBreak: (): Promise<EyeCareStateDto> => invokeIpc(IPC_CHANNELS.pluginsEyeCareSkipBreak),
       onState: (listener: (state: EyeCareStateDto) => void): UnsubscribeFn => {
         const handler = (_event: Electron.IpcRendererEvent, payload: EyeCareStateDto) => {
           listener(payload)

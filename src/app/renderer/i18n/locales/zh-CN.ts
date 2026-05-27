@@ -217,6 +217,7 @@ export const zhCN = {
           title: '该休息一下了',
           summary: '请暂时离开屏幕，等倒计时结束后再继续工作。',
           postpone: '延后',
+          skip: '跳过',
         },
       },
       inputStats: {

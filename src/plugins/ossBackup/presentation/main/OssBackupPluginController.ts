@@ -450,9 +450,15 @@ function normalizeQuotaMonitorHistoryPayload(raw: unknown): QuotaMonitorHistoryS
   })
 
   const modelLogs = raw.modelLogs.filter(isRecord).map(modelLog => {
+    const sourceId =
+      typeof modelLog.sourceId === 'string' && modelLog.sourceId.trim().length > 0
+        ? modelLog.sourceId.trim()
+        : null
+
     return {
       profileId: typeof modelLog.profileId === 'string' ? modelLog.profileId : '',
       tokenName: typeof modelLog.tokenName === 'string' ? modelLog.tokenName : '',
+      sourceId,
       modelName: typeof modelLog.modelName === 'string' ? modelLog.modelName : '',
       createdAtEpoch: normalizePositiveInteger(modelLog.createdAtEpoch, 0),
       createdTimeText: typeof modelLog.createdTimeText === 'string' ? modelLog.createdTimeText : '',

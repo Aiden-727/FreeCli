@@ -195,6 +195,7 @@ export interface FreeCliApi {
       resume: () => Promise<EyeCareStateDto>
       stop: () => Promise<EyeCareStateDto>
       postponeBreak: () => Promise<EyeCareStateDto>
+      skipBreak: () => Promise<EyeCareStateDto>
       onState: (listener: (state: EyeCareStateDto) => void) => UnsubscribeFn
     }
     inputStats: {

@@ -177,6 +177,15 @@ export class EyeCarePluginController {
     return this.state
   }
 
+  skipBreak(): EyeCareStateDto {
+    if (!this.enabled || this.state.phase !== 'breaking' || !this.state.canSkip) {
+      return this.state
+    }
+
+    this.enterPhase('working', this.settings.workDurationMinutes * 60)
+    return this.state
+  }
+
   async dispose(): Promise<void> {
     this.stopTimer()
   }

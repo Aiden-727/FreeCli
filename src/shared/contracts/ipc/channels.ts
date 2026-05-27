@@ -50,6 +50,7 @@ export const IPC_CHANNELS = {
   pluginsEyeCareResume: 'plugins:eye-care:resume',
   pluginsEyeCareStop: 'plugins:eye-care:stop',
   pluginsEyeCarePostponeBreak: 'plugins:eye-care:postpone-break',
+  pluginsEyeCareSkipBreak: 'plugins:eye-care:skip-break',
   pluginsEyeCareState: 'plugins:eye-care:state',
   pluginsInputStatsSyncSettings: 'plugins:input-stats:sync-settings',
   pluginsInputStatsGetState: 'plugins:input-stats:get-state',

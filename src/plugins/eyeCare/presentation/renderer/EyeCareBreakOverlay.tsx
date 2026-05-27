@@ -1,5 +1,5 @@
 import React from 'react'
-import { TimerReset } from 'lucide-react'
+import { FastForward, TimerReset } from 'lucide-react'
 import { useTranslation } from '@app/renderer/i18n'
 import type { WorkspaceOverlayPluginWidgetProps } from '@contexts/plugins/presentation/renderer/types'
 import { useAppStore } from '@app/renderer/shell/store/useAppStore'
@@ -11,7 +11,7 @@ export default function EyeCareBreakOverlay({
 }: WorkspaceOverlayPluginWidgetProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const enabled = useAppStore(state => state.agentSettings.plugins.enabledIds.includes('eye-care'))
-  const { state, postponeBreak } = useEyeCareState()
+  const { state, postponeBreak, skipBreak } = useEyeCareState()
 
   if (!enabled || !state.isOverlayVisible || state.phase !== 'breaking') {
     return null
@@ -39,6 +39,18 @@ export default function EyeCareBreakOverlay({
           </div>
         </div>
         <div className="eye-care-overlay__actions">
+          {state.canSkip ? (
+            <button
+              type="button"
+              className="cove-window__action cove-window__action--secondary"
+              onClick={() => void skipBreak()}
+            >
+              <span className="eye-care-overlay__action-icon" aria-hidden="true">
+                <FastForward size={18} />
+              </span>
+              <span>{t('pluginManager.plugins.eyeCare.overlay.skip')}</span>
+            </button>
+          ) : null}
           {state.canPostpone ? (
             <button
               type="button"

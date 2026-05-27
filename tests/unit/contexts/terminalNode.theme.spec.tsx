@@ -16,6 +16,7 @@ vi.mock('@xterm/xterm', () => {
     public rows = 24
     public options: { fontSize: number; theme?: unknown } = { fontSize: 13 }
     public refreshCalls = 0
+    public refreshRanges: Array<[number, number]> = []
 
     public constructor(options?: { cols?: number; rows?: number; theme?: unknown }) {
       MockTerminal.lastInstance = this
@@ -35,8 +36,9 @@ vi.mock('@xterm/xterm', () => {
 
     public focus(): void {}
 
-    public refresh(): void {
+    public refresh(start?: number, end?: number): void {
       this.refreshCalls += 1
+      this.refreshRanges.push([start ?? -1, end ?? -1])
     }
 
     public dispose(): void {}
@@ -196,10 +198,58 @@ describe('TerminalNode theme behavior', () => {
         }),
       )
       expect(__getLastTerminal()?.refreshCalls ?? 0).toBeGreaterThan(0)
+      expect(__getLastTerminal()?.refreshRanges.at(-1)).toEqual([0, 23])
       expect(container.querySelector('.terminal-node__terminal')).toHaveAttribute(
         'data-cove-terminal-theme',
         'light',
       )
+    })
+  })
+
+  it('refreshes only the active line neighborhood when the terminal cursor position is known', async () => {
+    installResizeObserverMock()
+    installPtyApiMock()
+
+    const { TerminalNode } =
+      await import('../../../src/contexts/workspace/presentation/renderer/components/TerminalNode')
+
+    render(
+      <TerminalNode
+        nodeId="node-theme-cursor"
+        sessionId="session-theme-cursor"
+        title="t"
+        kind="terminal"
+        status={null}
+        lastError={null}
+        position={{ x: 0, y: 0 }}
+        width={520}
+        height={360}
+        terminalFontSize={13}
+        scrollback={null}
+        onClose={() => undefined}
+        onResize={() => undefined}
+      />,
+    )
+
+    const { __getLastTerminal } = await import('@xterm/xterm')
+    const terminal = __getLastTerminal()
+    if (!terminal) {
+      throw new Error('terminal missing')
+    }
+
+    terminal.buffer = {
+      active: {
+        cursorY: 7,
+      },
+    } as never
+
+    document.documentElement.dataset.coveTheme = 'light'
+    document.documentElement.style.setProperty('--cove-terminal-background', '#f6f8fa')
+    document.documentElement.style.setProperty('--cove-terminal-foreground', '#24292f')
+    window.dispatchEvent(new CustomEvent('freecli-theme-changed', { detail: { theme: 'light' } }))
+
+    await waitFor(() => {
+      expect(terminal.refreshRanges.at(-1)).toEqual([6, 8])
     })
   })
 

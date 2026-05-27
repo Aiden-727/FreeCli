@@ -188,6 +188,30 @@ describe('handleTerminalCustomKeyEvent', () => {
     expect(ptyWriteQueue.flush).toHaveBeenCalledTimes(1)
   })
 
+  it('does not wrap clipboard text in bracketed paste markers', async () => {
+    const readClipboardText = vi.fn(async () => 'clipboard payload')
+    const ptyWriteQueue = {
+      enqueue: vi.fn(),
+      flush: vi.fn(),
+    }
+    const terminal = {
+      modes: {
+        bracketedPasteMode: true,
+      },
+    }
+
+    await pasteTextFromClipboard({
+      readClipboardText,
+      ptyWriteQueue,
+      terminal,
+    })
+
+    expect(ptyWriteQueue.enqueue).toHaveBeenCalledTimes(1)
+    expect(ptyWriteQueue.enqueue).toHaveBeenCalledWith('clipboard payload')
+    expect(ptyWriteQueue.enqueue).not.toHaveBeenCalledWith(expect.stringContaining('\u001b[200~'))
+    expect(ptyWriteQueue.enqueue).not.toHaveBeenCalledWith(expect.stringContaining('\u001b[201~'))
+  })
+
   it('preserves binary writes as a separate PTY payload', async () => {
     const writes: Array<{ data: string; encoding: 'utf8' | 'binary' }> = []
     const ptyWriteQueue = createPtyWriteQueue(async payload => {

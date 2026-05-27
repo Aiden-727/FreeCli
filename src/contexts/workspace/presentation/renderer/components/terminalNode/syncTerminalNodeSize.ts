@@ -27,6 +27,24 @@ function clampXtermHeightToExactRows(terminal: Terminal): void {
   xtermEl.style.height = `${exactHeight}px`
 }
 
+function resolveTerminalRefreshRange(terminal: Pick<Terminal, 'rows' | 'buffer'>): {
+  start: number
+  end: number
+} {
+  const cursorY = terminal.buffer?.active?.cursorY ?? -1
+  if (!Number.isFinite(cursorY) || cursorY < 0 || cursorY >= terminal.rows) {
+    return {
+      start: 0,
+      end: Math.max(0, terminal.rows - 1),
+    }
+  }
+
+  return {
+    start: Math.max(0, cursorY - 1),
+    end: Math.min(terminal.rows - 1, cursorY + 1),
+  }
+}
+
 export function syncTerminalNodeSize({
   terminalRef,
   fitAddonRef,
@@ -79,7 +97,8 @@ export function syncTerminalNodeSize({
     }
 
     clampXtermHeightToExactRows(terminal)
-    terminal.refresh(0, Math.max(0, terminal.rows - 1))
+    const refreshRange = resolveTerminalRefreshRange(terminal)
+    terminal.refresh(refreshRange.start, refreshRange.end)
     return
   }
 

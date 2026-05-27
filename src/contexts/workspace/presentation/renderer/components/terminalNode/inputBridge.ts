@@ -161,10 +161,8 @@ export async function pasteTextFromClipboard({
   }
 
   const normalizedText = text.replace(/\r?\n/g, '\r')
-  const bracketedText = terminal.modes?.bracketedPasteMode
-    ? `\u001b[200~${normalizedText}\u001b[201~`
-    : normalizedText
-  ptyWriteQueue.enqueue(bracketedText)
+  void terminal
+  ptyWriteQueue.enqueue(normalizedText)
   ptyWriteQueue.flush()
 }
 

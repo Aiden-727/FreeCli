@@ -266,10 +266,8 @@ export function TerminalNode({
 
       latestPasteIntentSequenceRef.current = ++pasteIntentSequenceRef.current
       const normalizedText = text.replace(/\r?\n/g, '\r')
-      const payload = terminal.modes?.bracketedPasteMode
-        ? `\u001b[200~${normalizedText}\u001b[201~`
-        : normalizedText
-      for (const char of payload) {
+      void terminal
+      for (const char of normalizedText) {
         ptyWriteQueue.enqueue(char, 'utf8', false)
       }
       ptyWriteQueue.flush()

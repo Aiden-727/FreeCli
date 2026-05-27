@@ -56,7 +56,57 @@ describe('syncTerminalNodeSize', () => {
     })
 
     expect(fit).not.toHaveBeenCalled()
-    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalledWith(0, 29)
+    expect(resize).not.toHaveBeenCalled()
+  })
+
+  it('refreshes only the active line neighborhood on foreground restore when cursor position is known', () => {
+    const fit = vi.fn()
+    const refresh = vi.fn()
+    const resize = vi.fn(async () => undefined)
+    const terminalElement = document.createElement('div')
+
+    Object.defineProperty(window, 'freecliApi', {
+      configurable: true,
+      writable: true,
+      value: {
+        pty: {
+          resize,
+        },
+      },
+    })
+
+    syncTerminalNodeSize({
+      terminalRef: {
+        current: {
+          cols: 100,
+          rows: 30,
+          element: terminalElement,
+          refresh,
+          buffer: {
+            active: {
+              cursorY: 12,
+            },
+          },
+        },
+      } as never,
+      fitAddonRef: {
+        current: {
+          fit,
+        },
+      } as never,
+      containerRef: {
+        current: createContainer(800, 600),
+      } as never,
+      isPointerResizingRef: { current: false },
+      lastSyncedContainerSizeRef: { current: { width: 800, height: 600 } },
+      lastSyncedPtySizeRef: { current: { cols: 100, rows: 30 } },
+      sessionId: 'session-foreground-cursor',
+      mode: 'foreground',
+    })
+
+    expect(fit).not.toHaveBeenCalled()
+    expect(refresh).toHaveBeenCalledWith(11, 13)
     expect(resize).not.toHaveBeenCalled()
   })
 
