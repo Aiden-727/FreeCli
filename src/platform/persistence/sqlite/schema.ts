@@ -100,6 +100,7 @@ export const quotaMonitorModelLogs = sqliteTable('quota_monitor_model_logs', {
   id: integer('id').primaryKey(),
   profileId: text('profile_id').notNull(),
   tokenName: text('token_name').notNull(),
+  sourceId: text('source_id'),
   modelName: text('model_name').notNull(),
   createdAtEpoch: integer('created_at_epoch').notNull(),
   createdTimeText: text('created_time_text').notNull(),
@@ -107,5 +108,6 @@ export const quotaMonitorModelLogs = sqliteTable('quota_monitor_model_logs', {
   completionTokens: integer('completion_tokens').notNull(),
   totalTokens: integer('total_tokens').notNull(),
   quota: real('quota').notNull(),
+  eventFingerprint: text('event_fingerprint').notNull(),
   fetchedAt: text('fetched_at').notNull(),
 })

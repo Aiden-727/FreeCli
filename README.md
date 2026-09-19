@@ -87,7 +87,7 @@ Detailed packaging notes are in [docs/RELEASING.md](./docs/RELEASING.md).
 - Stable releases use tags like `v0.0.1`
 - Beta releases use tags like `v0.0.2-nightly.20260418.1`
 - The beta channel keeps the existing `nightly` tag suffix and update metadata for compatibility
-- Pushing a `v*` tag triggers the GitHub Release workflow
+- Releases are packaged only through the manual GitHub Actions workflow; pushing a `v*` tag does not trigger a build
 
 ## Update And Release Quick Guide
 

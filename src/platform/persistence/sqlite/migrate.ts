@@ -117,6 +117,7 @@ function createTables(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       profile_id TEXT NOT NULL,
       token_name TEXT NOT NULL,
+      source_id TEXT,
       model_name TEXT NOT NULL,
       created_at_epoch INTEGER NOT NULL,
       created_time_text TEXT NOT NULL,
@@ -124,15 +125,11 @@ function createTables(db: Database.Database): void {
       completion_tokens INTEGER NOT NULL,
       total_tokens INTEGER NOT NULL,
       quota REAL NOT NULL,
+      event_fingerprint TEXT NOT NULL,
       fetched_at TEXT NOT NULL,
       UNIQUE (
         profile_id,
-        token_name,
-        model_name,
-        created_at_epoch,
-        prompt_tokens,
-        completion_tokens,
-        quota
+        event_fingerprint
       )
     );
 

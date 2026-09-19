@@ -31,7 +31,7 @@ const BACKGROUND_REFRESH_RETRY_MS = 5_000
 const DEFAULT_DAILY_RANGE_DAYS = 30
 const DEFAULT_HOURLY_RANGE_HOURS = 12
 const MODEL_LOG_PAGE_SIZE = 100
-const MAX_MODEL_LOG_PAGES = 12
+const MAX_MODEL_LOG_PAGES = 1000
 
 function createDefaultState(
   settings: QuotaMonitorSettingsDto,
@@ -544,7 +544,15 @@ export class QuotaMonitorPluginController {
         })
       }
 
-      if (reachedKnownBoundary || pageResult.logs.length === 0 || page >= pageResult.totalPages) {
+      const hasReliableTotalPages = pageResult.totalPages > 0
+      const reachedEndOfPageData =
+        !hasReliableTotalPages && pageResult.logs.length < MODEL_LOG_PAGE_SIZE
+      if (
+        reachedKnownBoundary ||
+        pageResult.logs.length === 0 ||
+        reachedEndOfPageData ||
+        (hasReliableTotalPages && page >= pageResult.totalPages)
+      ) {
         return
       }
 

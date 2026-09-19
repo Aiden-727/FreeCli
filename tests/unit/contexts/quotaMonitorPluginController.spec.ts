@@ -319,7 +319,9 @@ describe('QuotaMonitorPluginController', () => {
       appendSnapshot: vi.fn().mockResolvedValue(undefined),
       getLatestModelLogBoundary: vi.fn().mockResolvedValue({
         maxEpoch: 1_775_091_900,
-        fingerprintsAtMaxEpoch: new Set([createQuotaMonitorModelLogFingerprint(knownSameSecondLog)]),
+        fingerprintsAtMaxEpoch: new Set([
+          createQuotaMonitorModelLogFingerprint(knownSameSecondLog),
+        ]),
       }),
       saveModelLogs: vi.fn().mockResolvedValue(1),
       buildProfileHistory: vi.fn().mockResolvedValue({
@@ -360,6 +362,62 @@ describe('QuotaMonitorPluginController', () => {
       }),
     )
 
+    await controller.dispose()
+  })
+
+  it('continues pagination when the backend omits total pages', async () => {
+    const client = {
+      fetchProfile: vi.fn().mockResolvedValue(createProfileState()),
+      fetchProfileLogs: vi.fn().mockImplementation(async ({ page }: { page: number }) => ({
+        logs:
+          page === 1
+            ? Array.from({ length: 100 }, (_, index) => ({
+                sourceId: `log-${index}`,
+                modelName: 'gpt-5',
+                requestEpochSeconds: 1_775_091_900 - index,
+                requestTimeText: `2026-04-02 09:05:${String(index % 60).padStart(2, '0')}`,
+                promptTokens: 1,
+                completionTokens: 1,
+                totalTokens: 2,
+                quota: 1,
+              }))
+            : [],
+        page,
+        pageSize: 100,
+        total: 0,
+        totalPages: 0,
+      })),
+    }
+    const historyStore = {
+      appendSnapshot: vi.fn().mockResolvedValue(undefined),
+      getLatestModelLogBoundary: vi.fn().mockResolvedValue({
+        maxEpoch: null,
+        fingerprintsAtMaxEpoch: new Set<string>(),
+      }),
+      saveModelLogs: vi.fn().mockResolvedValue(100),
+      buildProfileHistory: vi.fn().mockResolvedValue({
+        estimatedRemainingHours: null,
+        workDurationTodaySeconds: 0,
+        workDurationAllTimeSeconds: 0,
+        dailyTrend: [],
+        hourlyTrend: [],
+        modelUsageSummary: null,
+        dailyTokenTrend: { labels: [], seriesByModel: {} },
+        hourlyTokenTrend: { labels: [], seriesByModel: {} },
+        cappedInsight: null,
+      }),
+      dispose: vi.fn(),
+    }
+    const controller = new QuotaMonitorPluginController({
+      client: client as unknown as QuotaMonitorHttpClient,
+      historyStore: historyStore as never,
+      emitState: () => undefined,
+    })
+
+    controller.syncSettings(createSettings())
+    await controller.createRuntimeFactory()().activate()
+
+    expect(client.fetchProfileLogs).toHaveBeenCalledTimes(2)
     await controller.dispose()
   })
 })

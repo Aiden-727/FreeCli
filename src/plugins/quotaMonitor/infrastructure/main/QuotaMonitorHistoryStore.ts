@@ -402,7 +402,8 @@ export class QuotaMonitorHistoryStore {
           expired_time_formatted,
           status_text,
           remain_ratio
-        ) VALUES (
+        )
+        SELECT
           @profileId,
           @tokenName,
           @fetchedAt,
@@ -413,6 +414,9 @@ export class QuotaMonitorHistoryStore {
           @expiredTimeFormatted,
           @statusText,
           @remainRatio
+        WHERE NOT EXISTS (
+          SELECT 1 FROM quota_monitor_snapshots
+          WHERE profile_id = @profileId AND fetched_at = @fetchedAt
         )
       `,
     )
@@ -449,10 +453,7 @@ export class QuotaMonitorHistoryStore {
     )
 
     const writeTx = db.transaction(() => {
-      db.exec(`
-        DELETE FROM quota_monitor_snapshots;
-        DELETE FROM quota_monitor_model_logs;
-      `)
+      // 恢复是“合并事实”而不是“远端覆盖本地”。云端快照可能滞后，删除本地事件会直接造成额度历史倒退。
 
       for (const row of payload.snapshots) {
         insertSnapshot.run({
@@ -602,7 +603,7 @@ export class QuotaMonitorHistoryStore {
         completion_tokens INTEGER NOT NULL,
         total_tokens INTEGER NOT NULL,
         quota REAL NOT NULL,
-        event_fingerprint TEXT,
+        event_fingerprint TEXT NOT NULL,
         fetched_at TEXT NOT NULL,
         UNIQUE (
           profile_id,
@@ -624,9 +625,9 @@ export class QuotaMonitorHistoryStore {
   }
 
   private ensureModelLogSchema(db: Database.Database): void {
-    const columns = db
-      .prepare(`PRAGMA table_info(quota_monitor_model_logs)`)
-      .all() as Array<{ name?: string }>
+    const columns = db.prepare(`PRAGMA table_info(quota_monitor_model_logs)`).all() as Array<{
+      name?: string
+    }>
     const columnNames = new Set(
       columns
         .map(column => column.name)

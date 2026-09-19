@@ -184,9 +184,9 @@ Why：
   - `pnpm pre-commit` 全绿
   - 你能清楚说明这次更新为什么值得普通用户安装
 
-## GitHub：打 Tag 自动打包（unsigned）
+## GitHub：手动打包（unsigned）
 
-本仓库已配置 GitHub Actions：当你 push 形如 `v*` 的 tag 时，会自动构建 `macOS / Windows / Linux` 三端产物，并自动创建对应的 GitHub Release。无需手动打包或手动上传产物。上传内容包括：
+本仓库仅通过 GitHub Actions 的手动触发入口构建 `macOS / Windows / Linux` 三端产物，并自动创建对应的 GitHub Release。推送 `v*` tag 不会触发构建或发布，避免日常 tag 或脚本意外产生发布邮件。上传内容包括：
 - macOS 产物（如 `*.dmg`, `*.zip`）
 - Windows 产物（如 `*.exe`）
 - Linux 产物（如 `*.AppImage`）
@@ -290,7 +290,7 @@ git push origin v0.0.1-nightly.20260426.2
 
 - 稳定版路径可以先运行 `pnpm release:version 0.2.0`，自动更新 `package.json` 和 `CHANGELOG.md` 模板。
 - `prepare-release` 会在 `major / minor` 版本自动插入 `✨ Highlights` 模板；`patch` 版本不会插入。
-- 测试版路径不需要运行 release 准备脚本；只要 push 合规 tag，CI 就会自动打包并发布 GitHub prerelease。
+- 测试版路径不需要运行 release 准备脚本；请在 GitHub Actions 页面手动运行 `Beta (Manual)`，或手动运行 `Release` 并填写测试版 tag，才会打包并发布 GitHub prerelease。
 - 如需手动覆写某个测试版的应用内 `What's New`，可新增 `build/release-notes/nightly/v<version>.json`；存在时会优先于自动生成结果。
 - Auto Update 依赖 release assets 中的 channel metadata（如 `latest.yml` / `nightly.yml`），GitHub Actions 会随构建一起上传。
 - 构建命令会自动生成 `release/release-manifest.json`，并将其嵌入安装包，同时作为 GitHub Release asset 上传。
@@ -309,32 +309,23 @@ git push origin v0.0.1-nightly.20260426.2
 
 1. 用 `git status --short` 看清哪些文件还没准备发布。
 2. 确认远端 `main` 上最后一个你认可的 commit。
-3. 直接基于那个已推送 commit 打 nightly tag：
+3. 在 GitHub Actions 页面手动运行 `Beta (Manual)`，把该 commit 的 SHA 填入 `target_ref`。
 
-```bash
-pnpm release:nightly:tag
-git tag <上一步生成的tag> origin/main
-git push origin <上一步生成的tag>
-```
-
-Why：这样测试版只包含远端 `main` 的稳定快照，你本地未提交/未完成内容完全不会被打进 release。
+Why：手动工作流会只构建指定的远端 commit；你本地未提交/未完成内容完全不会被打进 release。
 
 #### 场景 B：本地这批改动就是要拿去发测试版
 
 1. 先把这批要发布的改动整理成一个明确 commit。
 2. push 到远端分支或 `main`。
-3. 再生成 nightly tag 并 push。
+3. 再在 GitHub Actions 页面手动运行 `Beta (Manual)`，将该分支或 commit SHA 填入 `target_ref`。
 
 ```bash
 git add <准备发版的文件>
 git commit -m "chore: beta snapshot"
 git push origin HEAD
-pnpm release:nightly:tag
-git tag <上一步生成的tag>
-git push origin <上一步生成的tag>
 ```
 
-Why：GitHub Actions 只能构建远端 commit；不先提交，CI 根本拿不到你的本地修改。
+Why：GitHub Actions 只能构建远端 commit；不先提交与 push，手动工作流根本拿不到你的本地修改。
 
 #### 场景 C：本地还有很多杂乱改动，但只想拿其中一部分发测试版
 
@@ -343,15 +334,15 @@ Why：GitHub Actions 只能构建远端 commit；不先提交，CI 根本拿不�
 1. 新开一个临时分支。
 2. 只提交本次准备发 beta 的那部分文件。
 3. push 临时分支。
-4. 在该分支对应 commit 上打 nightly tag。
+4. 在 GitHub Actions 页面手动运行 `Beta (Manual)`，指定该分支或 commit SHA。
 
 如果你已经把“要发的”和“不要发的”改动混在同一批文件里，先拆干净再发；否则测试版不可追溯。
 
 ### 测试版发布前的最小清单
 
 - `git status` 已确认：你知道这次 beta 基于哪个 commit 发
-- `pnpm release:nightly:tag` 能正常生成 tag
 - 目标 commit 已 push 到 GitHub
+- 已在 GitHub Actions 的 `Beta (Manual)` 工作流中填写目标分支、tag 或 SHA
 - 若本次 beta 主要验证自动更新，建议本机已有更低版本安装包可供升级测试
 - 若需要自定义 `What's New`，提前准备 `build/release-notes/nightly/v<version>.json`
 
@@ -361,7 +352,7 @@ Why：GitHub Actions 只能构建远端 commit；不先提交，CI 根本拿不�
 
 - Workflow: `.github/workflows/nightly.yml`
 - 当前仅保留 `workflow_dispatch`，可在 GitHub Actions 页面手动触发 Beta 打包/发布
-- 你也可以继续直接 push 合规 nightly tag，例如 `v<package.json.version>-nightly.<YYYYMMDD>.<N>`，由 `.github/workflows/release.yml` 自动创建对应 prerelease
+- 如需发布指定 nightly tag，可在 `Release` 手动工作流中填写 `v<package.json.version>-nightly.<YYYYMMDD>.<N>` 和目标 commit
 
 ## 未签名/未公证的安装说明（给用户）
 

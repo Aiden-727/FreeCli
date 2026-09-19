@@ -4,6 +4,8 @@ type QuotaMonitorHistoryStoreInstance = {
   dispose: () => void
   appendSnapshot: (...args: unknown[]) => Promise<void>
   saveModelLogs: (...args: unknown[]) => Promise<number>
+  exportForSync: (...args: unknown[]) => Promise<unknown>
+  importForSync: (...args: unknown[]) => Promise<void>
   buildProfileHistory: (...args: unknown[]) => Promise<unknown>
 }
 
@@ -304,63 +306,66 @@ describe('QuotaMonitorHistoryStore', () => {
     },
   )
 
-  historyStoreIt('keeps distinct same-second model log records instead of collapsing them', async () => {
-    const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
-    stores.add(store)
-    const profileId = 'same-second-profile'
-    const fetchedAt = toIso(createLocalDate(2026, 4, 2, 12, 0))
-    const sameSecond = Math.floor(createLocalDate(2026, 4, 2, 9, 5).getTime() / 1000)
+  historyStoreIt(
+    'keeps distinct same-second model log records instead of collapsing them',
+    async () => {
+      const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
+      stores.add(store)
+      const profileId = 'same-second-profile'
+      const fetchedAt = toIso(createLocalDate(2026, 4, 2, 12, 0))
+      const sameSecond = Math.floor(createLocalDate(2026, 4, 2, 9, 5).getTime() / 1000)
 
-    const inserted = await store.saveModelLogs({
-      profileId,
-      tokenName: 'Primary',
-      fetchedAt,
-      logs: [
-        {
-          sourceId: 'log-a',
-          modelName: 'gpt-4.1',
-          requestEpochSeconds: sameSecond,
-          requestTimeText: '2026-04-02 09:05:00.100',
-          promptTokens: 100,
-          completionTokens: 50,
-          totalTokens: 150,
-          quota: 12,
-        },
-        {
-          sourceId: 'log-b',
-          modelName: 'gpt-4.1',
-          requestEpochSeconds: sameSecond,
-          requestTimeText: '2026-04-02 09:05:00.900',
-          promptTokens: 100,
-          completionTokens: 50,
-          totalTokens: 150,
-          quota: 12,
-        },
-      ],
-    })
+      const inserted = await store.saveModelLogs({
+        profileId,
+        tokenName: 'Primary',
+        fetchedAt,
+        logs: [
+          {
+            sourceId: 'log-a',
+            modelName: 'gpt-4.1',
+            requestEpochSeconds: sameSecond,
+            requestTimeText: '2026-04-02 09:05:00.100',
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+            quota: 12,
+          },
+          {
+            sourceId: 'log-b',
+            modelName: 'gpt-4.1',
+            requestEpochSeconds: sameSecond,
+            requestTimeText: '2026-04-02 09:05:00.900',
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+            quota: 12,
+          },
+        ],
+      })
 
-    const history = await store.buildProfileHistory({
-      profileId,
-      tokenName: 'Primary',
-      dailyRangeDays: 1,
-      hourlyRangeHours: 1,
-      keyType: 'normal',
-      dailyInitialQuota: 0,
-      hourlyIncreaseQuota: 0,
-      quotaCap: 0,
-      now: createLocalDate(2026, 4, 2, 12, 30),
-    })
+      const history = await store.buildProfileHistory({
+        profileId,
+        tokenName: 'Primary',
+        dailyRangeDays: 1,
+        hourlyRangeHours: 1,
+        keyType: 'normal',
+        dailyInitialQuota: 0,
+        hourlyIncreaseQuota: 0,
+        quotaCap: 0,
+        now: createLocalDate(2026, 4, 2, 12, 30),
+      })
 
-    expect(inserted).toBe(2)
-    expect(history.modelUsageSummary?.totalCalls).toBe(2)
-    expect(history.modelUsageSummary?.totalTokens).toBe(300)
-    expect(history.modelUsageSummary?.models[0]).toMatchObject({
-      modelName: 'gpt-4.1',
-      calls: 2,
-      totalTokens: 300,
-      todayTokens: 300,
-    })
-  })
+      expect(inserted).toBe(2)
+      expect(history.modelUsageSummary?.totalCalls).toBe(2)
+      expect(history.modelUsageSummary?.totalTokens).toBe(300)
+      expect(history.modelUsageSummary?.models[0]).toMatchObject({
+        modelName: 'gpt-4.1',
+        calls: 2,
+        totalTokens: 300,
+        todayTokens: 300,
+      })
+    },
+  )
 
   historyStoreIt('calculates capped insight from persisted snapshots', async () => {
     const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
@@ -411,5 +416,73 @@ describe('QuotaMonitorHistoryStore', () => {
       nextTopUpInMinutes: 40,
       nextTopUpAmount: 10,
     })
+  })
+
+  historyStoreIt('merges remote history without deleting newer local model records', async () => {
+    const store = new QuotaMonitorHistoryStoreCtor!(':memory:')
+    stores.add(store)
+    const profileId = 'merge-profile'
+    const localLog = {
+      sourceId: 'local-only',
+      modelName: 'local-model',
+      requestEpochSeconds: 1_775_091_900,
+      requestTimeText: '2026-04-02 09:05:00',
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: 15,
+      quota: 1,
+    }
+    const remoteLog = {
+      sourceId: 'remote-only',
+      modelName: 'remote-model',
+      requestEpochSeconds: 1_775_091_901,
+      requestTimeText: '2026-04-02 09:05:01',
+      promptTokens: 20,
+      completionTokens: 5,
+      totalTokens: 25,
+      quota: 2,
+    }
+    await store.saveModelLogs({
+      profileId,
+      tokenName: 'Primary',
+      fetchedAt: new Date().toISOString(),
+      logs: [localLog],
+    })
+    await store.importForSync({
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      snapshots: [],
+      modelLogs: [
+        {
+          profileId,
+          tokenName: 'Primary',
+          sourceId: remoteLog.sourceId,
+          modelName: remoteLog.modelName,
+          createdAtEpoch: remoteLog.requestEpochSeconds,
+          createdTimeText: remoteLog.requestTimeText,
+          promptTokens: remoteLog.promptTokens,
+          completionTokens: remoteLog.completionTokens,
+          totalTokens: remoteLog.totalTokens,
+          quota: remoteLog.quota,
+          fetchedAt: new Date().toISOString(),
+        },
+      ],
+    })
+    const history = (await store.buildProfileHistory({
+      profileId,
+      tokenName: 'Primary',
+      dailyRangeDays: 1,
+      hourlyRangeHours: 1,
+      keyType: 'normal',
+      dailyInitialQuota: 0,
+      hourlyIncreaseQuota: 0,
+      quotaCap: 0,
+      now: new Date(2026, 3, 2, 12, 0),
+    })) as { modelUsageSummary: { totalCalls: number; models: Array<{ modelName: string }> } }
+    expect(history.modelUsageSummary.totalCalls).toBe(2)
+    expect(history.modelUsageSummary.models.map(model => model.modelName).sort()).toEqual([
+      'local-model',
+      'remote-model',
+    ])
   })
 })
